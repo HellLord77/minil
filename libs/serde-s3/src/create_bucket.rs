@@ -56,7 +56,7 @@ pub enum LocationType {
 #[serde(rename_all = "PascalCase")]
 pub struct LocationInfo {
     pub name: Option<String>,
-    pub r#type_: Option<LocationType>,
+    pub r#type: Option<LocationType>,
 }
 
 #[derive(Debug, Deserialize)]

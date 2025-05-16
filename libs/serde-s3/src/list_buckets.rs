@@ -13,8 +13,7 @@ pub struct ListBucketsQuery {
     #[serde_inline_default(10_000)]
     pub max_buckets: u16,
     #[validate(length(min = 0, max = 1_024))]
-    #[serde(default)]
-    pub prefix: String,
+    pub prefix: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
