@@ -23,7 +23,7 @@ where
     T: DeserializeOwned,
 {
     pub fn try_from_header(value: &HeaderMap) -> Result<Self, HeaderRejection> {
-        let map = form_urlencoded::Serializer::new(String::new())
+        let header = form_urlencoded::Serializer::new(String::new())
             .extend_pairs(
                 value
                     .into_iter()
@@ -31,7 +31,7 @@ where
             )
             .finish();
         let deserializer =
-            serde_urlencoded::Deserializer::new(form_urlencoded::parse(map.as_bytes()));
+            serde_urlencoded::Deserializer::new(form_urlencoded::parse(header.as_bytes()));
         let values = serde_path_to_error::deserialize(deserializer)
             .map_err(FailedToDeserializeHeaderString::from_err)?;
         Ok(Header(values))

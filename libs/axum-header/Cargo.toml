@@ -16,5 +16,3 @@ serde_path_to_error.workspace = true
 axum.workspace = true
 axum-test.workspace = true
 tokio.workspace = true
-
-http-serde.workspace = true
