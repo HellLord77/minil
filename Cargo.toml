@@ -1,0 +1,35 @@
+[workspace]
+members = [
+    "./minil",
+    "./libs/axum-header",
+    "./libs/axum-xml",
+    "./libs/serde-s3",
+]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+
+[workspace.dependencies]
+axum-extra = { version = "0.10.1", features = ["async-read-body", "query", "typed-header"] }
+bitflags = "2.9.0"
+parking_lot = { version = "0.12.3", features = ["deadlock_detection"] }
+reqwest = { version = "0.12.15", features = ["cookies", "json"] }
+thiserror = "2.0.12"
+tokio-stream = { version = "0.1.17", features = ["full"] }
+
+axum-core = "0.5.2"
+http = "1.3.1"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_path_to_error = "0.1.17"
+
+axum = "0.8.4"
+axum-test = "17.3.0"
+tokio = "1.44.2"
+
+aws-sdk-s3 = "1.85.0"
+http-serde = "2.1.1"
+
+axum-header = { path = "./libs/axum-header" }
+axum-xml = { path = "./libs/axum-xml" }
+serde-s3 = { path = "./libs/serde-s3" }
