@@ -5,7 +5,8 @@ edition.workspace = true
 
 [dependencies]
 anyhow = "1.0.98"
-axum = { version = "0.8.4", features = ["http2", "macros", "multipart"] }
+axum = { version = "0.8.4", features = ["macros"] }
+axum-extra = { version = "0.10.1", features = ["query", "typed-header"] }
 sqlx = { version = "0.8.5", features = ["chrono", "runtime-tokio", "sqlite"] }
 tower = { version = "0.5.2", features = ["full"] }
 tower-http = { version = "0.6.4", features = ["full"] }

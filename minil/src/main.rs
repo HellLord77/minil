@@ -3,7 +3,6 @@ mod error;
 use crate::error::{Error, Result};
 use axum::{
     Router, debug_handler, debug_middleware,
-    extract::Query,
     extract::Request,
     extract::State,
     http::HeaderMap,
@@ -16,6 +15,7 @@ use axum::{
     routing::put,
     routing::{delete, get},
 };
+use axum_extra::extract::Query;
 use axum_header::Header;
 use axum_xml::Xml;
 use serde_s3::create_bucket::{CreateBucketConfiguration, CreateBucketHeader};
