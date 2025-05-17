@@ -1,4 +1,4 @@
-use axum::{routing::post, Router};
+use axum::{Router, routing::post};
 use axum_test::TestServer;
 use axum_xml::Xml;
 use http::StatusCode;

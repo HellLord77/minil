@@ -1,6 +1,7 @@
-use axum_core::__composite_rejection as composite_rejection;
-use axum_core::__define_rejection as define_rejection;
-use axum_core::extract::rejection::BytesRejection;
+use axum_core::{
+    __composite_rejection as composite_rejection, __define_rejection as define_rejection,
+    extract::rejection::BytesRejection,
+};
 
 define_rejection! {
     #[status = UNPROCESSABLE_ENTITY]

@@ -1,4 +1,4 @@
-use crate::{rejection::FailedToDeserializeHeaderString, rejection::HeaderRejection};
+use crate::rejection::{FailedToDeserializeHeaderString, HeaderRejection};
 use axum_core::extract::FromRequestParts;
 use http::{HeaderMap, request::Parts};
 use serde::de::DeserializeOwned;
@@ -26,8 +26,8 @@ where
         let header = form_urlencoded::Serializer::new(String::new())
             .extend_pairs(
                 value
-                    .into_iter()
-                    .map(|(name, value)| (name, value.to_str().unwrap_or_default())),
+                    .iter()
+                    .map(|(name, value)| (name, value.to_str().unwrap())),
             )
             .finish();
         let deserializer =

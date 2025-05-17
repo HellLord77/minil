@@ -1,5 +1,4 @@
-use quick_xml::DeError;
-use quick_xml::Error;
+use quick_xml::{DeError, Error};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub(crate) enum Category {

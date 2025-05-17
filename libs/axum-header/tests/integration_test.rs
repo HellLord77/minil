@@ -1,10 +1,10 @@
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use axum_core::{body::Body, extract::FromRequest};
 use axum_header::Header;
 use axum_test::TestServer;
 use http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode};
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 
 async fn check<T>(header: HeaderMap, value: T)

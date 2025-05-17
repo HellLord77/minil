@@ -5,9 +5,9 @@ pub mod list_buckets;
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]
-    use aws_sdk_s3::{
-        operation::create_bucket::{CreateBucketInput, CreateBucketOutput},
-        operation::delete_bucket::{DeleteBucketInput, DeleteBucketOutput},
-        operation::list_buckets::{ListBucketsInput, ListBucketsOutput},
+    use aws_sdk_s3::operation::{
+        create_bucket::{CreateBucketInput, CreateBucketOutput},
+        delete_bucket::{DeleteBucketInput, DeleteBucketOutput},
+        list_buckets::{ListBucketsInput, ListBucketsOutput},
     };
 }

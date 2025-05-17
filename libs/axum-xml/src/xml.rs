@@ -1,20 +1,17 @@
 use crate::{
     category::Category,
-    rejection::XmlRejection,
-    rejection::{MissingXmlContentType, XmlDataError, XmlSyntaxError},
+    rejection::{MissingXmlContentType, XmlDataError, XmlRejection, XmlSyntaxError},
 };
 use axum_core::{
-    extract::FromRequest,
-    extract::OptionalFromRequest,
-    extract::Request,
+    extract::{FromRequest, OptionalFromRequest, Request},
     response::{IntoResponse, Response},
 };
 use bytes::{BufMut, Bytes, BytesMut};
 use http::{
-    header::{self, HeaderMap, HeaderValue},
     StatusCode,
+    header::{self, HeaderMap, HeaderValue},
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 #[derive(Debug, Clone, Copy, Default)]
 #[must_use]
