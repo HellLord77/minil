@@ -3,26 +3,19 @@ mod error;
 use crate::error::{Error, Result};
 use axum::{
     Router, debug_handler, debug_middleware,
-    extract::Request,
-    extract::State,
-    http::HeaderMap,
-    http::HeaderValue,
-    http::StatusCode,
-    http::header,
+    extract::{Request, State},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::Next,
-    response::IntoResponse,
-    response::Response,
-    routing::put,
-    routing::{delete, get},
+    response::{IntoResponse, Response},
+    routing::{delete, get, put},
 };
 use axum_extra::extract::Query;
-use axum_header::Header;
+use axum_extra_header::Header;
 use axum_xml::Xml;
-use serde_s3::create_bucket::{CreateBucketConfiguration, CreateBucketHeader};
-use serde_s3::delete_bucket::DeleteBucketHeader;
 use serde_s3::{
-    delete_bucket::DeleteBucketQuery, list_buckets::ListAllMyBucketsResult,
-    list_buckets::ListBucketsQuery,
+    create_bucket::{CreateBucketConfiguration, CreateBucketHeader},
+    delete_bucket::{DeleteBucketHeader, DeleteBucketQuery},
+    list_buckets::{ListAllMyBucketsResult, ListBucketsQuery},
 };
 use sqlx::{SqlitePool, migrate};
 use std::{net::Ipv4Addr, time::Instant};

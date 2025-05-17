@@ -6,7 +6,7 @@ edition.workspace = true
 [dependencies]
 anyhow = "1.0.98"
 axum = { version = "0.8.4", features = ["macros"] }
-axum-extra = { version = "0.10.1", features = ["query", "typed-header"] }
+axum-extra = { version = "0.10.1", features = ["query"] }
 sqlx = { version = "0.8.5", features = ["chrono", "runtime-tokio", "sqlite"] }
 tower = { version = "0.5.2", features = ["full"] }
 tower-http = { version = "0.6.4", features = ["full"] }
@@ -15,6 +15,6 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 tokio = { workspace = true, features = ["full"] }
 
-axum-header.workspace = true
+axum-extra-header.workspace = true
 axum-xml.workspace = true
 serde-s3.workspace = true
