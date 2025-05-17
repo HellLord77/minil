@@ -15,9 +15,10 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_path_to_error = "0.1.17"
 tokio = "1.45.0"
 
+axum-extra-header = { path = "libs/axum-extra-header" }
 axum-header = { path = "libs/axum-header" }
 axum-xml = { path = "libs/axum-xml" }
 serde-s3 = { path = "libs/serde-s3" }
 
 aws-sdk-s3 = "1.85.0"
-http-serde = "2.1.1"
+headers = "0.4.0"
