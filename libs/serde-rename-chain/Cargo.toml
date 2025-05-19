@@ -1,6 +1,6 @@
 [package]
 name = "serde-rename-chain"
-version = "0.1.1"
+version = "0.2.0"
 edition.workspace = true
 
 [lib]
@@ -9,17 +9,20 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "1.0.95"
 quote = "1.0.40"
+strum = { version = "0.27.1", features = ["derive"] }
 syn = { version = "2.0.101", features = ["full"] }
 
 convert_case = { version = "0.8.0", optional = true }
 heck = { version = "0.5.0", optional = true }
+ident_case = { version = "1.0.1", optional = true }
 Inflector = { version = "0.11.4", default-features = false, optional = true }
 
 [features]
-default = []
+default = ["ident_case"]
 convert_case = ["dep:convert_case"]
 convert_case_random = ["convert_case", "convert_case/random"]
 heck = ["dep:heck"]
+ident_case = ["dep:ident_case"]
 inflector = ["dep:Inflector"]
 inflector_heavyweight = ["inflector", "Inflector/heavyweight"]
-full = ["convert_case_random", "inflector_heavyweight"]
+full = ["convert_case_random", "ident_case", "inflector_heavyweight"]

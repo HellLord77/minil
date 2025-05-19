@@ -1,8 +1,18 @@
 #[cfg(all(feature = "heck", feature = "inflector"))]
 compile_error!("The `heck` and `inflector` features are mutually exclusive");
 
+mod error;
 mod rename_chain;
 mod renamer;
+
+#[cfg(feature = "convert_case")]
+mod convert_case;
+#[cfg(feature = "heck")]
+mod heck;
+#[cfg(feature = "ident_case")]
+mod ident_case;
+#[cfg(feature = "inflector")]
+mod inflector;
 
 use crate::rename_chain::rename_chain_impl;
 use proc_macro::TokenStream;

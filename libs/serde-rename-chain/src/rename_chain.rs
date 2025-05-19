@@ -1,4 +1,4 @@
-use crate::renamer::{Renamer, RenamerError};
+use crate::{error::RenamerError, renamer::Renamer};
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
@@ -25,63 +25,13 @@ fn parse_rename_with_args(args: Punctuated<Meta, Comma>) -> Result<Vec<Renamer>,
                     lit_str.value().as_str(),
                 ) {
                     Ok(renamer) => renamers.push(renamer),
-                    Err(RenamerError::Name) => {
-                        let mut message = "Expected one of: add_prefix, \
-                            add_suffix, strip_prefix, strip_suffix, rename_rule"
-                            .to_owned();
-                        if cfg!(feature = "convert_case") {
-                            message += ", convert_case";
-                        }
-                        if cfg!(feature = "heck") {
-                            message += ", heck";
-                        }
-                        if cfg!(feature = "inflector") {
-                            message += ", inflector";
-                        }
-                        return Err(Error::new_spanned(path, message));
+                    Err(err @ RenamerError::Name(_)) => {
+                        return Err(Error::new_spanned(path, err.to_string()));
                     }
-                    Err(RenamerError::RenameRule) => {
-                        let message = "Expected one of: none, lower, upper, pascal, \
-                            camel, snake, screaming_snake, kebab, screaming_kebab";
-                        return Err(Error::new_spanned(lit_str, message));
-                    }
-                    #[cfg(feature = "convert_case")]
-                    Err(RenamerError::ConvertCase) => {
-                        let mut message = "Expected one of: snake, constant, upper_snake, \
-                            ada, kebab, cobol, upper_kebab, train, flat, upper_flat, pascal, \
-                            upper_camel, lower, upper, title, sentence, alternating, toggle"
-                            .to_owned();
-                        if cfg!(feature = "convert_case_random") {
-                            message += ", random, pseudo_random";
-                        }
-                        return Err(Error::new_spanned(lit_str, message));
-                    }
-                    #[cfg(feature = "heck")]
-                    Err(RenamerError::Heck) => {
-                        let message = "Expected one of: kebab, lower_camel, shouty_kebab, shouty_snake, \
-                            shouty_snek, snake, snek, title, train, upper_camel, pascal";
-                        return Err(Error::new_spanned(lit_str, message));
-                    }
-                    #[cfg(feature = "inflector")]
-                    Err(RenamerError::Inflector) => {
-                        let mut message =
-                            "Expected one of: camel, pascal, snake, screaming_snake, \
-                            kebab, train, sentence, title, foreign_key"
-                                .to_owned();
-                        if cfg!(feature = "inflector_heavyweight") {
-                            message += ", class, table, plural, singular";
-                        }
-                        return Err(Error::new_spanned(lit_str, message));
+                    Err(err @ RenamerError::Value(_)) => {
+                        return Err(Error::new_spanned(lit_str, err.to_string()));
                     }
                 };
-            }
-            Meta::NameValue(MetaNameValue {
-                path,
-                value: Expr::Path(expr_path),
-                ..
-            }) if path.is_ident("custom_fn") => {
-                dbg!(&expr_path.to_token_stream());
-                todo!();
             }
             _ => {
                 return Err(Error::new_spanned(arg, "Expected name = \"value\""));

@@ -25,7 +25,7 @@ pub enum ObjectOwnership {
     BucketOwnerEnforced,
 }
 
-#[serde_rename_chain(add_prefix = "x_amz_", rename_rule = "kebab")]
+#[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
 #[derive(Debug, Deserialize)]
 pub struct CreateBucketHeader {
     pub acl: Option<BucketCannedAcl>,
