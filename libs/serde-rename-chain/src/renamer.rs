@@ -8,11 +8,24 @@ use heck::{
 #[cfg(feature = "inflector")]
 use inflector::Inflector;
 
+pub(crate) enum RenameRule {
+    None,
+    LowerCase,
+    UpperCase,
+    PascalCase,
+    CamelCase,
+    SnakeCase,
+    ScreamingSnakeCase,
+    KebabCase,
+    ScreamingKebabCase,
+}
+
 pub(crate) enum Renamer {
     AddPrefix(String),
     AddSuffix(String),
     StripPrefix(String),
     StripSuffix(String),
+    RenameRule(RenameRule),
     #[cfg(feature = "convert_case")]
     ConvertCase(Case<'static>),
     #[cfg(feature = "heck")]
@@ -28,6 +41,21 @@ impl Renamer {
             "add_suffix" => Renamer::AddSuffix(value.to_owned()),
             "strip_prefix" => Renamer::StripPrefix(value.to_owned()),
             "strip_suffix" => Renamer::StripSuffix(value.to_owned()),
+            "rename_rule" => {
+                let rename_rule = match value {
+                    "none" => RenameRule::None,
+                    "lower" => RenameRule::LowerCase,
+                    "upper" => RenameRule::UpperCase,
+                    "pascal" => RenameRule::PascalCase,
+                    "camel" => RenameRule::CamelCase,
+                    "snake" => RenameRule::SnakeCase,
+                    "screaming_snake" => RenameRule::ScreamingSnakeCase,
+                    "kebab" => RenameRule::KebabCase,
+                    "screaming_kebab" => RenameRule::ScreamingKebabCase,
+                    _ => return Err(RenamerError::RenameRule),
+                };
+                Renamer::RenameRule(rename_rule)
+            }
             #[cfg(feature = "convert_case")]
             "convert_case" => {
                 let convert_case = match value {
@@ -107,6 +135,33 @@ impl Renamer {
             Renamer::AddSuffix(suffix) => format!("{}{}", name, suffix),
             Renamer::StripPrefix(prefix) => name.strip_prefix(prefix).unwrap_or(name).to_owned(),
             Renamer::StripSuffix(suffix) => name.strip_suffix(suffix).unwrap_or(name).to_owned(),
+            Renamer::RenameRule(rename_rule) => match rename_rule {
+                RenameRule::None | RenameRule::PascalCase => name.to_owned(),
+                RenameRule::LowerCase => name.to_ascii_lowercase(),
+                RenameRule::UpperCase => name.to_ascii_uppercase(),
+                RenameRule::CamelCase => name[..1].to_ascii_lowercase() + &name[1..],
+                RenameRule::SnakeCase => {
+                    let mut snake = String::new();
+                    for (i, ch) in name.char_indices() {
+                        if i > 0 && ch.is_uppercase() {
+                            snake.push('_');
+                        }
+                        snake.push(ch.to_ascii_lowercase());
+                    }
+                    snake
+                }
+                RenameRule::ScreamingSnakeCase => Renamer::RenameRule(RenameRule::SnakeCase)
+                    .apply(name)
+                    .to_ascii_uppercase(),
+                RenameRule::KebabCase => Renamer::RenameRule(RenameRule::SnakeCase)
+                    .apply(name)
+                    .replace('_', "-"),
+                RenameRule::ScreamingKebabCase => {
+                    Renamer::RenameRule(RenameRule::ScreamingSnakeCase)
+                        .apply(name)
+                        .replace('_', "-")
+                }
+            },
             #[cfg(feature = "convert_case")]
             Renamer::ConvertCase(convert_case) => name.to_case(*convert_case),
             #[cfg(feature = "heck")]
@@ -119,6 +174,7 @@ impl Renamer {
 
 pub(crate) enum RenamerError {
     Name,
+    RenameRule,
     #[cfg(feature = "convert_case")]
     ConvertCase,
     #[cfg(feature = "heck")]

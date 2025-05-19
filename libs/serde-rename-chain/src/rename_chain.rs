@@ -27,7 +27,7 @@ fn parse_rename_with_args(args: Punctuated<Meta, Comma>) -> Result<Vec<Renamer>,
                     Ok(renamer) => renamers.push(renamer),
                     Err(RenamerError::Name) => {
                         let mut message = "Expected one of: add_prefix, \
-                            add_suffix, strip_prefix, strip_suffix"
+                            add_suffix, strip_prefix, strip_suffix, rename_rule"
                             .to_owned();
                         if cfg!(feature = "convert_case") {
                             message += ", convert_case";
@@ -39,6 +39,11 @@ fn parse_rename_with_args(args: Punctuated<Meta, Comma>) -> Result<Vec<Renamer>,
                             message += ", inflector";
                         }
                         return Err(Error::new_spanned(path, message));
+                    }
+                    Err(RenamerError::RenameRule) => {
+                        let message = "Expected one of: none, lower, upper, pascal, \
+                            camel, snake, screaming_snake, kebab, screaming_kebab";
+                        return Err(Error::new_spanned(lit_str, message));
                     }
                     #[cfg(feature = "convert_case")]
                     Err(RenamerError::ConvertCase) => {
