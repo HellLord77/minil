@@ -11,12 +11,12 @@ use crate::ident_case::IdentCase;
 #[cfg(feature = "inflector")]
 use crate::inflector::Inflector;
 
-pub(crate) enum RenamerError {
-    Name(String),
-    Value(ValueError),
+pub(crate) enum RenamerError<'a> {
+    Name(&'a str),
+    Value(ValueError<'a>),
 }
 
-impl Display for RenamerError {
+impl Display for RenamerError<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let message = match self {
             RenamerError::Name(unknown) => {
@@ -31,18 +31,18 @@ impl Display for RenamerError {
     }
 }
 
-pub(crate) enum ValueError {
+pub(crate) enum ValueError<'a> {
     #[cfg(feature = "ident_case")]
-    IdentCase(String),
+    IdentCase(&'a str),
     #[cfg(feature = "convert_case")]
-    ConvertCase(String),
+    ConvertCase(&'a str),
     #[cfg(feature = "heck")]
-    Heck(String),
+    Heck(&'a str),
     #[cfg(feature = "inflector")]
-    Inflector(String),
+    Inflector(&'a str),
 }
 
-impl Display for ValueError {
+impl Display for ValueError<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let (name, unknown, variants) = match self {
             #[cfg(feature = "ident_case")]

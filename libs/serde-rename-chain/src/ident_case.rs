@@ -1,4 +1,4 @@
-use crate::{error::RenamerError, error::ValueError};
+use crate::error::{RenamerError, ValueError};
 use ident_case::RenameRule;
 use std::str::FromStr;
 use strum::{EnumString, VariantNames};
@@ -17,7 +17,7 @@ pub(crate) enum IdentCase {
 
 impl IdentCase {
     pub(crate) fn try_from_str(s: &str) -> Result<Self, RenamerError> {
-        Self::from_str(s).map_err(|_| RenamerError::Value(ValueError::IdentCase(s.to_owned())))
+        Self::from_str(s).map_err(|_| RenamerError::Value(ValueError::IdentCase(s)))
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {

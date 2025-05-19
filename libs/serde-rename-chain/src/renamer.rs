@@ -28,7 +28,7 @@ pub(crate) enum Renamer {
 }
 
 impl Renamer {
-    pub(crate) fn try_from_arg(n: &str, v: &str) -> Result<Self, RenamerError> {
+    pub(crate) fn try_from_arg<'a>(n: &'a str, v: &'a str) -> Result<Self, RenamerError<'a>> {
         let renamer = match n {
             "add_prefix" => Renamer::AddPrefix(v.to_owned()),
             "add_suffix" => Renamer::AddSuffix(v.to_owned()),
@@ -42,15 +42,15 @@ impl Renamer {
             "heck" => Renamer::Heck(Heck::try_from_str(v)?),
             #[cfg(feature = "inflector")]
             "inflector" => Renamer::Inflector(Inflector::try_from_str(v)?),
-            _ => return Err(RenamerError::Name(n.to_owned())),
+            _ => return Err(RenamerError::Name(n)),
         };
         Ok(renamer)
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {
         match self {
-            Renamer::AddPrefix(prefix) => prefix.to_owned() + s,
-            Renamer::AddSuffix(suffix) => s.to_owned() + suffix,
+            Renamer::AddPrefix(prefix) => format!("{prefix}{s}"),
+            Renamer::AddSuffix(suffix) => format!("{s}{suffix}"),
             Renamer::StripPrefix(prefix) => s.strip_prefix(prefix).unwrap_or(s).to_owned(),
             Renamer::StripSuffix(suffix) => s.strip_suffix(suffix).unwrap_or(s).to_owned(),
             #[cfg(feature = "ident_case")]
@@ -58,7 +58,7 @@ impl Renamer {
             #[cfg(feature = "convert_case")]
             Renamer::ConvertCase(convert_case) => convert_case.apply(s),
             #[cfg(feature = "heck")]
-            Renamer::Heck(heck) => heck(s),
+            Renamer::Heck(heck) => heck.apply(s),
             #[cfg(feature = "inflector")]
             Renamer::Inflector(inflector) => inflector.apply(s),
         }

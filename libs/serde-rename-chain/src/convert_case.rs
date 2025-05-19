@@ -33,7 +33,7 @@ pub(crate) enum ConvertCase {
 
 impl ConvertCase {
     pub(crate) fn try_from_str(s: &str) -> Result<Self, RenamerError> {
-        Self::from_str(s).map_err(|_| RenamerError::Value(ValueError::ConvertCase(s.to_owned())))
+        Self::from_str(s).map_err(|_| RenamerError::Value(ValueError::ConvertCase(s)))
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {

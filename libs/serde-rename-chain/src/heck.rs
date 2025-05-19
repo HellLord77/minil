@@ -1,9 +1,8 @@
 use crate::{error::RenamerError, error::ValueError};
 use heck::{
-    ToKebabCase, ToLowerCamelCase, ToPascalCase, ToShoutyKebabCase, ToShoutySnakeCase, ToSnakeCase,
-    ToTitleCase, ToTrainCase, ToUpperCamelCase,
+    ToKebabCase, ToLowerCamelCase, ToPascalCase, ToShoutyKebabCase, ToShoutySnakeCase,
+    ToShoutySnekCase, ToSnakeCase, ToSnekCase, ToTitleCase, ToTrainCase, ToUpperCamelCase,
 };
-use ident_case::RenameRule;
 use std::str::FromStr;
 use strum::{EnumString, VariantNames};
 
@@ -25,7 +24,7 @@ pub(crate) enum Heck {
 
 impl Heck {
     pub(crate) fn try_from_str(s: &str) -> Result<Self, RenamerError> {
-        Self::from_str(s).map_err(|_| RenamerError::Value(ValueError::IdentCase))
+        Self::from_str(s).map_err(|_| RenamerError::Value(ValueError::Heck(s)))
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {
