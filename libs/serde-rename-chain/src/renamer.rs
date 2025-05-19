@@ -1,4 +1,4 @@
-use crate::error::RenamerError;
+use crate::{error::RenamerError, str::Str};
 use strum::VariantNames;
 
 #[cfg(feature = "convert_case")]
@@ -17,6 +17,7 @@ pub(crate) enum Renamer {
     AddSuffix(String),
     StripPrefix(String),
     StripSuffix(String),
+    Str(Str),
     #[cfg(feature = "ident_case")]
     IdentCase(IdentCase),
     #[cfg(feature = "convert_case")]
@@ -34,6 +35,7 @@ impl Renamer {
             "add_suffix" => Renamer::AddSuffix(v.to_owned()),
             "strip_prefix" => Renamer::StripPrefix(v.to_owned()),
             "strip_suffix" => Renamer::StripSuffix(v.to_owned()),
+            "str" => Renamer::Str(Str::try_from_str(v)?),
             #[cfg(feature = "ident_case")]
             "ident_case" => Renamer::IdentCase(IdentCase::try_from_str(v)?),
             #[cfg(feature = "convert_case")]
@@ -53,6 +55,7 @@ impl Renamer {
             Renamer::AddSuffix(suffix) => format!("{s}{suffix}"),
             Renamer::StripPrefix(prefix) => s.strip_prefix(prefix).unwrap_or(s).to_owned(),
             Renamer::StripSuffix(suffix) => s.strip_suffix(suffix).unwrap_or(s).to_owned(),
+            Renamer::Str(str) => str.apply(s),
             #[cfg(feature = "ident_case")]
             Renamer::IdentCase(ident_case) => ident_case.apply(s),
             #[cfg(feature = "convert_case")]

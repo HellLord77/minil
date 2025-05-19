@@ -4,6 +4,7 @@ compile_error!("The `heck` and `inflector` features are mutually exclusive");
 mod error;
 mod rename_chain;
 mod renamer;
+mod str;
 
 #[cfg(feature = "convert_case")]
 mod convert_case;

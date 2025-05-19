@@ -1,4 +1,4 @@
-use crate::renamer::Renamer;
+use crate::{renamer::Renamer, str::Str};
 use std::fmt::{Display, Formatter, Result};
 use strum::VariantNames;
 
@@ -32,6 +32,7 @@ impl Display for RenamerError<'_> {
 }
 
 pub(crate) enum ValueError<'a> {
+    Str(&'a str),
     #[cfg(feature = "ident_case")]
     IdentCase(&'a str),
     #[cfg(feature = "convert_case")]
@@ -44,7 +45,8 @@ pub(crate) enum ValueError<'a> {
 
 impl Display for ValueError<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let (name, unknown, variants) = match self {
+        let (n, unknown, variants) = match self {
+            ValueError::Str(unknown) => ("str", unknown, Str::VARIANTS),
             #[cfg(feature = "ident_case")]
             ValueError::IdentCase(unknown) => ("ident_case", unknown, IdentCase::VARIANTS),
             #[cfg(feature = "convert_case")]
@@ -56,7 +58,7 @@ impl Display for ValueError<'_> {
         };
         write!(
             f,
-            "unknown {name} `{unknown}`, expected one of: {}",
+            "unknown {n} `{unknown}`, expected one of: {}",
             variants.join(", ")
         )
     }
