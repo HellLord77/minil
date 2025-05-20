@@ -5,6 +5,19 @@ use syn::{
     punctuated::Punctuated, spanned::Spanned,
 };
 
+#[macro_export]
+macro_rules! bail {
+    ($span:expr, $message:literal $(,)?) => {
+        return std::result::Result::Err(syn::Error::new($span, $message))
+    };
+    ($span:expr, $err:expr $(,)?) => {
+        return std::result::Result::Err(syn::Error::new($span, $err))
+    };
+    ($span:expr, $fmt:expr, $($arg:tt)*) => {
+        return std::result::Result::Err(syn::Error::new($span, std::format!($fmt, $($arg)*)))
+    };
+}
+
 trait IteratorExt {
     fn collect_error(self) -> syn::Result<()>
     where
@@ -90,7 +103,7 @@ where
         apply_on_fields(&mut input.fields, function)?;
         Ok(quote!(#input))
     } else {
-        Err(syn::Error::new(Span::call_site(), "expected struct"))
+        bail!(Span::call_site(), "expected struct")
     }
 }
 
@@ -110,6 +123,10 @@ where
             .collect_error()?;
         Ok(quote!(#input))
     } else {
-        Err(syn::Error::new(Span::call_site(), "expected enum"))
+        bail!(Span::call_site(), "expected enum");
     }
+}
+
+pub fn into_macro_output(input: syn::Result<TokenStream2>) -> TokenStream {
+    input.unwrap_or_else(|err| err.to_compile_error()).into()
 }
