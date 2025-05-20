@@ -5,7 +5,7 @@ use quote::ToTokens;
 use syn::{
     Expr, ExprLit, Lit, Meta, MetaNameValue, parse_quote, punctuated::Punctuated, token::Comma,
 };
-use syn_utils::{apply_function_to_struct_and_enum_fields, field_has_attribute};
+use syn_utils::{apply_function_to_struct_fields, field_has_attribute};
 
 fn parse_rename_with_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>> {
     let mut renamers = vec![];
@@ -18,7 +18,7 @@ fn parse_rename_with_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Rena
                 ..
             }) if path.is_ident("crabtime") => {
                 dbg!(&expr_path.to_token_stream());
-                todo!();
+                // todo!();
             }
             Meta::NameValue(MetaNameValue {
                 path,
@@ -58,7 +58,7 @@ pub(super) fn rename_all_chain_impl(
 ) -> syn::Result<TokenStream2> {
     let renamers = parse_rename_with_args(args)?;
 
-    apply_function_to_struct_and_enum_fields(input, |field| {
+    apply_function_to_struct_fields(input, |field| {
         if field_has_attribute(field, "serde", "rename") {
             return Ok(());
         }

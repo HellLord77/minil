@@ -78,7 +78,7 @@ pub fn field_has_attribute(field: &Field, namespace: &str, name: &str) -> bool {
     false
 }
 
-pub fn apply_function_to_struct_and_enum_fields<F>(
+pub fn apply_function_to_struct_fields<F>(
     input: TokenStream,
     function: F,
 ) -> syn::Result<TokenStream2>
@@ -89,7 +89,20 @@ where
     if let Ok(mut input) = parse::<ItemStruct>(input.clone()) {
         apply_on_fields(&mut input.fields, function)?;
         Ok(quote!(#input))
-    } else if let Ok(mut input) = parse::<ItemEnum>(input) {
+    } else {
+        Err(syn::Error::new(Span::call_site(), "expected struct"))
+    }
+}
+
+pub fn apply_function_to_enum_fields<F>(
+    input: TokenStream,
+    function: F,
+) -> syn::Result<TokenStream2>
+where
+    F: Copy,
+    F: Fn(&mut Field) -> Result<(), String>,
+{
+    if let Ok(mut input) = parse::<ItemEnum>(input) {
         input
             .variants
             .iter_mut()
@@ -97,9 +110,6 @@ where
             .collect_error()?;
         Ok(quote!(#input))
     } else {
-        Err(syn::Error::new(
-            Span::call_site(),
-            "expected one of struct, enum",
-        ))
+        Err(syn::Error::new(Span::call_site(), "expected enum"))
     }
 }
