@@ -11,26 +11,6 @@ use crate::ident_case::IdentCase;
 #[cfg(feature = "inflector")]
 use crate::inflector::Inflector;
 
-pub(crate) enum RenamerError<'a> {
-    Name(&'a str),
-    Value(ValueError<'a>),
-}
-
-impl Display for RenamerError<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let message = match self {
-            RenamerError::Name(unknown) => {
-                format!(
-                    "unknown renamer `{unknown}`, expected one of {}",
-                    Renamer::VARIANTS.join(", ")
-                )
-            }
-            RenamerError::Value(err) => err.to_string(),
-        };
-        write!(f, "{}", message)
-    }
-}
-
 pub(crate) enum ValueError<'a> {
     Str(&'a str),
     #[cfg(feature = "ident_case")]
@@ -61,5 +41,25 @@ impl Display for ValueError<'_> {
             "unknown {n} `{unknown}`, expected one of: {}",
             variants.join(", ")
         )
+    }
+}
+
+pub(crate) enum RenamerError<'a> {
+    Name(&'a str),
+    Value(ValueError<'a>),
+}
+
+impl Display for RenamerError<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let message = match self {
+            RenamerError::Name(unknown) => {
+                format!(
+                    "unknown renamer `{unknown}`, expected one of {}",
+                    Renamer::VARIANTS.join(", ")
+                )
+            }
+            RenamerError::Value(err) => err.to_string(),
+        };
+        write!(f, "{}", message)
     }
 }
