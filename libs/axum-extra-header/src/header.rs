@@ -1,7 +1,6 @@
-use crate::{
-    HeaderRejection,
-    rejection::{FailedToDeserializeHeaderString, OptionalHeaderRejection},
-};
+use crate::HeaderRejection;
+use crate::rejection::FailedToDeserializeHeaderString;
+use crate::rejection::OptionalHeaderRejection;
 use axum_core::extract::FromRequestParts;
 use http::request::Parts;
 use serde::de::DeserializeOwned;

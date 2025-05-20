@@ -1,7 +1,8 @@
 use crate::error::ValueError;
 use ident_case::RenameRule;
 use std::str::FromStr;
-use strum::{EnumString, VariantNames};
+use strum::EnumString;
+use strum::VariantNames;
 
 #[derive(EnumString, VariantNames)]
 #[strum(serialize_all = "snake_case")]

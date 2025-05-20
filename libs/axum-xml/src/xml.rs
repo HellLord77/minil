@@ -1,17 +1,22 @@
-use crate::{
-    category::Category,
-    rejection::{MissingXmlContentType, XmlDataError, XmlRejection, XmlSyntaxError},
-};
-use axum_core::{
-    extract::{FromRequest, OptionalFromRequest, Request},
-    response::{IntoResponse, Response},
-};
-use bytes::{BufMut, Bytes, BytesMut};
-use http::{
-    StatusCode,
-    header::{self, HeaderMap, HeaderValue},
-};
-use serde::{Serialize, de::DeserializeOwned};
+use crate::category::Category;
+use crate::rejection::MissingXmlContentType;
+use crate::rejection::XmlDataError;
+use crate::rejection::XmlRejection;
+use crate::rejection::XmlSyntaxError;
+use axum_core::extract::FromRequest;
+use axum_core::extract::OptionalFromRequest;
+use axum_core::extract::Request;
+use axum_core::response::IntoResponse;
+use axum_core::response::Response;
+use bytes::BufMut;
+use bytes::Bytes;
+use bytes::BytesMut;
+use http::StatusCode;
+use http::header::HeaderMap;
+use http::header::HeaderValue;
+use http::header::{self};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 #[derive(Debug, Clone, Copy, Default)]
 #[must_use]

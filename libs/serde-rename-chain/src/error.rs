@@ -1,5 +1,7 @@
-use crate::{renamer::Renamer, str::Str};
-use std::fmt::{Display, Formatter};
+use crate::renamer::Renamer;
+use crate::str::Str;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use strum::VariantNames;
 
 #[cfg(feature = "convert_case")]

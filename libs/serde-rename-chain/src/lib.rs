@@ -17,7 +17,10 @@ mod inflector;
 
 use crate::rename_chain::rename_all_chain_impl;
 use proc_macro::TokenStream;
-use syn::{Meta, Token, parse_macro_input, punctuated::Punctuated};
+use syn::Meta;
+use syn::Token;
+use syn::parse_macro_input;
+use syn::punctuated::Punctuated;
 use syn_utils::into_macro_output;
 
 pub(crate) use crate::error::Error;

@@ -1,10 +1,18 @@
 use crate::error::ValueError;
-use heck::{
-    ToKebabCase, ToLowerCamelCase, ToPascalCase, ToShoutyKebabCase, ToShoutySnakeCase,
-    ToShoutySnekCase, ToSnakeCase, ToSnekCase, ToTitleCase, ToTrainCase, ToUpperCamelCase,
-};
+use heck::ToKebabCase;
+use heck::ToLowerCamelCase;
+use heck::ToPascalCase;
+use heck::ToShoutyKebabCase;
+use heck::ToShoutySnakeCase;
+use heck::ToShoutySnekCase;
+use heck::ToSnakeCase;
+use heck::ToSnekCase;
+use heck::ToTitleCase;
+use heck::ToTrainCase;
+use heck::ToUpperCamelCase;
 use std::str::FromStr;
-use strum::{EnumString, VariantNames};
+use strum::EnumString;
+use strum::VariantNames;
 
 #[derive(EnumString, VariantNames)]
 #[strum(serialize_all = "snake_case")]

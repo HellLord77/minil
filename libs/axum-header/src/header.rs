@@ -1,6 +1,8 @@
-use crate::rejection::{FailedToDeserializeHeaderString, HeaderRejection};
+use crate::rejection::FailedToDeserializeHeaderString;
+use crate::rejection::HeaderRejection;
 use axum_core::extract::FromRequestParts;
-use http::{HeaderMap, request::Parts};
+use http::HeaderMap;
+use http::request::Parts;
 use serde::de::DeserializeOwned;
 
 #[derive(Debug, Clone, Copy, Default)]

@@ -2,11 +2,18 @@ use crate::renamer::Renamer;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
-use syn::{
-    Expr, ExprLit, Lit, Meta, MetaNameValue, parse_quote, punctuated::Punctuated, spanned::Spanned,
-    token::Comma,
-};
-use syn_utils::{apply_function_to_struct_fields, bail, field_has_attribute};
+use syn::Expr;
+use syn::ExprLit;
+use syn::Lit;
+use syn::Meta;
+use syn::MetaNameValue;
+use syn::parse_quote;
+use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
+use syn::token::Comma;
+use syn_utils::apply_function_to_struct_fields;
+use syn_utils::bail;
+use syn_utils::field_has_attribute;
 
 fn renamers_from_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>> {
     let mut renamers = vec![];

@@ -1,4 +1,4 @@
-use quick_xml::{DeError, Error};
+use quick_xml::DeError;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub(super) enum Category {
@@ -12,7 +12,7 @@ impl Category {
     pub(super) fn classify(err: &DeError) -> Category {
         match err {
             DeError::InvalidXml(err) => match err {
-                Error::Io(_) => Category::Io,
+                quick_xml::Error::Io(_) => Category::Io,
                 _ => Category::Syntax,
             },
             DeError::Custom(_) | DeError::KeyNotRead | DeError::UnexpectedStart(_) => {

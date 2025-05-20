@@ -1,9 +1,17 @@
-use proc_macro2::{Span, TokenStream as TokenStream2};
+use proc_macro2::Span;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{
-    __private::TokenStream, Field, Fields, ItemEnum, ItemStruct, Meta, Token, parse, parse::Parser,
-    punctuated::Punctuated, spanned::Spanned,
-};
+use syn::__private::TokenStream;
+use syn::Field;
+use syn::Fields;
+use syn::ItemEnum;
+use syn::ItemStruct;
+use syn::Meta;
+use syn::Token;
+use syn::parse;
+use syn::parse::Parser;
+use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 
 #[macro_export]
 macro_rules! bail {
