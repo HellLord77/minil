@@ -99,7 +99,7 @@ where
     } else {
         Err(syn::Error::new(
             Span::call_site(),
-            "The attribute can only be applied to struct or enum definitions.",
+            "expected one of struct, enum",
         ))
     }
 }

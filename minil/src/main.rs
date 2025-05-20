@@ -138,7 +138,7 @@ async fn delete_bucket(
 #[debug_handler]
 async fn list_buckets(
     Query(query): Query<ListBucketsQuery>,
-    State(pool): State<SqlitePool>,
+    State(_pool): State<SqlitePool>,
 ) -> impl IntoResponse {
     dbg!(&query);
     let response = ListAllMyBucketsResult::default();
