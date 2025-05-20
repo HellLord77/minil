@@ -20,5 +20,6 @@ axum-header = { path = "libs/axum-header" }
 axum-xml = { path = "libs/axum-xml" }
 serde-rename-chain = { path = "libs/serde-rename-chain", features = ["full"] }
 serde-s3 = { path = "libs/serde-s3" }
+syn-utils = { path = "libs/syn-utils" }
 
 aws-sdk-s3 = "1.86.0"
