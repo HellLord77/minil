@@ -1,4 +1,4 @@
-use crate::{error::RenamerError, error::ValueError};
+use crate::error::ValueError;
 use inflector::Inflector as InflectorTrait;
 use std::str::FromStr;
 use strum::{EnumString, VariantNames};
@@ -26,8 +26,8 @@ pub(crate) enum Inflector {
 }
 
 impl Inflector {
-    pub(crate) fn try_from_str(s: &str) -> Result<Self, RenamerError> {
-        Self::from_str(s).map_err(|_| RenamerError::Value(ValueError::Inflector(s)))
+    pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
+        Self::from_str(s).map_err(|_| crate::Error::Value(ValueError::Inflector(s)))
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {

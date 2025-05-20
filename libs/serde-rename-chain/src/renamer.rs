@@ -1,4 +1,4 @@
-use crate::{error::RenamerError, str::Str};
+use crate::str::Str;
 use strum::VariantNames;
 
 #[cfg(feature = "convert_case")]
@@ -29,7 +29,7 @@ pub(crate) enum Renamer {
 }
 
 impl Renamer {
-    pub(crate) fn try_from_arg<'a>(n: &'a str, v: &'a str) -> Result<Self, RenamerError<'a>> {
+    pub(crate) fn try_from_arg<'a>(n: &'a str, v: &'a str) -> crate::Result<'a, Self> {
         let renamer = match n {
             "add_prefix" => Renamer::AddPrefix(v.to_owned()),
             "add_suffix" => Renamer::AddSuffix(v.to_owned()),
@@ -44,7 +44,7 @@ impl Renamer {
             "heck" => Renamer::Heck(Heck::try_from_str(v)?),
             #[cfg(feature = "inflector")]
             "inflector" => Renamer::Inflector(Inflector::try_from_str(v)?),
-            _ => return Err(RenamerError::Name(n)),
+            _ => return Err(crate::Error::Name(n)),
         };
         Ok(renamer)
     }

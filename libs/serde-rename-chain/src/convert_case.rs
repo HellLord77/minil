@@ -1,4 +1,4 @@
-use crate::error::{RenamerError, ValueError};
+use crate::error::ValueError;
 use convert_case::{Case, Casing};
 use std::str::FromStr;
 use strum::{EnumString, VariantNames};
@@ -32,8 +32,8 @@ pub(crate) enum ConvertCase {
 }
 
 impl ConvertCase {
-    pub(crate) fn try_from_str(s: &str) -> Result<Self, RenamerError> {
-        Self::from_str(s).map_err(|_| RenamerError::Value(ValueError::ConvertCase(s)))
+    pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
+        Self::from_str(s).map_err(|_| crate::Error::Value(ValueError::ConvertCase(s)))
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {

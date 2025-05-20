@@ -1,4 +1,4 @@
-use crate::{error::RenamerError, renamer::Renamer};
+use crate::renamer::Renamer;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
@@ -37,8 +37,8 @@ fn renamers_from_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>
                     Ok(renamer) => renamers.push(renamer),
                     Err(err) => {
                         let tokens = match err {
-                            RenamerError::Name(_) => path.into_token_stream(),
-                            RenamerError::Value(_) => lit_str.into_token_stream(),
+                            crate::Error::Name(_) => path.into_token_stream(),
+                            crate::Error::Value(_) => lit_str.into_token_stream(),
                         };
                         bail!(tokens.span(), err);
                     }

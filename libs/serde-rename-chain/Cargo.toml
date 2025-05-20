@@ -1,6 +1,6 @@
 [package]
 name = "serde-rename-chain"
-version = "0.2.3"
+version = "0.2.4"
 edition.workspace = true
 
 [lib]
@@ -21,7 +21,7 @@ Inflector = { version = "0.11.4", default-features = false, optional = true }
 syn-utils.workspace = true
 
 [dev-dependencies]
-serde = {version = "1.0.219", features = ["derive"]}
+serde = { version = "1.0.219", features = ["derive"] }
 
 [features]
 default = ["ident_case"]

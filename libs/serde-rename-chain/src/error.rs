@@ -1,5 +1,5 @@
 use crate::{renamer::Renamer, str::Str};
-use std::fmt::{Display, Formatter, Result};
+use std::fmt::{Display, Formatter};
 use strum::VariantNames;
 
 #[cfg(feature = "convert_case")]
@@ -24,7 +24,7 @@ pub(crate) enum ValueError<'a> {
 }
 
 impl Display for ValueError<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let (n, unknown, variants) = match self {
             ValueError::Str(unknown) => ("str", unknown, Str::VARIANTS),
             #[cfg(feature = "ident_case")]
@@ -44,22 +44,24 @@ impl Display for ValueError<'_> {
     }
 }
 
-pub(crate) enum RenamerError<'a> {
+pub(crate) enum Error<'a> {
     Name(&'a str),
     Value(ValueError<'a>),
 }
 
-impl Display for RenamerError<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+impl Display for Error<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let message = match self {
-            RenamerError::Name(unknown) => {
+            Error::Name(unknown) => {
                 format!(
                     "unknown renamer `{unknown}`, expected one of {}",
                     Renamer::VARIANTS.join(", ")
                 )
             }
-            RenamerError::Value(err) => err.to_string(),
+            Error::Value(err) => err.to_string(),
         };
         write!(f, "{}", message)
     }
 }
+
+pub(crate) type Result<'a, T> = std::result::Result<T, Error<'a>>;
