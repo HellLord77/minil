@@ -1,7 +1,9 @@
 use crate::renamer::Renamer;
 use crate::str::Str;
+use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::result;
 use strum::VariantNames;
 
 #[cfg(feature = "convert_case")]
@@ -26,7 +28,7 @@ pub(crate) enum ValueError<'a> {
 }
 
 impl Display for ValueError<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let (n, unknown, variants) = match self {
             ValueError::Str(unknown) => ("str", unknown, Str::VARIANTS),
             #[cfg(feature = "ident_case")]
@@ -52,7 +54,7 @@ pub(crate) enum Error<'a> {
 }
 
 impl Display for Error<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let message = match self {
             Error::Name(unknown) => {
                 format!(
@@ -66,4 +68,4 @@ impl Display for Error<'_> {
     }
 }
 
-pub(crate) type Result<'a, T> = std::result::Result<T, Error<'a>>;
+pub(crate) type Result<'a, T> = result::Result<T, Error<'a>>;

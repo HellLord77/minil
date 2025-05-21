@@ -14,7 +14,7 @@ pub(crate) enum Str {
 
 impl Str {
     pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
-        Self::from_str(s).map_err(|_| crate::Error::Value(ValueError::Str(s)))
+        Self::from_str(s).map_err(|_err| crate::Error::Value(ValueError::Str(s)))
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {
