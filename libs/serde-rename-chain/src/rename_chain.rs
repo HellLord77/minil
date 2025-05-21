@@ -22,14 +22,6 @@ fn renamers_from_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>
         match arg {
             Meta::NameValue(MetaNameValue {
                 path,
-                value: Expr::Path(expr_path),
-                ..
-            }) if path.is_ident("crabtime") => {
-                dbg!(&expr_path.to_token_stream());
-                // todo!();
-            }
-            Meta::NameValue(MetaNameValue {
-                path,
                 value:
                     Expr::Lit(ExprLit {
                         lit: Lit::Str(lit_str),
@@ -52,7 +44,7 @@ fn renamers_from_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>
                 };
             }
             _ => {
-                bail!(arg.span(), "expected a named argument");
+                bail!(arg.span(), "expected named argument");
             }
         };
     }
