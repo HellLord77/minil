@@ -16,7 +16,7 @@ use axum::routing::delete;
 use axum::routing::get;
 use axum::routing::put;
 use axum_extra::extract::Query;
-use axum_extra_header::Header;
+use axum_header::Header;
 use axum_xml::Xml;
 use serde_s3::create_bucket::CreateBucketConfiguration;
 use serde_s3::create_bucket::CreateBucketHeader;
@@ -26,6 +26,8 @@ use serde_s3::list_buckets::ListAllMyBucketsResult;
 use serde_s3::list_buckets::ListBucketsQuery;
 use sqlx::SqlitePool;
 use sqlx::migrate;
+use std::env;
+use std::future;
 use std::net::Ipv4Addr;
 use std::time::Instant;
 use tokio::net::TcpListener;
@@ -47,14 +49,14 @@ async fn main() {
     tracing_subscriber::registry()
         .with(
             EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| format!("{}=debug", env!("CARGO_CRATE_NAME")).into()),
+                .unwrap_or_else(|_err| format!("{}=debug", env!("CARGO_CRATE_NAME")).into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .try_init()
         .expect("Unable to install global subscriber");
 
     let db_connection_str =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite::memory:".into());
+        env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".into());
     tracing::info!("connecting to {}", db_connection_str);
     let pool = SqlitePool::connect(&db_connection_str)
         .await
@@ -107,7 +109,7 @@ async fn shutdown_signal() {
     };
 
     #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
+    let terminate = future::pending::<()>();
 
     tokio::select! {
         _ = ctrl_c => {},

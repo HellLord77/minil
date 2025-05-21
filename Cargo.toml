@@ -18,8 +18,7 @@ serde_path_to_error = "0.1.17"
 syn = { version = "2.0.101", features = ["full"] }
 tokio = "1.45.0"
 
-axum-extra-header = { path = "libs/axum-extra-header" }
-axum-header = { path = "libs/axum-header" }
+axum-header = { path = "libs/axum-header", features = ["extra"] }
 axum-xml = { path = "libs/axum-xml" }
 serde-rename-chain = { path = "libs/serde-rename-chain", features = ["full"] }
 serde-s3 = { path = "libs/serde-s3" }
