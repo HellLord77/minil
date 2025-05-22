@@ -1,7 +1,6 @@
-use crate::error::ValueError;
+use crate::error::ValueErrorKind;
 use convert_case::Case;
 use convert_case::Casing;
-use std::str::FromStr;
 use strum::EnumString;
 use strum::VariantNames;
 
@@ -27,6 +26,7 @@ pub(crate) enum ConvertCase {
     Sentence,
     Alternating,
     Toggle,
+
     #[cfg(feature = "convert_case_random")]
     Random,
     #[cfg(feature = "convert_case_random")]
@@ -35,7 +35,8 @@ pub(crate) enum ConvertCase {
 
 impl ConvertCase {
     pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
-        Self::from_str(s).map_err(|_err| crate::Error::Value(ValueError::ConvertCase(s)))
+        s.parse()
+            .map_err(|_err| crate::Error::Value(s, ValueErrorKind::ConvertCase))
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {

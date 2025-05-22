@@ -1,4 +1,5 @@
 use crate::error::ValueError;
+use crate::error::ValueErrorKind;
 use heck::ToKebabCase;
 use heck::ToLowerCamelCase;
 use heck::ToPascalCase;
@@ -10,7 +11,6 @@ use heck::ToSnekCase;
 use heck::ToTitleCase;
 use heck::ToTrainCase;
 use heck::ToUpperCamelCase;
-use std::str::FromStr;
 use strum::EnumString;
 use strum::VariantNames;
 
@@ -32,7 +32,8 @@ pub(crate) enum Heck {
 
 impl Heck {
     pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
-        Self::from_str(s).map_err(|_err| crate::Error::Value(ValueError::Heck(s)))
+        s.parse()
+            .map_err(|_err| crate::Error::Value(s, ValueErrorKind::Heck))
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {

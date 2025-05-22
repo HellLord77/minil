@@ -1,6 +1,5 @@
-use crate::error::ValueError;
+use crate::error::ValueErrorKind;
 use ident_case::RenameRule;
-use std::str::FromStr;
 use strum::EnumString;
 use strum::VariantNames;
 
@@ -18,7 +17,8 @@ pub(crate) enum IdentCase {
 
 impl IdentCase {
     pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
-        Self::from_str(s).map_err(|_err| crate::Error::Value(ValueError::IdentCase(s)))
+        s.parse()
+            .map_err(|_err| crate::Error::Value(s, ValueErrorKind::IdentCase))
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {

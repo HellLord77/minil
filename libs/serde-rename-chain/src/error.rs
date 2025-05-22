@@ -1,71 +1,83 @@
 use crate::renamer::Renamer;
 use crate::str::Str;
+use std::error;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::result;
+use strum::IntoStaticStr;
 use strum::VariantNames;
 
 #[cfg(feature = "convert_case")]
 use crate::convert_case::ConvertCase;
+
 #[cfg(feature = "heck")]
 use crate::heck::Heck;
+
 #[cfg(feature = "ident_case")]
 use crate::ident_case::IdentCase;
+
 #[cfg(feature = "inflector")]
 use crate::inflector::Inflector;
 
-pub(crate) enum ValueError<'a> {
-    Str(&'a str),
+#[derive(Debug, IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
+pub(crate) enum ValueErrorKind {
+    Str,
+
     #[cfg(feature = "ident_case")]
-    IdentCase(&'a str),
+    IdentCase,
+
     #[cfg(feature = "convert_case")]
-    ConvertCase(&'a str),
+    ConvertCase,
+
     #[cfg(feature = "heck")]
-    Heck(&'a str),
+    Heck,
+
     #[cfg(feature = "inflector")]
-    Inflector(&'a str),
+    Inflector,
 }
 
-impl Display for ValueError<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let (n, unknown, variants) = match self {
-            ValueError::Str(unknown) => ("str", unknown, Str::VARIANTS),
+impl ValueErrorKind {
+    pub(crate) fn get_variants(&self) -> &'static [&'static str] {
+        match self {
+            ValueErrorKind::Str => Str::VARIANTS,
+
             #[cfg(feature = "ident_case")]
-            ValueError::IdentCase(unknown) => ("ident_case", unknown, IdentCase::VARIANTS),
+            ValueErrorKind::IdentCase => IdentCase::VARIANTS,
+
             #[cfg(feature = "convert_case")]
-            ValueError::ConvertCase(unknown) => ("convert_case", unknown, ConvertCase::VARIANTS),
+            ValueErrorKind::ConvertCase => ConvertCase::VARIANTS,
+
             #[cfg(feature = "heck")]
-            ValueError::Heck(unknown) => ("heck", unknown, Heck::VARIANTS),
+            ValueErrorKind::Heck => Heck::VARIANTS,
+
             #[cfg(feature = "inflector")]
-            ValueError::Inflector(unknown) => ("inflector", unknown, Inflector::VARIANTS),
+            ValueErrorKind::Inflector => Inflector::VARIANTS,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) enum Error<'a> {
+    Name(&'a str),
+    Value(&'a str, ValueErrorKind),
+}
+
+impl Display for Error<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let (kind, unknown, variants) = match self {
+            Error::Name(unknown) => ("renamer", unknown, Renamer::VARIANTS),
+            Error::Value(unknown, kind) => (kind.into(), unknown, kind.get_variants()),
         };
         write!(
             f,
-            "unknown {n} `{unknown}`, expected one of: {}",
+            "unknown {kind} `{unknown}`, expected one of: {}",
             variants.join(", ")
         )
     }
 }
 
-pub(crate) enum Error<'a> {
-    Name(&'a str),
-    Value(ValueError<'a>),
-}
-
-impl Display for Error<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let message = match self {
-            Error::Name(unknown) => {
-                format!(
-                    "unknown renamer `{unknown}`, expected one of {}",
-                    Renamer::VARIANTS.join(", ")
-                )
-            }
-            Error::Value(err) => err.to_string(),
-        };
-        write!(f, "{}", message)
-    }
-}
+impl error::Error for Error<'_> {}
 
 pub(crate) type Result<'a, T> = result::Result<T, Error<'a>>;

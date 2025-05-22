@@ -1,6 +1,5 @@
-use crate::error::ValueError;
+use crate::error::ValueErrorKind;
 use inflector::Inflector as InflectorTrait;
-use std::str::FromStr;
 use strum::EnumString;
 use strum::VariantNames;
 
@@ -16,6 +15,7 @@ pub(crate) enum Inflector {
     Sentence,
     Title,
     ForeignKey,
+
     #[cfg(feature = "inflector_heavyweight")]
     Class,
     #[cfg(feature = "inflector_heavyweight")]
@@ -28,7 +28,8 @@ pub(crate) enum Inflector {
 
 impl Inflector {
     pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
-        Self::from_str(s).map_err(|_err| crate::Error::Value(ValueError::Inflector(s)))
+        s.parse()
+            .map_err(|_err| crate::Error::Value(s, ValueErrorKind::Inflector))
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {

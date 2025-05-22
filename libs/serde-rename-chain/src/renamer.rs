@@ -3,10 +3,13 @@ use strum::VariantNames;
 
 #[cfg(feature = "convert_case")]
 use crate::convert_case::ConvertCase;
+
 #[cfg(feature = "heck")]
 use crate::heck::Heck;
+
 #[cfg(feature = "ident_case")]
 use crate::ident_case::IdentCase;
+
 #[cfg(feature = "inflector")]
 use crate::inflector::Inflector;
 
@@ -18,12 +21,16 @@ pub(crate) enum Renamer {
     StripPrefix(String),
     StripSuffix(String),
     Str(Str),
+
     #[cfg(feature = "ident_case")]
     IdentCase(IdentCase),
+
     #[cfg(feature = "convert_case")]
     ConvertCase(ConvertCase),
+
     #[cfg(feature = "heck")]
     Heck(Heck),
+
     #[cfg(feature = "inflector")]
     Inflector(Inflector),
 }
@@ -36,14 +43,19 @@ impl Renamer {
             "strip_prefix" => Renamer::StripPrefix(v.to_owned()),
             "strip_suffix" => Renamer::StripSuffix(v.to_owned()),
             "str" => Renamer::Str(Str::try_from_str(v)?),
+
             #[cfg(feature = "ident_case")]
             "ident_case" => Renamer::IdentCase(IdentCase::try_from_str(v)?),
+
             #[cfg(feature = "convert_case")]
             "convert_case" => Renamer::ConvertCase(ConvertCase::try_from_str(v)?),
+
             #[cfg(feature = "heck")]
             "heck" => Renamer::Heck(Heck::try_from_str(v)?),
+
             #[cfg(feature = "inflector")]
             "inflector" => Renamer::Inflector(Inflector::try_from_str(v)?),
+
             _ => return Err(crate::Error::Name(n)),
         };
         Ok(renamer)
@@ -56,12 +68,16 @@ impl Renamer {
             Renamer::StripPrefix(prefix) => s.strip_prefix(prefix).unwrap_or(s).to_owned(),
             Renamer::StripSuffix(suffix) => s.strip_suffix(suffix).unwrap_or(s).to_owned(),
             Renamer::Str(str) => str.apply(s),
+
             #[cfg(feature = "ident_case")]
             Renamer::IdentCase(ident_case) => ident_case.apply(s),
+
             #[cfg(feature = "convert_case")]
             Renamer::ConvertCase(convert_case) => convert_case.apply(s),
+
             #[cfg(feature = "heck")]
             Renamer::Heck(heck) => heck.apply(s),
+
             #[cfg(feature = "inflector")]
             Renamer::Inflector(inflector) => inflector.apply(s),
         }

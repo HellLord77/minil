@@ -8,10 +8,13 @@ mod str;
 
 #[cfg(feature = "convert_case")]
 mod convert_case;
+
 #[cfg(feature = "heck")]
 mod heck;
+
 #[cfg(feature = "ident_case")]
 mod ident_case;
+
 #[cfg(feature = "inflector")]
 mod inflector;
 

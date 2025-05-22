@@ -37,7 +37,7 @@ fn renamers_from_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>
                     Err(err) => {
                         let tokens = match err {
                             crate::Error::Name(_) => path.into_token_stream(),
-                            crate::Error::Value(_) => lit_str.into_token_stream(),
+                            crate::Error::Value(..) => lit_str.into_token_stream(),
                         };
                         bail!(tokens.span(), err);
                     }

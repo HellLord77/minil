@@ -1,5 +1,4 @@
-use crate::error::ValueError;
-use std::str::FromStr;
+use crate::error::ValueErrorKind;
 use strum::EnumString;
 use strum::VariantNames;
 
@@ -14,7 +13,8 @@ pub(crate) enum Str {
 
 impl Str {
     pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
-        Self::from_str(s).map_err(|_err| crate::Error::Value(ValueError::Str(s)))
+        s.parse()
+            .map_err(|_err| crate::Error::Value(s, ValueErrorKind::Str))
     }
 
     pub(crate) fn apply(&self, s: &str) -> String {
