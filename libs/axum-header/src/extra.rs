@@ -3,7 +3,8 @@ use axum_core::extract::FromRequestParts;
 use http::request::Parts;
 use serde::de::DeserializeOwned;
 use std::convert::Infallible;
-use std::ops;
+use std::ops::Deref;
+use std::ops::DerefMut;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OptionalHeader<T>(pub Option<T>);
@@ -16,15 +17,16 @@ where
     type Rejection = Infallible;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let values = Header::from_request_parts(parts, _state)
-            .await
-            .map(|header| header.0)
-            .ok();
-        Ok(OptionalHeader(values))
+        Ok(OptionalHeader(
+            Header::from_request_parts(parts, _state)
+                .await
+                .map(|header| header.0)
+                .ok(),
+        ))
     }
 }
 
-impl<T> ops::Deref for OptionalHeader<T> {
+impl<T> Deref for OptionalHeader<T> {
     type Target = Option<T>;
 
     #[inline]
@@ -33,7 +35,7 @@ impl<T> ops::Deref for OptionalHeader<T> {
     }
 }
 
-impl<T> ops::DerefMut for OptionalHeader<T> {
+impl<T> DerefMut for OptionalHeader<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0

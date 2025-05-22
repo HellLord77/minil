@@ -109,6 +109,7 @@ where
 {
     if let Ok(mut input) = parse::<ItemStruct>(input.clone()) {
         apply_on_fields(&mut input.fields, function)?;
+
         Ok(quote!(#input))
     } else {
         bail!(Span::call_site(), "expected struct")
@@ -129,6 +130,7 @@ where
             .iter_mut()
             .map(|variant| apply_on_fields(&mut variant.fields, function))
             .collect_error()?;
+
         Ok(quote!(#input))
     } else {
         bail!(Span::call_site(), "expected enum");
