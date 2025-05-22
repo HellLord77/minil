@@ -1,4 +1,5 @@
 use crate::error::TryNewError;
+use crate::error::TryNewErrorKind;
 use crate::renamer::Renamer;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
@@ -33,9 +34,10 @@ fn renamers_from_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>
                 match (path.get_ident().unwrap().to_string(), lit_str.value()).try_into() {
                     Ok(renamer) => renamers.push(renamer),
                     Err(err) => {
-                        let tokens = match err {
-                            TryNewError::Name(_) => path.into_token_stream(),
-                            TryNewError::Value(..) => lit_str.into_token_stream(),
+                        let tokens = if TryNewError::kind(&err).is_renamer() {
+                            path.to_token_stream()
+                        } else {
+                            lit_str.to_token_stream()
                         };
                         bail!(tokens.span(), err);
                     }

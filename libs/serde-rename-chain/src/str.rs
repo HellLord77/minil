@@ -1,4 +1,4 @@
-use crate::error::ValueErrorKind;
+use crate::error::TryNewErrorKind;
 use crate::renamer::TryNewValue;
 use strum::EnumString;
 use strum::VariantNames;
@@ -26,5 +26,5 @@ impl Str {
 }
 
 impl TryNewValue for Str {
-    const KIND: ValueErrorKind = ValueErrorKind::Str;
+    const KIND: TryNewErrorKind = TryNewErrorKind::Str;
 }

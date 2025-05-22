@@ -1,6 +1,6 @@
 use crate::error::TryNewError;
+use crate::error::TryNewErrorKind;
 use crate::error::TryNewResult;
-use crate::error::ValueErrorKind;
 use crate::str::Str;
 use derive_more::From;
 use std::str::FromStr;
@@ -104,15 +104,15 @@ impl TryFrom<(String, String)> for Renamer {
 impl RenamerDiscriminants {
     #[inline]
     pub(crate) fn try_new(s: String) -> TryNewResult<Self> {
-        s.parse().map_err(|_err| TryNewError::Name(s))
+        s.parse().map_err(|_err| TryNewError::from_renamer(s))
     }
 }
 
 pub(crate) trait TryNewValue: FromStr {
-    const KIND: ValueErrorKind;
+    const KIND: TryNewErrorKind;
 
     #[inline]
     fn try_new(s: String) -> TryNewResult<Self> {
-        s.parse().map_err(|_err| TryNewError::Value(s, Self::KIND))
+        s.parse().map_err(|_err| TryNewError::new(s, Self::KIND))
     }
 }

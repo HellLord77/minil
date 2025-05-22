@@ -1,4 +1,4 @@
-use crate::error::ValueErrorKind;
+use crate::error::TryNewErrorKind;
 use crate::renamer::TryNewValue;
 use ident_case::RenameRule;
 use strum::EnumString;
@@ -33,5 +33,5 @@ impl IdentCase {
 }
 
 impl TryNewValue for IdentCase {
-    const KIND: ValueErrorKind = ValueErrorKind::IdentCase;
+    const KIND: TryNewErrorKind = TryNewErrorKind::IdentCase;
 }

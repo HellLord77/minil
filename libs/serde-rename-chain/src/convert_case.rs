@@ -1,4 +1,4 @@
-use crate::error::ValueErrorKind;
+use crate::error::TryNewErrorKind;
 use crate::renamer::TryNewValue;
 use convert_case::Case;
 use convert_case::Casing;
@@ -68,5 +68,5 @@ impl ConvertCase {
 }
 
 impl TryNewValue for ConvertCase {
-    const KIND: ValueErrorKind = ValueErrorKind::ConvertCase;
+    const KIND: TryNewErrorKind = TryNewErrorKind::ConvertCase;
 }

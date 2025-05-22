@@ -1,11 +1,10 @@
 use crate::renamer::Renamer;
 use crate::str::Str;
-use std::error;
-use std::fmt;
-use std::fmt::Display;
-use std::fmt::Formatter;
-use strum::IntoStaticStr;
+use derive_more::Constructor;
+use strum::Display;
+use strum::EnumIs;
 use strum::VariantNames;
+use thiserror::Error;
 
 #[cfg(feature = "convert_case")]
 use crate::convert_case::ConvertCase;
@@ -19,9 +18,10 @@ use crate::ident_case::IdentCase;
 #[cfg(feature = "inflector")]
 use crate::inflector::Inflector;
 
-#[derive(Debug, IntoStaticStr)]
+#[derive(Debug, Display, EnumIs)]
 #[strum(serialize_all = "snake_case")]
-pub(crate) enum ValueErrorKind {
+pub(crate) enum TryNewErrorKind {
+    Renamer,
     Str,
 
     #[cfg(feature = "ident_case")]
@@ -37,47 +37,44 @@ pub(crate) enum ValueErrorKind {
     Inflector,
 }
 
-impl ValueErrorKind {
-    pub(crate) fn get_variants(&self) -> &'static [&'static str] {
+impl TryNewErrorKind {
+    pub(crate) fn variants(&self) -> &'static [&'static str] {
         match self {
-            ValueErrorKind::Str => Str::VARIANTS,
+            TryNewErrorKind::Renamer => Renamer::VARIANTS,
+            Self::Str => Str::VARIANTS,
 
             #[cfg(feature = "ident_case")]
-            ValueErrorKind::IdentCase => IdentCase::VARIANTS,
+            Self::IdentCase => IdentCase::VARIANTS,
 
             #[cfg(feature = "convert_case")]
-            ValueErrorKind::ConvertCase => ConvertCase::VARIANTS,
+            Self::ConvertCase => ConvertCase::VARIANTS,
 
             #[cfg(feature = "heck")]
             ValueErrorKind::Heck => Heck::VARIANTS,
 
             #[cfg(feature = "inflector")]
-            ValueErrorKind::Inflector => Inflector::VARIANTS,
+            Self::Inflector => Inflector::VARIANTS,
         }
     }
 }
 
-#[derive(Debug)]
-pub(crate) enum TryNewError {
-    Name(String),
-    Value(String, ValueErrorKind),
+#[derive(Debug, Constructor, Error)]
+#[error("unknown renamer `{unknown}`, expected one of {expected}", expected = self.kind.variants().join(", "))]
+pub(crate) struct TryNewError {
+    unknown: String,
+    kind: TryNewErrorKind,
 }
 
-impl Display for TryNewError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let (kind, unknown, variants) = match self {
-            TryNewError::Name(unknown) => ("renamer", unknown, Renamer::VARIANTS),
-            TryNewError::Value(unknown, kind) => (kind.into(), unknown, kind.get_variants()),
-        };
+impl TryNewError {
+    #[inline]
+    pub(crate) fn from_renamer(unknown: String) -> Self {
+        Self::new(unknown, TryNewErrorKind::Renamer)
+    }
 
-        write!(
-            f,
-            "unknown {kind} `{unknown}`, expected one of: {}",
-            variants.join(", ")
-        )
+    #[inline]
+    pub(crate) fn kind(&self) -> &TryNewErrorKind {
+        &self.kind
     }
 }
-
-impl error::Error for TryNewError {}
 
 pub(crate) type TryNewResult<T> = Result<T, TryNewError>;

@@ -1,5 +1,5 @@
+use crate::error::TryNewErrorKind;
 use crate::error::ValueError;
-use crate::error::ValueErrorKind;
 use crate::renamer::TryNewValue;
 use heck::ToKebabCase;
 use heck::ToLowerCamelCase;
@@ -52,5 +52,5 @@ impl Heck {
 }
 
 impl TryNewValue for Heck {
-    const KIND: ValueErrorKind = ValueErrorKind::Heck;
+    const KIND: TryNewErrorKind = TryNewErrorKind::Heck;
 }

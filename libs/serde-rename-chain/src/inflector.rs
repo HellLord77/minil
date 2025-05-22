@@ -1,4 +1,4 @@
-use crate::error::ValueErrorKind;
+use crate::error::TryNewErrorKind;
 use crate::renamer::TryNewValue;
 use inflector::Inflector as InflectorTrait;
 use strum::EnumString;
@@ -55,5 +55,5 @@ impl Inflector {
 }
 
 impl TryNewValue for Inflector {
-    const KIND: ValueErrorKind = ValueErrorKind::Inflector;
+    const KIND: TryNewErrorKind = TryNewErrorKind::Inflector;
 }
