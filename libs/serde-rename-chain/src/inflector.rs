@@ -1,9 +1,10 @@
 use crate::error::ValueErrorKind;
+use crate::renamer::TryNewValue;
 use inflector::Inflector as InflectorTrait;
 use strum::EnumString;
 use strum::VariantNames;
 
-#[derive(EnumString, VariantNames)]
+#[derive(Debug, EnumString, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum Inflector {
     Camel,
@@ -27,11 +28,6 @@ pub(crate) enum Inflector {
 }
 
 impl Inflector {
-    pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
-        s.parse()
-            .map_err(|_err| crate::Error::Value(s, ValueErrorKind::Inflector))
-    }
-
     pub(crate) fn apply(&self, s: &str) -> String {
         let inflector = match self {
             Self::Camel => str::to_camel_case,
@@ -43,6 +39,7 @@ impl Inflector {
             Self::Sentence => str::to_sentence_case,
             Self::Title => str::to_title_case,
             Self::ForeignKey => str::to_foreign_key,
+
             #[cfg(feature = "inflector_heavyweight")]
             Self::Class => str::to_class_case,
             #[cfg(feature = "inflector_heavyweight")]
@@ -52,6 +49,11 @@ impl Inflector {
             #[cfg(feature = "inflector_heavyweight")]
             Self::Singular => str::to_singular,
         };
+
         inflector(s)
     }
+}
+
+impl TryNewValue for Inflector {
+    const KIND: ValueErrorKind = ValueErrorKind::Inflector;
 }

@@ -1,8 +1,9 @@
 use crate::error::ValueErrorKind;
+use crate::renamer::TryNewValue;
 use strum::EnumString;
 use strum::VariantNames;
 
-#[derive(EnumString, VariantNames)]
+#[derive(Debug, EnumString, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum Str {
     Lower,
@@ -12,11 +13,6 @@ pub(crate) enum Str {
 }
 
 impl Str {
-    pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
-        s.parse()
-            .map_err(|_err| crate::Error::Value(s, ValueErrorKind::Str))
-    }
-
     pub(crate) fn apply(&self, s: &str) -> String {
         let str = match self {
             Self::Lower => str::to_lowercase,
@@ -24,6 +20,11 @@ impl Str {
             Self::AsciiUpper => str::to_ascii_uppercase,
             Self::AsciiLower => str::to_ascii_lowercase,
         };
+
         str(s)
     }
+}
+
+impl TryNewValue for Str {
+    const KIND: ValueErrorKind = ValueErrorKind::Str;
 }

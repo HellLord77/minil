@@ -1,3 +1,4 @@
+use crate::error::TryNewError;
 use crate::renamer::Renamer;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
@@ -29,15 +30,12 @@ fn renamers_from_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>
                     }),
                 ..
             }) => {
-                match Renamer::try_from_arg(
-                    &path.get_ident().unwrap().to_string(),
-                    lit_str.value().as_str(),
-                ) {
+                match (path.get_ident().unwrap().to_string(), lit_str.value()).try_into() {
                     Ok(renamer) => renamers.push(renamer),
                     Err(err) => {
                         let tokens = match err {
-                            crate::Error::Name(_) => path.into_token_stream(),
-                            crate::Error::Value(..) => lit_str.into_token_stream(),
+                            TryNewError::Name(_) => path.into_token_stream(),
+                            TryNewError::Value(..) => lit_str.into_token_stream(),
                         };
                         bail!(tokens.span(), err);
                     }
@@ -71,10 +69,10 @@ pub(super) fn rename_all_chain_impl(
                 .to_string(),
             |rename_lit, renamer| renamer.apply(&rename_lit),
         );
-
         field
             .attrs
             .push(parse_quote!( #[serde(rename = #rename_lit)] ));
+
         Ok(())
     })
 }

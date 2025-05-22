@@ -4,7 +4,6 @@ use std::error;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
-use std::result;
 use strum::IntoStaticStr;
 use strum::VariantNames;
 
@@ -59,17 +58,18 @@ impl ValueErrorKind {
 }
 
 #[derive(Debug)]
-pub(crate) enum Error<'a> {
-    Name(&'a str),
-    Value(&'a str, ValueErrorKind),
+pub(crate) enum TryNewError {
+    Name(String),
+    Value(String, ValueErrorKind),
 }
 
-impl Display for Error<'_> {
+impl Display for TryNewError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let (kind, unknown, variants) = match self {
-            Error::Name(unknown) => ("renamer", unknown, Renamer::VARIANTS),
-            Error::Value(unknown, kind) => (kind.into(), unknown, kind.get_variants()),
+            TryNewError::Name(unknown) => ("renamer", unknown, Renamer::VARIANTS),
+            TryNewError::Value(unknown, kind) => (kind.into(), unknown, kind.get_variants()),
         };
+
         write!(
             f,
             "unknown {kind} `{unknown}`, expected one of: {}",
@@ -78,6 +78,6 @@ impl Display for Error<'_> {
     }
 }
 
-impl error::Error for Error<'_> {}
+impl error::Error for TryNewError {}
 
-pub(crate) type Result<'a, T> = result::Result<T, Error<'a>>;
+pub(crate) type TryNewResult<T> = Result<T, TryNewError>;

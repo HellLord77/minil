@@ -1,5 +1,6 @@
 use crate::error::ValueError;
 use crate::error::ValueErrorKind;
+use crate::renamer::TryNewValue;
 use heck::ToKebabCase;
 use heck::ToLowerCamelCase;
 use heck::ToPascalCase;
@@ -14,7 +15,7 @@ use heck::ToUpperCamelCase;
 use strum::EnumString;
 use strum::VariantNames;
 
-#[derive(EnumString, VariantNames)]
+#[derive(Debug, EnumString, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum Heck {
     Kebab,
@@ -31,11 +32,6 @@ pub(crate) enum Heck {
 }
 
 impl Heck {
-    pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
-        s.parse()
-            .map_err(|_err| crate::Error::Value(s, ValueErrorKind::Heck))
-    }
-
     pub(crate) fn apply(&self, s: &str) -> String {
         let heck = match self {
             Self::Kebab => str::to_kebab_case,
@@ -50,6 +46,11 @@ impl Heck {
             Self::UpperCamel => str::to_upper_camel_case,
             Self::Pascal => str::to_pascal_case,
         };
+
         heck(s)
     }
+}
+
+impl TryNewValue for Heck {
+    const KIND: ValueErrorKind = ValueErrorKind::Heck;
 }

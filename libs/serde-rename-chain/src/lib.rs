@@ -26,9 +26,6 @@ use syn::parse_macro_input;
 use syn::punctuated::Punctuated;
 use syn_utils::into_macro_output;
 
-pub(crate) use crate::error::Error;
-pub(crate) use crate::error::Result;
-
 #[proc_macro_attribute]
 pub fn serde_rename_chain(attr: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attr with Punctuated::<Meta, Token![,]>::parse_terminated);

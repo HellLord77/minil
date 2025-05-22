@@ -1,10 +1,11 @@
 use crate::error::ValueErrorKind;
+use crate::renamer::TryNewValue;
 use convert_case::Case;
 use convert_case::Casing;
 use strum::EnumString;
 use strum::VariantNames;
 
-#[derive(EnumString, VariantNames)]
+#[derive(Debug, EnumString, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum ConvertCase {
     Snake,
@@ -34,11 +35,6 @@ pub(crate) enum ConvertCase {
 }
 
 impl ConvertCase {
-    pub(crate) fn try_from_str(s: &str) -> crate::Result<Self> {
-        s.parse()
-            .map_err(|_err| crate::Error::Value(s, ValueErrorKind::ConvertCase))
-    }
-
     pub(crate) fn apply(&self, s: &str) -> String {
         let convert_case = match self {
             Self::Snake => Case::Snake,
@@ -60,11 +56,17 @@ impl ConvertCase {
             Self::Sentence => Case::Sentence,
             Self::Alternating => Case::Alternating,
             Self::Toggle => Case::Toggle,
+
             #[cfg(feature = "convert_case_random")]
             Self::Random => Case::Random,
             #[cfg(feature = "convert_case_random")]
             Self::PseudoRandom => Case::PseudoRandom,
         };
+
         s.to_case(convert_case)
     }
+}
+
+impl TryNewValue for ConvertCase {
+    const KIND: ValueErrorKind = ValueErrorKind::ConvertCase;
 }
