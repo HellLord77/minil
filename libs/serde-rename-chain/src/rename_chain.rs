@@ -1,5 +1,4 @@
 use crate::error::TryNewError;
-use crate::error::TryNewErrorKind;
 use crate::renamer::Renamer;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;

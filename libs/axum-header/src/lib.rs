@@ -6,6 +6,7 @@ mod rejection;
 mod extra;
 
 pub use crate::error::TryIntoHeaderError;
+pub use crate::error::TryIntoHeaderErrorKind;
 pub use crate::header::Header;
 pub use crate::rejection::HeaderRejection;
 

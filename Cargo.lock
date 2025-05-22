@@ -193,9 +193,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-s3"
-version = "1.87.0"
+version = "1.88.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "046ebea705311db979d0ce141cbebf1426e2ce7f5c5d6b248baaf6d6e511b976"
+checksum = "5ffc2a1c6dfd4585ad423350c04da3c8be831c9f418e58e8c837656054ec45f8"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
@@ -534,17 +534,19 @@ dependencies = [
 
 [[package]]
 name = "axum-header"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "axum",
  "axum-core",
  "axum-test",
+ "derive_more",
  "form_urlencoded",
  "http 1.3.1",
  "serde",
  "serde_html_form",
  "serde_path_to_error",
  "serde_urlencoded",
+ "strum",
  "thiserror",
  "tokio",
 ]
@@ -1894,7 +1896,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a793df0d7afeac54f95b471d3af7f0d4fb975699f972341a4b76988d49cdf0c"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]

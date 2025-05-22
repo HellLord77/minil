@@ -73,10 +73,10 @@ where
         for (key, value) in parser {
             res.headers_mut().append(
                 key.parse::<HeaderName>()
-                    .map_err(|_err| TryIntoHeaderError::Name(key.into_owned()))?,
+                    .map_err(|_err| TryIntoHeaderError::from_name(key.into_owned()))?,
                 value
                     .parse::<HeaderValue>()
-                    .map_err(|_err| TryIntoHeaderError::Value(value.into_owned()))?,
+                    .map_err(|_err| TryIntoHeaderError::from_value(value.into_owned()))?,
             );
         }
 
