@@ -1,5 +1,14 @@
 [workspace]
-members = ["minil", "libs/*"]
+members = [
+    "minil",
+
+    "libs/axum-header",
+    "libs/axum-s3-input",
+    "libs/axum-xml",
+    "libs/serde-rename-chain",
+    "libs/serde-s3",
+    "libs/syn-utils",
+]
 default-members = ["minil"]
 resolver = "3"
 
@@ -7,7 +16,8 @@ resolver = "3"
 edition = "2024"
 
 [workspace.dependencies]
-axum = "0.8.4"
+axum = { version = "0.8.4", features = ["macros"] }
+axum-extra = { version = "0.10.1", features = ["query"] }
 axum-core = "0.5.2"
 axum-test = "17.3.0"
 derive_more = { version = "2.0.1", features = ["full"] }
@@ -19,9 +29,10 @@ serde_path_to_error = "0.1.17"
 strum = { version = "0.27.1", features = ["derive"] }
 syn = { version = "2.0.101", features = ["full"] }
 thiserror = "2.0.12"
-tokio = "1.45.0"
+tokio = { version = "1.45.0", features = ["full"] }
 
-axum-header = { path = "libs/axum-header", features = ["extra"] }
+axum-header = { path = "libs/axum-header" }
+axum-s3-input = {path = "libs/axum-s3-input"}
 axum-xml = { path = "libs/axum-xml" }
 serde-rename-chain = { path = "libs/serde-rename-chain", features = ["full"] }
 serde-s3 = { path = "libs/serde-s3" }

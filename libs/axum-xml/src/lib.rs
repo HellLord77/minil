@@ -2,5 +2,5 @@ mod category;
 mod rejection;
 mod xml;
 
-pub use crate::rejection::XmlRejection;
-pub use crate::xml::Xml;
+pub use rejection::XmlRejection;
+pub use xml::Xml;

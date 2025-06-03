@@ -563,6 +563,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-s3-input"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "axum-extra",
+ "axum-header",
+ "axum-xml",
+ "serde-s3",
+]
+
+[[package]]
 name = "axum-test"
 version = "17.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1896,7 +1907,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a793df0d7afeac54f95b471d3af7f0d4fb975699f972341a4b76988d49cdf0c"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -2006,8 +2017,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "axum-extra",
- "axum-header",
+ "axum-s3-input",
  "axum-xml",
  "serde-s3",
  "sqlx",
@@ -2797,7 +2807,7 @@ dependencies = [
 
 [[package]]
 name = "serde-s3"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aws-sdk-s3",
  "chrono",

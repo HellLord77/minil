@@ -4,7 +4,6 @@ use axum::Router;
 use axum::debug_handler;
 use axum::debug_middleware;
 use axum::extract::Request;
-use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::http::HeaderValue;
 use axum::http::StatusCode;
@@ -15,15 +14,12 @@ use axum::response::Response;
 use axum::routing::delete;
 use axum::routing::get;
 use axum::routing::put;
-use axum_extra::extract::Query;
-use axum_header::Header;
+use axum_s3_input::CreateBucketInput;
+use axum_s3_input::DeleteBucketInput;
+use axum_s3_input::ListBucketsInput;
+use axum_s3_input::ListObjectsInput;
 use axum_xml::Xml;
-use serde_s3::create_bucket::CreateBucketConfiguration;
-use serde_s3::create_bucket::CreateBucketHeader;
-use serde_s3::delete_bucket::DeleteBucketHeader;
-use serde_s3::delete_bucket::DeleteBucketQuery;
-use serde_s3::list_buckets::ListAllMyBucketsResult;
-use serde_s3::list_buckets::ListBucketsQuery;
+use serde_s3::operation::ListBucketsOutputBody;
 use sqlx::SqlitePool;
 use sqlx::migrate;
 use std::env;
@@ -39,10 +35,7 @@ use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-pub(crate) use crate::error::Error;
-pub(crate) use crate::error::Result;
-
-const X_PROCESS_TIME: &str = "X-Process-Time";
+const PROCESS_TIME: &str = "X-Process-Time";
 
 #[tokio::main]
 async fn main() {
@@ -77,8 +70,9 @@ async fn main() {
         .route("/create-bucket", put(create_bucket))
         .route("/delete-bucket", delete(delete_bucket))
         .route("/list-buckets", get(list_buckets))
+        .route("/{bucket}", get(list_objects))
         .with_state(pool)
-        .layer(axum::middleware::from_fn(set_x_process_time))
+        .layer(axum::middleware::from_fn(set_process_time))
         .layer(middleware);
 
     let addr = (Ipv4Addr::UNSPECIFIED, 3000);
@@ -118,48 +112,48 @@ async fn shutdown_signal() {
 }
 
 #[debug_middleware]
-async fn set_x_process_time(request: Request, next: Next) -> Response {
+async fn set_process_time(request: Request, next: Next) -> Response {
     let start_time = Instant::now();
     let mut response = next.run(request).await;
 
-    if !response.headers().contains_key(X_PROCESS_TIME) {
+    if !response.headers().contains_key(PROCESS_TIME) {
         let process_time = start_time.elapsed().as_secs_f64().to_string();
         response
             .headers_mut()
-            .insert(X_PROCESS_TIME, process_time.parse().unwrap());
+            .insert(PROCESS_TIME, process_time.parse().unwrap());
     }
     response
 }
 
 #[debug_handler]
-async fn create_bucket(
-    Header(header): Header<CreateBucketHeader>,
-    Xml(body): Xml<CreateBucketConfiguration>,
-) -> impl IntoResponse {
-    dbg!(&header);
-    dbg!(&body);
+async fn create_bucket(input: CreateBucketInput) -> impl IntoResponse {
+    dbg!(&input);
     let mut headers = HeaderMap::new();
     headers.insert(header::LOCATION, "us-east-1".parse().unwrap());
     (StatusCode::OK, headers)
 }
 
 #[debug_handler]
-async fn delete_bucket(
-    Query(query): Query<DeleteBucketQuery>,
-    Header(header): Header<DeleteBucketHeader>,
-) -> impl IntoResponse {
-    dbg!(&query);
-    dbg!(&header);
+async fn delete_bucket(input: DeleteBucketInput) -> impl IntoResponse {
+    dbg!(&input);
     StatusCode::NO_CONTENT
 }
 
 #[debug_handler]
-async fn list_buckets(
-    Query(query): Query<ListBucketsQuery>,
-    State(_pool): State<SqlitePool>,
-) -> impl IntoResponse {
-    dbg!(&query);
-    let response = ListAllMyBucketsResult::default();
-    dbg!(&response);
-    Xml(response)
+async fn list_buckets(input: ListBucketsInput) -> impl IntoResponse {
+    dbg!(&input);
+    let output = ListBucketsOutputBody {
+        buckets: vec![],
+        owner: None,
+        continuation_token: None,
+        prefix: None,
+    };
+    dbg!(&output);
+    Xml(output)
+}
+
+#[debug_handler]
+async fn list_objects(input: ListObjectsInput) -> impl IntoResponse {
+    dbg!(&input);
+    ()
 }
