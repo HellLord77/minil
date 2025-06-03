@@ -23,5 +23,5 @@ axum-test.workspace = true
 tokio.workspace = true
 
 [features]
-default = []
+default = ["extra"]
 extra = ["dep:serde_html_form"]
