@@ -15,5 +15,6 @@ axum.workspace = true
 tokio.workspace = true
 
 axum-s3-input.workspace = true
+axum-extra.workspace = true
 axum-xml.workspace = true
 serde-s3.workspace = true

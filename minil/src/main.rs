@@ -3,6 +3,7 @@ mod error;
 use axum::Router;
 use axum::debug_handler;
 use axum::debug_middleware;
+use axum::extract::FromRef;
 use axum::extract::Request;
 use axum::http::HeaderMap;
 use axum::http::HeaderValue;
@@ -14,12 +15,15 @@ use axum::response::Response;
 use axum::routing::delete;
 use axum::routing::get;
 use axum::routing::put;
+use axum_extra::vpath;
 use axum_s3_input::CreateBucketInput;
 use axum_s3_input::DeleteBucketInput;
 use axum_s3_input::ListBucketsInput;
 use axum_s3_input::ListObjectsInput;
 use axum_xml::Xml;
 use serde_s3::operation::ListBucketsOutputBody;
+use sqlx::Pool;
+use sqlx::Sqlite;
 use sqlx::SqlitePool;
 use sqlx::migrate;
 use std::env;
@@ -37,6 +41,11 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 const PROCESS_TIME: &str = "X-Process-Time";
 
+#[derive(Debug, Clone, FromRef)]
+struct State {
+    db_pool: Pool<Sqlite>,
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::registry()
@@ -48,17 +57,17 @@ async fn main() {
         .try_init()
         .expect("Unable to install global subscriber");
 
-    let db_connection_str =
-        env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".into());
-    tracing::info!("connecting to {}", db_connection_str);
-    let pool = SqlitePool::connect(&db_connection_str)
+    let db_conn_str = env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".into());
+    tracing::info!("connecting to {}", db_conn_str);
+    let db_pool = SqlitePool::connect(&db_conn_str)
         .await
         .expect("failed to connect to database");
     migrate!()
-        .run(&pool)
+        .run(&db_pool)
         .await
         .expect("failed to run migrations");
 
+    let state = State { db_pool };
     let middleware = ServiceBuilder::new()
         .set_x_request_id(MakeRequestUuid)
         .propagate_x_request_id()
@@ -67,11 +76,11 @@ async fn main() {
         .compression()
         .trace_for_http();
     let app = Router::new()
-        .route("/create-bucket", put(create_bucket))
-        .route("/delete-bucket", delete(delete_bucket))
-        .route("/list-buckets", get(list_buckets))
-        .route("/{bucket}", get(list_objects))
-        .with_state(pool)
+        .route(vpath!("/create-bucket"), put(create_bucket))
+        .route(vpath!("/delete-bucket"), delete(delete_bucket))
+        .route(vpath!("/list-buckets"), get(list_buckets))
+        .route(vpath!("/list-objects/{bucket}"), get(list_objects))
+        .with_state(state)
         .layer(axum::middleware::from_fn(set_process_time))
         .layer(middleware);
 
@@ -129,7 +138,7 @@ async fn set_process_time(request: Request, next: Next) -> Response {
 async fn create_bucket(input: CreateBucketInput) -> impl IntoResponse {
     dbg!(&input);
     let mut headers = HeaderMap::new();
-    headers.insert(header::LOCATION, "us-east-1".parse().unwrap());
+    headers.insert(header::LOCATION, HeaderValue::from_static("us-east-1"));
     (StatusCode::OK, headers)
 }
 
@@ -148,7 +157,6 @@ async fn list_buckets(input: ListBucketsInput) -> impl IntoResponse {
         continuation_token: None,
         prefix: None,
     };
-    dbg!(&output);
     Xml(output)
 }
 

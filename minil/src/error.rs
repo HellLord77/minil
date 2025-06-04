@@ -3,7 +3,7 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use std::result;
 
-pub struct Error(anyhow::Error);
+pub(crate) struct Error(anyhow::Error);
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
@@ -20,4 +20,4 @@ where
     }
 }
 
-pub type Result<T> = result::Result<T, Error>;
+pub(crate) type Result<T> = result::Result<T, Error>;
