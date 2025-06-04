@@ -2,6 +2,7 @@ use crate::types::BucketCannedAcl;
 use crate::types::CreateBucketConfiguration;
 use crate::types::ObjectOwnership;
 use serde::Deserialize;
+use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
 
 #[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
@@ -25,3 +26,9 @@ pub struct CreateBucketInputHeader {
 }
 
 pub type CreateBucketInputBody = CreateBucketConfiguration;
+
+#[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
+#[derive(Debug, Serialize)]
+pub struct CreateBucketOutputHeader {
+    pub location: String,
+}

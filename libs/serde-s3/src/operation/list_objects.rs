@@ -3,6 +3,7 @@ use crate::types::ListBucketResult;
 use crate::types::OptionalObjectAttributes;
 use crate::types::RequestPayer;
 use serde::Deserialize;
+use serde::Serialize;
 use serde_inline_default::serde_inline_default;
 use serde_rename_chain::serde_rename_chain;
 use validator::Validate;
@@ -34,6 +35,12 @@ pub struct ListObjectsInputHeader {
     pub request_payer: Option<RequestPayer>,
 
     pub optional_object_attributes: Vec<OptionalObjectAttributes>,
+}
+
+#[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
+#[derive(Debug, Serialize)]
+pub struct ListObjectsOutputHeader {
+    pub request_charged: Option<RequestPayer>,
 }
 
 pub type ListObjectsOutputBody = ListBucketResult;
