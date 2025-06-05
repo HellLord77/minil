@@ -2,22 +2,20 @@ mod attr;
 mod fld;
 mod ty;
 
-pub use attr::Combine;
-pub use attr::combine_attribute;
-pub use attr::parse_assignment_attribute;
-pub use attr::parse_attrs;
-pub use attr::parse_parenthesized_attribute;
-
-pub use fld::field_has_attribute;
-
-pub use ty::peel_option;
-pub use ty::peel_result_ok;
-
 use quote::ToTokens;
 use quote::quote;
 use syn::__private::TokenStream;
 use syn::parse;
 use syn::parse::Parse;
+
+pub use crate::attr::Combine;
+pub use crate::attr::combine_attribute;
+pub use crate::attr::parse_assignment_attribute;
+pub use crate::attr::parse_attrs;
+pub use crate::attr::parse_parenthesized_attribute;
+pub use crate::fld::field_has_attribute;
+pub use crate::ty::peel_option;
+pub use crate::ty::peel_result_ok;
 
 pub fn expand_with<F, I, K>(input: TokenStream, f: F) -> TokenStream
 where

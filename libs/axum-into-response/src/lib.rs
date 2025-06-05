@@ -1,9 +1,10 @@
 mod attr;
 mod into_response;
 
-use crate::into_response::tr::Trait;
 use proc_macro::TokenStream;
 use syn_utils::expand_with;
+
+use crate::into_response::tr::Trait;
 
 #[proc_macro_derive(IntoResponse, attributes(into_response))]
 pub fn derive_into_response(input: TokenStream) -> TokenStream {

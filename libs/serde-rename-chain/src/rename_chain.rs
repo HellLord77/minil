@@ -1,5 +1,3 @@
-use crate::error::TryNewError;
-use crate::renamer::Renamer;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use quote::quote;
@@ -15,6 +13,9 @@ use syn::parse_quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn_utils::field_has_attribute;
+
+use crate::error::TryNewError;
+use crate::renamer::Renamer;
 
 fn parse(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>> {
     let mut renamers = vec![];

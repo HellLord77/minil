@@ -1,5 +1,3 @@
-use crate::attr::IntoResponseAttrs;
-use crate::attr::kw;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -13,6 +11,9 @@ use syn::Path;
 use syn::spanned::Spanned;
 use syn_utils::parse_attrs;
 use tr::Trait;
+
+use crate::attr::IntoResponseAttrs;
+use crate::attr::kw;
 
 pub(crate) mod tr {
     pub(crate) enum Trait {

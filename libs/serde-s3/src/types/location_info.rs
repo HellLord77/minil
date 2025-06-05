@@ -1,5 +1,6 @@
-use crate::types::LocationType;
 use serde::Deserialize;
+
+use crate::types::LocationType;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]

@@ -1,5 +1,6 @@
-use quote::ToTokens;
 use std::any::type_name;
+
+use quote::ToTokens;
 use syn::Attribute;
 use syn::Token;
 use syn::parenthesized;

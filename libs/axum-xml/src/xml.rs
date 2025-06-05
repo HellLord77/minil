@@ -1,8 +1,3 @@
-use crate::category::Category;
-use crate::rejection::MissingXmlContentType;
-use crate::rejection::XmlDataError;
-use crate::rejection::XmlRejection;
-use crate::rejection::XmlSyntaxError;
 use axum_core::extract::FromRequest;
 use axum_core::extract::OptionalFromRequest;
 use axum_core::extract::Request;
@@ -17,6 +12,12 @@ use http::header::HeaderValue;
 use http::header::{self};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+
+use crate::category::Category;
+use crate::rejection::MissingXmlContentType;
+use crate::rejection::XmlDataError;
+use crate::rejection::XmlRejection;
+use crate::rejection::XmlSyntaxError;
 
 #[derive(Debug, Clone, Copy, Default)]
 #[must_use]

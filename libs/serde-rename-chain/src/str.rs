@@ -1,7 +1,8 @@
-use crate::error::TryNewErrorKind;
-use crate::renamer::TryNewValue;
 use strum::EnumString;
 use strum::VariantNames;
+
+use crate::error::TryNewErrorKind;
+use crate::renamer::TryNewValue;
 
 #[derive(Debug, EnumString, VariantNames)]
 #[strum(serialize_all = "snake_case")]

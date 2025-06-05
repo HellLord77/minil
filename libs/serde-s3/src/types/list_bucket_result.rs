@@ -1,7 +1,8 @@
+use serde::Serialize;
+
 use crate::types::CommonPrefix;
 use crate::types::EncodingType;
 use crate::types::Object;
-use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]

@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use axum::Router;
 use axum::routing::get;
 use axum_core::body::Body;
@@ -11,7 +13,6 @@ use http::Request;
 use http::StatusCode;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use std::fmt::Debug;
 
 async fn check<T>(header: HeaderMap, value: T)
 where

@@ -1,7 +1,8 @@
-use crate::types::ListAllMyBucketsResult;
 use serde::Deserialize;
 use serde_inline_default::serde_inline_default;
 use validator::Validate;
+
+use crate::types::ListAllMyBucketsResult;
 
 #[serde_inline_default]
 #[derive(Debug, Validate, Deserialize)]

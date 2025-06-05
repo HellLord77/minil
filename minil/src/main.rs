@@ -1,4 +1,7 @@
-mod error;
+use std::env;
+use std::future;
+use std::net::Ipv4Addr;
+use std::time::Instant;
 
 use axum::Router;
 use axum::debug_handler;
@@ -26,10 +29,6 @@ use sqlx::Pool;
 use sqlx::Sqlite;
 use sqlx::SqlitePool;
 use sqlx::migrate;
-use std::env;
-use std::future;
-use std::net::Ipv4Addr;
-use std::time::Instant;
 use tokio::net::TcpListener;
 use tokio::signal;
 use tower::ServiceBuilder;

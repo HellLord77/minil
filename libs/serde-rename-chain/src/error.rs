@@ -1,20 +1,25 @@
-use crate::renamer::Renamer;
-use crate::str::Str;
 use derive_more::Constructor;
 use strum::Display;
 use strum::EnumIs;
 use strum::VariantNames;
 use thiserror::Error;
 
+use crate::renamer::Renamer;
+use crate::str::Str;
+
+#[rustfmt::skip]
 #[cfg(feature = "convert_case")]
 use crate::convert_case::ConvertCase;
 
+#[rustfmt::skip]
 #[cfg(feature = "heck")]
 use crate::heck::Heck;
 
+#[rustfmt::skip]
 #[cfg(feature = "ident_case")]
 use crate::ident_case::IdentCase;
 
+#[rustfmt::skip]
 #[cfg(feature = "inflector")]
 use crate::inflector::Inflector;
 

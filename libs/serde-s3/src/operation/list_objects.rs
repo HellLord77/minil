@@ -1,12 +1,13 @@
-use crate::types::EncodingType;
-use crate::types::ListBucketResult;
-use crate::types::OptionalObjectAttributes;
-use crate::types::RequestPayer;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_inline_default::serde_inline_default;
 use serde_rename_chain::serde_rename_chain;
 use validator::Validate;
+
+use crate::types::EncodingType;
+use crate::types::ListBucketResult;
+use crate::types::OptionalObjectAttributes;
+use crate::types::RequestPayer;
 
 #[serde_inline_default]
 #[derive(Debug, Validate, Deserialize)]

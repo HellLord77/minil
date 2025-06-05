@@ -1,6 +1,3 @@
-use crate::HeaderRejection;
-use crate::TryIntoHeaderError;
-use crate::rejection::FailedToDeserializeHeaderString;
 use axum_core::extract::FromRequestParts;
 use axum_core::response::IntoResponse;
 use axum_core::response::IntoResponseParts;
@@ -11,6 +8,10 @@ use http::HeaderValue;
 use http::request::Parts;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+
+use crate::HeaderRejection;
+use crate::TryIntoHeaderError;
+use crate::rejection::FailedToDeserializeHeaderString;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Header<T>(pub T);

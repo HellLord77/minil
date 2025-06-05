@@ -1,6 +1,3 @@
-use crate::error::TryNewErrorKind;
-use crate::error::ValueError;
-use crate::renamer::TryNewValue;
 use heck::ToKebabCase;
 use heck::ToLowerCamelCase;
 use heck::ToPascalCase;
@@ -14,6 +11,10 @@ use heck::ToTrainCase;
 use heck::ToUpperCamelCase;
 use strum::EnumString;
 use strum::VariantNames;
+
+use crate::error::TryNewErrorKind;
+use crate::error::ValueError;
+use crate::renamer::TryNewValue;
 
 #[derive(Debug, EnumString, VariantNames)]
 #[strum(serialize_all = "snake_case")]
