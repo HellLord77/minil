@@ -27,7 +27,6 @@ where
     }
 
     *out = Some((kw, inner));
-
     Ok(())
 }
 
@@ -50,7 +49,6 @@ where
     }
 
     *out = Some((kw, inner));
-
     Ok(())
 }
 

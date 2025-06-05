@@ -78,7 +78,7 @@ impl Renamer {
 impl TryFrom<(String, String)> for Renamer {
     type Error = TryNewError;
 
-    fn try_from((n, v): (String, String)) -> TryNewResult<Self> {
+    fn try_from((n, v): (String, String)) -> Result<Self, Self::Error> {
         Ok(match RenamerDiscriminants::try_new(n)? {
             RenamerDiscriminants::AddPrefix => Renamer::AddPrefix(v),
             RenamerDiscriminants::AddSuffix => Renamer::AddSuffix(v),
