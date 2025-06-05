@@ -1,5 +1,5 @@
 #[cfg(all(feature = "heck", feature = "inflector"))]
-compile_error!("the `heck` and `inflector` features are mutually exclusive");
+compile_error!("expected only one of heck and inflector");
 
 mod error;
 mod rename_chain;
@@ -18,17 +18,15 @@ mod ident_case;
 #[cfg(feature = "inflector")]
 mod inflector;
 
-use crate::rename_chain::rename_all_chain_impl;
 use proc_macro::TokenStream;
 use syn::Meta;
 use syn::Token;
 use syn::parse_macro_input;
 use syn::punctuated::Punctuated;
-use syn_utils::into_macro_output;
+use syn_utils::expand_with;
 
 #[proc_macro_attribute]
 pub fn serde_rename_chain(attr: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attr with Punctuated::<Meta, Token![,]>::parse_terminated);
-
-    into_macro_output(rename_all_chain_impl(args, input))
+    expand_with(input, |item| rename_chain::expand(args, item))
 }

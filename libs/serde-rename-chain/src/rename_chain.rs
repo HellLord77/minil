@@ -1,22 +1,22 @@
 use crate::error::TryNewError;
 use crate::renamer::Renamer;
-use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::TokenStream;
 use quote::ToTokens;
+use quote::quote;
 use syn::Expr;
 use syn::ExprLit;
+use syn::Fields;
+use syn::Item;
+use syn::ItemStruct;
 use syn::Lit;
 use syn::Meta;
 use syn::MetaNameValue;
 use syn::parse_quote;
 use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn_utils::apply_function_to_struct_fields;
-use syn_utils::bail;
 use syn_utils::field_has_attribute;
 
-fn renamers_from_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>> {
+fn parse(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>> {
     let mut renamers = vec![];
 
     for arg in args {
@@ -38,12 +38,12 @@ fn renamers_from_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>
                         } else {
                             lit_str.to_token_stream()
                         };
-                        bail!(tokens.span(), err);
+                        syn::Error::new_spanned(tokens, err);
                     }
                 };
             }
             _ => {
-                bail!(arg.span(), "expected named argument");
+                syn::Error::new_spanned(arg, "expected named argument");
             }
         };
     }
@@ -51,29 +51,33 @@ fn renamers_from_args(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>
     Ok(renamers)
 }
 
-pub(super) fn rename_all_chain_impl(
-    args: Punctuated<Meta, Comma>,
-    input: TokenStream,
-) -> syn::Result<TokenStream2> {
-    let renamers = renamers_from_args(args)?;
+pub(super) fn expand(args: Punctuated<Meta, Comma>, item: Item) -> syn::Result<TokenStream> {
+    let renamers = parse(args)?;
 
-    apply_function_to_struct_fields(input, |field| {
-        if field_has_attribute(field, "serde", "rename") {
-            return Ok(());
+    match item {
+        Item::Struct(mut item) => {
+            let ItemStruct { ref mut fields, .. } = item;
+
+            match fields {
+                Fields::Named(fields) => {
+                    for field in fields.named.iter_mut() {
+                        if field_has_attribute(field, "serde", "rename") {
+                            continue;
+                        }
+
+                        let rename = renamers
+                            .iter()
+                            .fold(field.ident.clone().unwrap().to_string(), |acc, renamer| {
+                                renamer.apply(&acc)
+                            });
+
+                        field.attrs.push(parse_quote!( #[serde(rename = #rename)] ));
+                    }
+                    Ok(quote! { #item })
+                }
+                _ => Err(syn::Error::new_spanned(fields, "expected named fields")),
+            }
         }
-
-        let rename_lit = renamers.iter().fold(
-            field
-                .ident
-                .clone()
-                .ok_or("expected named field")?
-                .to_string(),
-            |rename_lit, renamer| renamer.apply(&rename_lit),
-        );
-        field
-            .attrs
-            .push(parse_quote!( #[serde(rename = #rename_lit)] ));
-
-        Ok(())
-    })
+        _ => Err(syn::Error::new_spanned(item, "expected struct")),
+    }
 }
