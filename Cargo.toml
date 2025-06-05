@@ -3,7 +3,8 @@ members = [
     "minil",
 
     "libs/axum-header",
-    "libs/axum-s3-input",
+    "libs/axum-into-response",
+    "libs/axum-s3",
     "libs/axum-xml",
     "libs/serde-rename-chain",
     "libs/serde-s3",
@@ -32,7 +33,8 @@ thiserror = "2.0.12"
 tokio = { version = "1.45.0", features = ["full"] }
 
 axum-header = { path = "libs/axum-header" }
-axum-s3-input = {path = "libs/axum-s3-input"}
+axum-into-response = { path = "libs/axum-into-response" }
+axum-s3 = {path = "libs/axum-s3"}
 axum-xml = { path = "libs/axum-xml" }
 serde-rename-chain = { path = "libs/serde-rename-chain", features = ["full"] }
 serde-s3 = { path = "libs/serde-s3" }

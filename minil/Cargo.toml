@@ -14,7 +14,7 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 axum.workspace = true
 tokio.workspace = true
 
-axum-s3-input.workspace = true
+axum-s3.workspace = true
 axum-extra.workspace = true
 axum-xml.workspace = true
 serde-s3.workspace = true
