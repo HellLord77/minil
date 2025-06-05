@@ -2026,7 +2026,6 @@ dependencies = [
 name = "minil"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "axum",
  "axum-extra",
  "axum-s3",
@@ -3299,7 +3298,6 @@ dependencies = [
 name = "syn-utils"
 version = "0.2.1"
 dependencies = [
- "proc-macro2",
  "quote",
  "syn",
 ]
