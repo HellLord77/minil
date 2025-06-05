@@ -1,5 +1,18 @@
+mod attr;
+mod ty;
+
+pub use attr::Combine;
+pub use attr::combine_attribute;
+pub use attr::parse_assignment_attribute;
+pub use attr::parse_attrs;
+pub use attr::parse_parenthesized_attribute;
+
+pub use ty::peel_option;
+pub use ty::peel_result_ok;
+
 use proc_macro2::Span;
 use proc_macro2::TokenStream as TokenStream2;
+use quote::ToTokens;
 use quote::quote;
 use syn::__private::TokenStream;
 use syn::Field;
@@ -9,6 +22,7 @@ use syn::ItemStruct;
 use syn::Meta;
 use syn::Token;
 use syn::parse;
+use syn::parse::Parse;
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -45,6 +59,7 @@ trait IteratorExt {
 
 impl<I> IteratorExt for I where I: Iterator<Item = syn::Result<()>> + Sized {}
 
+#[deprecated]
 fn apply_on_fields<F>(fields: &mut Fields, function: F) -> syn::Result<()>
 where
     F: Fn(&mut Field) -> Result<(), String>,
@@ -99,6 +114,7 @@ pub fn field_has_attribute(field: &Field, namespace: &str, name: &str) -> bool {
     false
 }
 
+#[deprecated]
 pub fn apply_function_to_struct_fields<F>(
     input: TokenStream,
     function: F,
@@ -116,6 +132,7 @@ where
     }
 }
 
+#[deprecated]
 pub fn apply_function_to_enum_fields<F>(
     input: TokenStream,
     function: F,
@@ -137,6 +154,47 @@ where
     }
 }
 
+#[deprecated]
 pub fn into_macro_output(input: syn::Result<TokenStream2>) -> TokenStream {
     input.unwrap_or_else(|err| err.to_compile_error()).into()
+}
+
+pub fn expand_with<F, I, K>(input: TokenStream, f: F) -> TokenStream
+where
+    F: FnOnce(I) -> syn::Result<K>,
+    I: Parse,
+    K: ToTokens,
+{
+    expand(parse(input).and_then(f))
+}
+
+pub fn expand_attr_with<F, A, I, K>(attr: TokenStream, input: TokenStream, f: F) -> TokenStream
+where
+    F: FnOnce(A, I) -> K,
+    A: Parse,
+    I: Parse,
+    K: ToTokens,
+{
+    let expand_result = (|| {
+        let attr = parse(attr)?;
+        let input = parse(input)?;
+        Ok(f(attr, input))
+    })();
+    expand(expand_result)
+}
+
+pub fn expand<T>(result: syn::Result<T>) -> TokenStream
+where
+    T: ToTokens,
+{
+    match result {
+        Ok(tokens) => {
+            let tokens = quote! { #tokens }.into();
+            if std::env::var_os("SYN_UTILS_DEBUG").is_some() {
+                eprintln!("{tokens}");
+            }
+            tokens
+        }
+        Err(err) => err.into_compile_error().into(),
+    }
 }
