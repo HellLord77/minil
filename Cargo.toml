@@ -40,4 +40,4 @@ serde-rename-chain = { path = "libs/serde-rename-chain", features = ["full"] }
 serde-s3 = { path = "libs/serde-s3" }
 syn-utils = { path = "libs/syn-utils" }
 
-aws-sdk-s3 = "1.90.0"
+aws-sdk-s3 = "1.91.0"
