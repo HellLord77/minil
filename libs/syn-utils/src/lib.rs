@@ -17,6 +17,32 @@ pub use crate::fld::field_has_attribute;
 pub use crate::ty::peel_option;
 pub use crate::ty::peel_result_ok;
 
+#[macro_export]
+macro_rules! bail {
+    ($span:expr, $message:literal $(,)?) => {
+        return ::std::result::Result::Err(syn::Error::new($span, $message))
+    };
+    ($span:expr, $message:expr $(,)?) => {
+        return ::std::result::Result::Err(::syn::Error::new($span, $message))
+    };
+    ($span:expr, $fmt:expr, $($arg:tt)*) => {
+        return ::std::result::Result::Err(::syn::Error::new($span, format!($fmt, $($arg)*)))
+    };
+}
+
+#[macro_export]
+macro_rules! bail_spanned {
+    ($tokens:expr, $message:literal $(,)?) => {
+        return ::std::result::Result::Err(syn::Error::new_spanned($tokens, $message))
+    };
+    ($tokens:expr, $message:expr $(,)?) => {
+        return ::std::result::Result::Err(::syn::Error::new_spanned($tokens, $message))
+    };
+    ($tokens:expr, $fmt:expr, $($arg:tt)*) => {
+        return ::std::result::Result::Err(::syn::Error::new_spanned($tokens, format!($fmt, $($arg)*)))
+    };
+}
+
 pub fn expand_with<F, I, K>(input: TokenStream, f: F) -> TokenStream
 where
     F: FnOnce(I) -> syn::Result<K>,
