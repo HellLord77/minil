@@ -8,22 +8,22 @@ use axum::debug_handler;
 use axum::debug_middleware;
 use axum::extract::FromRef;
 use axum::extract::Request;
-use axum::http::HeaderMap;
 use axum::http::HeaderValue;
 use axum::http::StatusCode;
 use axum::http::header;
 use axum::middleware::Next;
 use axum::response::IntoResponse;
 use axum::response::Response;
-use axum::routing::delete;
 use axum::routing::get;
 use axum::routing::put;
 use axum_extra::vpath;
 use axum_s3::CreateBucketInput;
+use axum_s3::CreateBucketOutput;
 use axum_s3::DeleteBucketInput;
 use axum_s3::ListBucketsInput;
+use axum_s3::ListBucketsOutput;
 use axum_s3::ListObjectsInput;
-use axum_xml::Xml;
+use serde_s3::operation::CreateBucketOutputHeader;
 use serde_s3::operation::ListBucketsOutputBody;
 use sqlx::Pool;
 use sqlx::Sqlite;
@@ -75,10 +75,11 @@ async fn main() {
         .compression()
         .trace_for_http();
     let app = Router::new()
-        .route(vpath!("/create-bucket"), put(create_bucket))
-        .route(vpath!("/delete-bucket"), delete(delete_bucket))
-        .route(vpath!("/list-buckets"), get(list_buckets))
-        .route(vpath!("/list-objects/{bucket}"), get(list_objects))
+        .route(
+            vpath!("/{bucket}"),
+            put(create_bucket).delete(delete_bucket).get(list_objects),
+        )
+        .route(vpath!("/"), get(list_buckets))
         .with_state(state)
         .layer(axum::middleware::from_fn(set_process_time))
         .layer(middleware);
@@ -136,9 +137,9 @@ async fn set_process_time(request: Request, next: Next) -> Response {
 #[debug_handler]
 async fn create_bucket(input: CreateBucketInput) -> impl IntoResponse {
     dbg!(&input);
-    let mut headers = HeaderMap::new();
-    headers.insert(header::LOCATION, HeaderValue::from_static("us-east-1"));
-    (StatusCode::OK, headers)
+    let location = format!("/{}", input.bucket);
+    let header = CreateBucketOutputHeader { location };
+    CreateBucketOutput { header }
 }
 
 #[debug_handler]
@@ -150,13 +151,13 @@ async fn delete_bucket(input: DeleteBucketInput) -> impl IntoResponse {
 #[debug_handler]
 async fn list_buckets(input: ListBucketsInput) -> impl IntoResponse {
     dbg!(&input);
-    let output = ListBucketsOutputBody {
+    let body = ListBucketsOutputBody {
         buckets: vec![],
         owner: None,
         continuation_token: None,
         prefix: None,
     };
-    Xml(output)
+    ListBucketsOutput { body }
 }
 
 #[debug_handler]
