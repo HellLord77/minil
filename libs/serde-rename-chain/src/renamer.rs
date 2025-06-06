@@ -81,28 +81,35 @@ impl Renamer {
     }
 }
 
-impl TryFrom<(String, String)> for Renamer {
+pub(crate) trait TryIntoRenamer {
+    type Error;
+
+    fn try_into_renamer(self) -> Result<Renamer, Self::Error>;
+}
+
+impl TryIntoRenamer for (String, String) {
     type Error = TryNewError;
 
-    fn try_from((n, v): (String, String)) -> Result<Self, Self::Error> {
-        Ok(match RenamerDiscriminants::try_new(n)? {
-            RenamerDiscriminants::AddPrefix => Renamer::AddPrefix(v),
-            RenamerDiscriminants::AddSuffix => Renamer::AddSuffix(v),
-            RenamerDiscriminants::StripPrefix => Renamer::StripPrefix(v),
-            RenamerDiscriminants::StripSuffix => Renamer::StripSuffix(v),
-            RenamerDiscriminants::Str => Str::try_new(v)?.into(),
+    #[inline]
+    fn try_into_renamer(self) -> Result<Renamer, Self::Error> {
+        Ok(match RenamerDiscriminants::try_new(self.0)? {
+            RenamerDiscriminants::AddPrefix => Renamer::AddPrefix(self.1),
+            RenamerDiscriminants::AddSuffix => Renamer::AddSuffix(self.1),
+            RenamerDiscriminants::StripPrefix => Renamer::StripPrefix(self.1),
+            RenamerDiscriminants::StripSuffix => Renamer::StripSuffix(self.1),
+            RenamerDiscriminants::Str => Str::try_new(self.1)?.into(),
 
             #[cfg(feature = "ident_case")]
-            RenamerDiscriminants::IdentCase => IdentCase::try_new(v)?.into(),
+            RenamerDiscriminants::IdentCase => IdentCase::try_new(self.1)?.into(),
 
             #[cfg(feature = "convert_case")]
-            RenamerDiscriminants::ConvertCase => ConvertCase::try_new(v)?.into(),
+            RenamerDiscriminants::ConvertCase => ConvertCase::try_new(self.1)?.into(),
 
             #[cfg(feature = "heck")]
-            RenamerDiscriminants::Heck => Heck::try_new(v)?.into(),
+            RenamerDiscriminants::Heck => Heck::try_new(self.1)?.into(),
 
             #[cfg(feature = "inflector")]
-            RenamerDiscriminants::Inflector => Inflector::try_new(v)?.into(),
+            RenamerDiscriminants::Inflector => Inflector::try_new(self.1)?.into(),
         })
     }
 }

@@ -12,39 +12,40 @@ use syn::MetaNameValue;
 use syn::parse_quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
+use syn_utils::bail_spanned;
 use syn_utils::field_has_attribute;
 
-use crate::error::TryNewError;
 use crate::renamer::Renamer;
+use crate::renamer::TryIntoRenamer;
 
 fn parse(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>> {
     let mut renamers = vec![];
 
     for arg in args {
         match arg {
-            Meta::NameValue(MetaNameValue {
-                path,
-                value:
-                    Expr::Lit(ExprLit {
-                        lit: Lit::Str(lit_str),
-                        ..
-                    }),
-                ..
-            }) => {
-                match (path.get_ident().unwrap().to_string(), lit_str.value()).try_into() {
-                    Ok(renamer) => renamers.push(renamer),
-                    Err(err) => {
-                        let tokens = if TryNewError::kind(&err).is_renamer() {
-                            path.to_token_stream()
-                        } else {
-                            lit_str.to_token_stream()
-                        };
-                        syn::Error::new_spanned(tokens, err);
-                    }
-                };
-            }
+            Meta::NameValue(MetaNameValue { path, value, .. }) => match value {
+                Expr::Lit(ExprLit {
+                    lit: Lit::Str(lit_str),
+                    ..
+                }) => {
+                    match (path.get_ident().unwrap().to_string(), lit_str.value())
+                        .try_into_renamer()
+                    {
+                        Ok(renamer) => renamers.push(renamer),
+                        Err(err) => {
+                            let tokens = if err.kind().is_renamer() {
+                                path.to_token_stream()
+                            } else {
+                                lit_str.to_token_stream()
+                            };
+                            bail_spanned!(tokens, err);
+                        }
+                    };
+                }
+                _ => bail_spanned!(value, "expected string literal"),
+            },
             _ => {
-                syn::Error::new_spanned(arg, "expected named argument");
+                bail_spanned!(arg, "expected name-value pair");
             }
         };
     }
