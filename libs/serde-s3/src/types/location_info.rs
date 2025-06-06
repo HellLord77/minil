@@ -1,11 +1,12 @@
+use derive_getters::Getters;
 use serde::Deserialize;
 
 use crate::types::LocationType;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Getters, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct LocationInfo {
-    pub name: Option<String>,
+    name: Option<String>,
 
-    pub r#type: Option<LocationType>,
+    r#type: Option<LocationType>,
 }

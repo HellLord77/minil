@@ -54,9 +54,9 @@ async fn main() {
         )
         .with(tracing_subscriber::fmt::layer())
         .try_init()
-        .expect("Unable to install global subscriber");
+        .expect("unable to install global subscriber");
 
-    let db_conn_str = env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".into());
+    let db_conn_str = env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".to_owned());
     tracing::info!("connecting to {}", db_conn_str);
     let db_pool = SqlitePool::connect(&db_conn_str)
         .await
@@ -137,7 +137,7 @@ async fn set_process_time(request: Request, next: Next) -> Response {
 #[debug_handler]
 async fn create_bucket(input: CreateBucketInput) -> impl IntoResponse {
     dbg!(&input);
-    let location = format!("/{}", input.bucket);
+    let location = format!("/{}", input.bucket());
     let header = CreateBucketOutputHeader { location };
     CreateBucketOutput { header }
 }

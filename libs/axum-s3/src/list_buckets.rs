@@ -2,13 +2,14 @@ use axum::extract::FromRequest;
 use axum_extra::extract::Query;
 use axum_into_response::IntoResponse;
 use axum_xml::Xml;
+use derive_getters::Getters;
 use serde_s3::operation::ListBucketsInputQuery;
 use serde_s3::operation::ListBucketsOutputBody;
 
-#[derive(Debug, FromRequest)]
+#[derive(Debug, Getters, FromRequest)]
 pub struct ListBucketsInput {
     #[from_request(via(Query))]
-    pub query: ListBucketsInputQuery,
+    query: ListBucketsInputQuery,
 }
 
 #[derive(Debug, IntoResponse)]

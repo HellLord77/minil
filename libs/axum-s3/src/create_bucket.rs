@@ -3,20 +3,21 @@ use axum::extract::Path;
 use axum_header::Header;
 use axum_into_response::IntoResponse;
 use axum_xml::Xml;
+use derive_getters::Getters;
 use serde_s3::operation::CreateBucketInputBody;
 use serde_s3::operation::CreateBucketInputHeader;
 use serde_s3::operation::CreateBucketOutputHeader;
 
-#[derive(Debug, FromRequest)]
+#[derive(Debug, Getters, FromRequest)]
 pub struct CreateBucketInput {
     #[from_request(via(Path))]
-    pub bucket: String,
+    bucket: String,
 
     #[from_request(via(Header))]
-    pub header: CreateBucketInputHeader,
+    header: CreateBucketInputHeader,
 
     #[from_request(via(Xml))]
-    pub body: CreateBucketInputBody,
+    body: CreateBucketInputBody,
 }
 
 #[derive(Debug, IntoResponse)]

@@ -575,13 +575,14 @@ dependencies = [
 
 [[package]]
 name = "axum-s3"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "axum",
  "axum-extra",
  "axum-header",
  "axum-into-response",
  "axum-xml",
+ "derive-getters",
  "serde-s3",
 ]
 
@@ -1065,6 +1066,17 @@ checksum = "9c9e6a11ca8224451684bc0d7d5a7adbf8f2fd6887261a1cfc3c0432f9d4068e"
 dependencies = [
  "powerfmt",
  "serde",
+]
+
+[[package]]
+name = "derive-getters"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74ef43543e701c01ad77d3a5922755c6a1d71b22d942cb8042be4994b380caff"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1919,7 +1931,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -2818,10 +2830,11 @@ dependencies = [
 
 [[package]]
 name = "serde-s3"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "aws-sdk-s3",
  "chrono",
+ "derive-getters",
  "serde",
  "serde-inline-default",
  "serde-rename-chain",

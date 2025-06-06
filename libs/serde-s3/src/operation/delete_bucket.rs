@@ -1,14 +1,15 @@
+use derive_getters::Getters;
 use serde::Deserialize;
 use serde_rename_chain::serde_rename_chain;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Getters, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteBucketInputQuery {
-    pub bucket: String,
+    bucket: String,
 }
 
 #[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Getters, Deserialize)]
 pub struct DeleteBucketInputHeader {
-    pub expected_bucket_owner: Option<String>,
+    expected_bucket_owner: Option<String>,
 }
