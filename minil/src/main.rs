@@ -1,3 +1,5 @@
+mod request_id;
+
 use std::env;
 use std::future;
 use std::net::Ipv4Addr;
@@ -8,6 +10,7 @@ use axum::debug_handler;
 use axum::debug_middleware;
 use axum::extract::FromRef;
 use axum::extract::Request;
+use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::http::StatusCode;
 use axum::http::header;
@@ -25,6 +28,8 @@ use axum_s3::ListBucketsOutput;
 use axum_s3::ListObjectsInput;
 use serde_s3::operation::CreateBucketOutputHeader;
 use serde_s3::operation::ListBucketsOutputBody;
+use sha2::Digest;
+use sha2::Sha256;
 use sqlx::Pool;
 use sqlx::Sqlite;
 use sqlx::SqlitePool;
@@ -33,12 +38,17 @@ use tokio::net::TcpListener;
 use tokio::signal;
 use tower::ServiceBuilder;
 use tower_http::ServiceBuilderExt;
-use tower_http::request_id::MakeRequestUuid;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-const PROCESS_TIME: &str = "X-Process-Time";
+use crate::request_id::MakeAmzRequestId;
+
+const NODE_NAME: &str = "minil";
+const PROCESS_TIME: &str = "x-process-time";
+
+const NODE_ID_HEADER: HeaderName = HeaderName::from_static("x-amz-id-2");
+const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-amz-request-id");
 
 #[derive(Debug, Clone, FromRef)]
 struct State {
@@ -67,13 +77,26 @@ async fn main() {
         .expect("failed to run migrations");
 
     let state = State { db_pool };
+    let node_id = format!("{:x}", Sha256::digest(NODE_NAME.as_bytes()));
+    let server = format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+
     let middleware = ServiceBuilder::new()
-        .set_x_request_id(MakeRequestUuid)
-        .propagate_x_request_id()
-        .insert_response_header_if_not_present(header::SERVER, HeaderValue::from_static("axum"))
+        .set_request_id(REQUEST_ID_HEADER, MakeAmzRequestId)
+        .propagate_request_id(REQUEST_ID_HEADER)
+        .override_response_header(
+            NODE_ID_HEADER,
+            node_id.parse::<HeaderValue>().expect("invalid node id"),
+        )
+        .insert_response_header_if_not_present(
+            header::SERVER,
+            server
+                .parse::<HeaderValue>()
+                .expect("invalid server header"),
+        )
         .decompression()
         .compression()
         .trace_for_http();
+
     let app = Router::new()
         .route(
             vpath!("/{bucket}"),
@@ -89,7 +112,6 @@ async fn main() {
         .await
         .expect("failed to bind address");
     tracing::info!("listening on {}", listener.local_addr().unwrap());
-
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
@@ -127,9 +149,10 @@ async fn set_process_time(request: Request, next: Next) -> Response {
 
     if !response.headers().contains_key(PROCESS_TIME) {
         let process_time = start_time.elapsed().as_secs_f64().to_string();
-        response
-            .headers_mut()
-            .insert(PROCESS_TIME, process_time.parse().unwrap());
+        response.headers_mut().insert(
+            PROCESS_TIME,
+            process_time.parse().expect("invalid process time"),
+        );
     }
     response
 }
