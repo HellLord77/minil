@@ -26,7 +26,12 @@ use crate::ident_case::IdentCase;
 #[cfg(feature = "inflector")]
 use crate::inflector::Inflector;
 
+#[rustfmt::skip]
+#[cfg(feature = "strfmt")]
+use strfmt::strfmt;
+
 #[derive(Debug, From, VariantNames, EnumDiscriminants)]
+#[strum(serialize_all = "snake_case")]
 #[strum_discriminants(derive(EnumString), strum(serialize_all = "snake_case"))]
 pub(crate) enum Renamer {
     #[from(skip)]
@@ -60,6 +65,10 @@ pub(crate) enum Renamer {
 
     #[cfg(feature = "inflector")]
     Inflector(Inflector),
+
+    #[from(skip)]
+    #[cfg(feature = "strfmt")]
+    StrFmt(String),
 }
 
 impl Renamer {
@@ -84,6 +93,18 @@ impl Renamer {
 
             #[cfg(feature = "inflector")]
             Renamer::Inflector(inflector) => inflector.apply(s),
+
+            #[cfg(feature = "strfmt")]
+            Renamer::StrFmt(fmt) => strfmt(
+                fmt,
+                &[
+                    ('s', s.to_owned()),
+                    ('l', s.len().to_string()),
+                    ('c', s.chars().count().to_string()),
+                ]
+                .into(),
+            )
+            .unwrap_or(s.to_owned()),
         }
     }
 }
@@ -119,6 +140,9 @@ impl TryIntoRenamer for (String, String) {
 
             #[cfg(feature = "inflector")]
             RenamerDiscriminants::Inflector => Inflector::try_new(self.1)?.into(),
+
+            #[cfg(feature = "strfmt")]
+            RenamerDiscriminants::StrFmt => Renamer::StrFmt(self.1),
         })
     }
 }
