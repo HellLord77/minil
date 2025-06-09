@@ -27,7 +27,6 @@ use crate::ident_case::IdentCase;
 use crate::inflector::Inflector;
 
 #[derive(Debug, From, VariantNames, EnumDiscriminants)]
-#[strum(serialize_all = "snake_case")]
 #[strum_discriminants(derive(EnumString), strum(serialize_all = "snake_case"))]
 pub(crate) enum Renamer {
     #[from(skip)]
@@ -41,6 +40,12 @@ pub(crate) enum Renamer {
 
     #[from(skip)]
     StripSuffix(String),
+
+    #[from(skip)]
+    TrimStart(String),
+
+    #[from(skip)]
+    TrimEnd(String),
 
     Str(Str),
 
@@ -64,6 +69,8 @@ impl Renamer {
             Renamer::AddSuffix(suffix) => format!("{s}{suffix}"),
             Renamer::StripPrefix(prefix) => s.strip_prefix(prefix).unwrap_or(s).to_owned(),
             Renamer::StripSuffix(suffix) => s.strip_suffix(suffix).unwrap_or(s).to_owned(),
+            Renamer::TrimStart(pattern) => s.trim_start_matches(pattern).to_owned(),
+            Renamer::TrimEnd(pattern) => s.trim_end_matches(pattern).to_owned(),
             Renamer::Str(str) => str.apply(s),
 
             #[cfg(feature = "ident_case")]
@@ -97,6 +104,8 @@ impl TryIntoRenamer for (String, String) {
             RenamerDiscriminants::AddSuffix => Renamer::AddSuffix(self.1),
             RenamerDiscriminants::StripPrefix => Renamer::StripPrefix(self.1),
             RenamerDiscriminants::StripSuffix => Renamer::StripSuffix(self.1),
+            RenamerDiscriminants::TrimStart => Renamer::TrimStart(self.1),
+            RenamerDiscriminants::TrimEnd => Renamer::TrimEnd(self.1),
             RenamerDiscriminants::Str => Str::try_new(self.1)?.into(),
 
             #[cfg(feature = "ident_case")]

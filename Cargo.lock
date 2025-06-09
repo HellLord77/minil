@@ -2814,7 +2814,7 @@ dependencies = [
 
 [[package]]
 name = "serde-rename-chain"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "Inflector",
  "convert_case 0.8.0",
