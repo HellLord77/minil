@@ -30,6 +30,18 @@ use crate::inflector::Inflector;
 #[cfg(feature = "strfmt")]
 use strfmt::strfmt;
 
+#[rustfmt::skip]
+#[cfg(feature = "_dynfmt")]
+use dynfmt::Format;
+
+#[rustfmt::skip]
+#[cfg(feature = "dynfmt_python")]
+use dynfmt::PythonFormat;
+
+#[rustfmt::skip]
+#[cfg(feature = "dynfmt_curly")]
+use dynfmt::SimpleCurlyFormat;
+
 #[derive(Debug, From, VariantNames, EnumDiscriminants)]
 #[strum(serialize_all = "snake_case")]
 #[strum_discriminants(derive(EnumString), strum(serialize_all = "snake_case"))]
@@ -69,6 +81,14 @@ pub(crate) enum Renamer {
     #[from(skip)]
     #[cfg(feature = "strfmt")]
     StrFmt(String),
+
+    #[from(skip)]
+    #[cfg(feature = "dynfmt_python")]
+    DynFmtPython(String),
+
+    #[from(skip)]
+    #[cfg(feature = "dynfmt_curly")]
+    DynFmtCurly(String),
 }
 
 impl Renamer {
@@ -95,17 +115,28 @@ impl Renamer {
             Renamer::Inflector(inflector) => inflector.apply(s),
 
             #[cfg(feature = "strfmt")]
-            Renamer::StrFmt(fmt) => strfmt(
-                fmt,
-                &[
-                    ('s', s.to_owned()),
-                    ('l', s.len().to_string()),
-                    ('c', s.chars().count().to_string()),
-                ]
-                .into(),
-            )
-            .unwrap_or(s.to_owned()),
+            Renamer::StrFmt(fmt) => {
+                strfmt(fmt, &Self::vars(s).into()).unwrap_or_else(|_err| s.to_owned())
+            }
+
+            #[cfg(feature = "dynfmt_python")]
+            Renamer::DynFmtPython(fmt) => PythonFormat
+                .format(fmt, Self::vars(s).map(|(_, v)| v))
+                .map_or_else(|_err| s.to_owned(), |s| s.into_owned()),
+
+            #[cfg(feature = "dynfmt_curly")]
+            Renamer::DynFmtCurly(fmt) => SimpleCurlyFormat
+                .format(fmt, Self::vars(s).map(|(_, v)| v))
+                .map_or_else(|_err| s.to_owned(), |s| s.into_owned()),
         }
+    }
+
+    fn vars(s: &str) -> [(char, String); 3] {
+        [
+            ('s', s.to_owned()),
+            ('l', s.len().to_string()),
+            ('c', s.chars().count().to_string()),
+        ]
     }
 }
 
@@ -143,6 +174,12 @@ impl TryIntoRenamer for (String, String) {
 
             #[cfg(feature = "strfmt")]
             RenamerDiscriminants::StrFmt => Renamer::StrFmt(self.1),
+
+            #[cfg(feature = "dynfmt_python")]
+            RenamerDiscriminants::DynFmtPython => Renamer::DynFmtPython(self.1),
+
+            #[cfg(feature = "dynfmt_curly")]
+            RenamerDiscriminants::DynFmtCurly => Renamer::DynFmtCurly(self.1),
         })
     }
 }
