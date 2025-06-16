@@ -1,16 +1,16 @@
 [workspace]
 members = [
-    "minil",
+    "lib/axum-header",
+    "lib/axum-into-response",
+    "lib/axum-s3",
+    "lib/axum-xml",
+    "lib/serde-rename-chain",
+    "lib/serde-s3",
+    "lib/syn-utils",
 
-    "libs/axum-header",
-    "libs/axum-into-response",
-    "libs/axum-s3",
-    "libs/axum-xml",
-    "libs/serde-rename-chain",
-    "libs/serde-s3",
-    "libs/syn-utils",
+    "main/minil",
 ]
-default-members = ["minil"]
+default-members = ["main/minil"]
 resolver = "3"
 
 [workspace.package]
@@ -18,8 +18,8 @@ edition = "2024"
 
 [workspace.dependencies]
 axum = { version = "0.8.4", features = ["macros"] }
-axum-extra = { version = "0.10.1", features = ["query"] }
 axum-core = "0.5.2"
+axum-extra = { version = "0.10.1", features = ["query"] }
 axum-test = "17.3.0"
 derive-getters = "0.5.0"
 derive_more = { version = "2.0.1", features = ["full"] }
@@ -33,12 +33,12 @@ syn = { version = "2.0.101", features = ["full"] }
 thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["full"] }
 
-axum-header = { path = "libs/axum-header" }
-axum-into-response = { path = "libs/axum-into-response" }
-axum-s3 = {path = "libs/axum-s3"}
-axum-xml = { path = "libs/axum-xml" }
-serde-rename-chain = { path = "libs/serde-rename-chain", features = ["full"] }
-serde-s3 = { path = "libs/serde-s3" }
-syn-utils = { path = "libs/syn-utils" }
+axum-header = { path = "lib/axum-header" }
+axum-into-response = { path = "lib/axum-into-response" }
+axum-s3 = {path = "lib/axum-s3"}
+axum-xml = { path = "lib/axum-xml" }
+serde-rename-chain = { path = "lib/serde-rename-chain", features = ["full"] }
+serde-s3 = { path = "lib/serde-s3" }
+syn-utils = { path = "lib/syn-utils" }
 
 aws-sdk-s3 = "1.91.0"
