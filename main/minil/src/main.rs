@@ -26,14 +26,14 @@ use axum_s3::DeleteBucketInput;
 use axum_s3::ListBucketsInput;
 use axum_s3::ListBucketsOutput;
 use axum_s3::ListObjectsInput;
+use migration::Migrator;
+use migration::MigratorTrait;
+use sea_orm::Database;
+use sea_orm::DatabaseConnection;
 use serde_s3::operation::CreateBucketOutputHeader;
 use serde_s3::operation::ListBucketsOutputBody;
 use sha2::Digest;
 use sha2::Sha256;
-use sqlx::Pool;
-use sqlx::Sqlite;
-use sqlx::SqlitePool;
-use sqlx::migrate;
 use tokio::net::TcpListener;
 use tokio::signal;
 use tower::ServiceBuilder;
@@ -52,7 +52,7 @@ const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-amz-request-id"
 
 #[derive(Debug, Clone, FromRef)]
 struct State {
-    db_pool: Pool<Sqlite>,
+    database: DatabaseConnection,
 }
 
 #[tokio::main]
@@ -66,17 +66,16 @@ async fn main() {
         .try_init()
         .expect("unable to install global subscriber");
 
-    let db_conn_str = env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".to_owned());
-    tracing::info!("connecting to {}", db_conn_str);
-    let db_pool = SqlitePool::connect(&db_conn_str)
+    let db_url = env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".to_owned());
+    tracing::info!("connecting to {}", db_url);
+    let database = Database::connect(db_url)
         .await
         .expect("failed to connect to database");
-    migrate!()
-        .run(&db_pool)
+    Migrator::up(&database, None)
         .await
         .expect("failed to run migrations");
 
-    let state = State { db_pool };
+    let state = State { database };
     let node_id = format!("{:x}", Sha256::digest(NODE_NAME.as_bytes()));
     let server = format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
