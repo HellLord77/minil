@@ -153,13 +153,14 @@ async fn set_process_time(request: Request, next: Next) -> Response {
             process_time.parse().expect("invalid process time"),
         );
     }
+
     response
 }
 
 #[debug_handler]
 async fn create_bucket(input: CreateBucketInput) -> impl IntoResponse {
     dbg!(&input);
-    let location = format!("/{}", input.bucket());
+    let location = format!("/{}", input.bucket);
     let header = CreateBucketOutputHeader { location };
     CreateBucketOutput { header }
 }
@@ -185,5 +186,4 @@ async fn list_buckets(input: ListBucketsInput) -> impl IntoResponse {
 #[debug_handler]
 async fn list_objects(input: ListObjectsInput) -> impl IntoResponse {
     dbg!(&input);
-    ()
 }
