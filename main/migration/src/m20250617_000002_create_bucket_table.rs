@@ -10,18 +10,6 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Owner::Table)
-                    .if_not_exists()
-                    .col(pk_uuid(Owner::Id))
-                    .col(string(Owner::Name))
-                    .col(timestamp(Owner::CreatedAt).default(Expr::current_timestamp()))
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_table(
-                Table::create()
                     .table(Bucket::Table)
                     .if_not_exists()
                     .col(pk_uuid(Bucket::Id))
@@ -48,10 +36,42 @@ impl MigrationTrait for Migration {
                     .col(Bucket::OwnerId)
                     .to_owned(),
             )
-            .await
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_bucket_name")
+                    .table(Bucket::Table)
+                    .col(Bucket::Name)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_bucket_owner_id_name")
+                    .table(Bucket::Table)
+                    .col(Bucket::OwnerId)
+                    .col(Bucket::Name)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_index(Index::drop().name("idx_bucket_owner_id_name").to_owned())
+            .await?;
+
+        manager
+            .drop_index(Index::drop().name("idx_bucket_name").to_owned())
+            .await?;
+
         manager
             .drop_index(Index::drop().name("idx_bucket_owner_id").to_owned())
             .await?;
@@ -60,9 +80,7 @@ impl MigrationTrait for Migration {
             .drop_table(Table::drop().table(Bucket::Table).to_owned())
             .await?;
 
-        manager
-            .drop_table(Table::drop().table(Owner::Table).to_owned())
-            .await
+        Ok(())
     }
 }
 
@@ -70,8 +88,6 @@ impl MigrationTrait for Migration {
 enum Owner {
     Table,
     Id,
-    Name,
-    CreatedAt,
 }
 
 #[derive(DeriveIden)]
