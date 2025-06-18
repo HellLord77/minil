@@ -681,7 +681,7 @@ dependencies = [
 
 [[package]]
 name = "axum-s3"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "axum",
  "axum-extra",
@@ -1422,7 +1422,7 @@ dependencies = [
 
 [[package]]
 name = "entity"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "sea-orm",
 ]
@@ -2230,7 +2230,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -2320,10 +2320,11 @@ checksum = "32a282da65faaf38286cf3be983213fcf1d2e2a58700e808f83f4ea9a4804bc0"
 
 [[package]]
 name = "migration"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "sea-orm-migration",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -2349,10 +2350,10 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-s3",
- "entity",
  "migration",
  "sea-orm",
  "serde-s3",
+ "service",
  "sha2",
  "tokio",
  "tower",
@@ -3504,7 +3505,7 @@ dependencies = [
 
 [[package]]
 name = "serde-s3"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "aws-sdk-s3",
  "chrono",
@@ -3512,6 +3513,7 @@ dependencies = [
  "serde-inline-default",
  "serde-rename-chain",
  "serde_with",
+ "serdev",
  "validator",
 ]
 
@@ -3602,6 +3604,36 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.103",
+]
+
+[[package]]
+name = "serdev"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04d3bf61b4d80fddb7984d8e610eaf55eaba9d0e7d8d6c238c6790244d9404d8"
+dependencies = [
+ "serde",
+ "serdev_derive",
+]
+
+[[package]]
+name = "serdev_derive"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc03d4e38cf459d729bc0d4cf4833a5b6be60516279f57d31a1af1354ab836f6"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.103",
+]
+
+[[package]]
+name = "service"
+version = "0.1.0"
+dependencies = [
+ "entity",
+ "sea-orm",
+ "uuid",
 ]
 
 [[package]]

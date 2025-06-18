@@ -10,9 +10,6 @@ tower-http = { version = "0.6.6", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
-entity.path = "../entity"
-migration.path = "../migration"
-
 axum.workspace = true
 sea-orm.workspace = true
 tokio.workspace = true
@@ -20,3 +17,6 @@ tokio.workspace = true
 axum-s3.workspace = true
 axum-extra.workspace = true
 serde-s3.workspace = true
+
+migration.workspace = true
+service.workspace = true

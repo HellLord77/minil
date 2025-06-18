@@ -11,6 +11,7 @@ members = [
     "main/entity",
     "main/migration",
     "main/minil",
+    "main/service",
 ]
 default-members = ["main/minil"]
 resolver = "3"
@@ -28,20 +29,26 @@ http = "1.3.1"
 proc-macro2 = "1.0.95"
 quote = "1.0.40"
 sea-orm = { version = "1.1.12", features = ["runtime-tokio", "sqlx-sqlite"] }
-sea-orm-migration = {version = "1.1.12", features = ["runtime-tokio", "sqlx-sqlite"]}
+sea-orm-migration = { version = "1.1.12", features = ["runtime-tokio", "sqlx-sqlite", "with-uuid"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_path_to_error = "0.1.17"
 strum = { version = "0.27.1", features = ["derive"] }
 syn = { version = "2.0.103", features = ["full"] }
 thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["full"] }
+uuid = { version = "1.17.0", features = ["v4"] }
 
 axum-header = { path = "lib/axum-header" }
 axum-into-response = { path = "lib/axum-into-response" }
-axum-s3 = {path = "lib/axum-s3"}
+axum-s3 = { path = "lib/axum-s3" }
 axum-xml = { path = "lib/axum-xml" }
 serde-rename-chain = { path = "lib/serde-rename-chain", features = ["full"] }
 serde-s3 = { path = "lib/serde-s3" }
 syn-utils = { path = "lib/syn-utils" }
+
+entity = { path = "main/entity" }
+migration = { path = "main/migration" }
+minil = { path = "main/minil" }
+service = { path = "main/service" }
 
 aws-sdk-s3 = "1.92.0"

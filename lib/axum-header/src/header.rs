@@ -24,12 +24,14 @@ where
     type Rejection = HeaderRejection;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let encoded =
-            form_urlencoded::Serializer::new(String::new())
-                .extend_pairs(parts.headers.iter().map(|(key, value)| {
-                    (key, value.to_str().unwrap_or_else(|_err| unimplemented!()))
-                }))
-                .finish();
+        let encoded = form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(
+                parts
+                    .headers
+                    .iter()
+                    .map(|(key, value)| (key, value.to_str().unwrap_or_else(|_err| todo!()))),
+            )
+            .finish();
 
         let parser = form_urlencoded::parse(encoded.as_bytes());
         #[cfg(not(feature = "extra"))]
@@ -65,9 +67,7 @@ where
         #[cfg(feature = "extra")]
         let serializer = serde_html_form::Serializer::new(&mut encoder);
 
-        self.0
-            .serialize(serializer)
-            .unwrap_or_else(|_err| unimplemented!());
+        self.0.serialize(serializer).unwrap_or_else(|_err| todo!());
         let encoded = encoder.finish();
 
         let parser = form_urlencoded::parse(encoded.as_bytes());
