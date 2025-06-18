@@ -1,15 +1,19 @@
-mod request_id;
+mod make_request_id;
+mod state;
 
+use std::collections::HashMap;
 use std::env;
 use std::future;
 use std::net::Ipv4Addr;
 use std::time::Instant;
 
 use axum::Router;
+use axum::ServiceExt;
 use axum::debug_handler;
 use axum::debug_middleware;
-use axum::extract::FromRef;
+use axum::extract::FromRequest;
 use axum::extract::Request;
+use axum::extract::State;
 use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::http::StatusCode;
@@ -19,6 +23,7 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::routing::get;
 use axum::routing::put;
+use axum_extra::extract::Query;
 use axum_extra::vpath;
 use axum_s3::CreateBucketInput;
 use axum_s3::CreateBucketOutput;
@@ -26,34 +31,40 @@ use axum_s3::DeleteBucketInput;
 use axum_s3::ListBucketsInput;
 use axum_s3::ListBucketsOutput;
 use axum_s3::ListObjectsInput;
+use axum_s3::ListObjectsOutput;
+use axum_s3::ListObjectsV2Input;
+use axum_s3::ListObjectsV2Output;
 use migration::Migrator;
 use migration::MigratorTrait;
 use sea_orm::Database;
-use sea_orm::DatabaseConnection;
+use sea_orm::DbConn;
 use serde_s3::operation::CreateBucketOutputHeader;
 use serde_s3::operation::ListBucketsOutputBody;
+use serde_s3::operation::ListObjectsOutputBody;
+use serde_s3::operation::ListObjectsOutputHeader;
+use serde_s3::operation::ListObjectsV2OutputBody;
+use serde_s3::operation::ListObjectsV2OutputHeader;
+use service::owner::Query as OwnerQuery;
 use sha2::Digest;
 use sha2::Sha256;
 use tokio::net::TcpListener;
 use tokio::signal;
+use tower::Layer;
 use tower::ServiceBuilder;
 use tower_http::ServiceBuilderExt;
+use tower_http::normalize_path::NormalizePathLayer;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use crate::request_id::MakeAmzRequestId;
+use crate::make_request_id::AppMakeRequestId;
+use crate::state::AppState;
 
 const NODE_NAME: &str = "minil";
 const PROCESS_TIME: &str = "x-process-time";
 
 const NODE_ID_HEADER: HeaderName = HeaderName::from_static("x-amz-id-2");
 const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-amz-request-id");
-
-#[derive(Debug, Clone, FromRef)]
-struct State {
-    database: DatabaseConnection,
-}
 
 #[tokio::main]
 async fn main() {
@@ -68,19 +79,19 @@ async fn main() {
 
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".to_owned());
     tracing::info!("connecting to {}", db_url);
-    let database = Database::connect(db_url)
+    let db_conn = Database::connect(db_url)
         .await
         .expect("failed to connect to database");
-    Migrator::up(&database, None)
+    Migrator::up(&db_conn, None)
         .await
         .expect("failed to run migrations");
 
-    let state = State { database };
+    let state = AppState { db_conn };
     let node_id = format!("{:x}", Sha256::digest(NODE_NAME.as_bytes()));
     let server = format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     let middleware = ServiceBuilder::new()
-        .set_request_id(REQUEST_ID_HEADER, MakeAmzRequestId)
+        .set_request_id(REQUEST_ID_HEADER, AppMakeRequestId)
         .propagate_request_id(REQUEST_ID_HEADER)
         .override_response_header(
             NODE_ID_HEADER,
@@ -96,15 +107,21 @@ async fn main() {
         .compression()
         .trace_for_http();
 
-    let app = Router::new()
+    let router = Router::new()
         .route(
             vpath!("/{bucket}"),
-            put(create_bucket).delete(delete_bucket).get(list_objects),
+            put(create_bucket)
+                .delete(delete_bucket)
+                .get(list_objects_handler),
         )
         .route(vpath!("/"), get(list_buckets))
         .with_state(state)
         .layer(axum::middleware::from_fn(set_process_time))
         .layer(middleware);
+
+    let app = ServiceExt::<Request>::into_make_service(
+        NormalizePathLayer::trim_trailing_slash().layer(router),
+    );
 
     let addr = (Ipv4Addr::UNSPECIFIED, 3000);
     let listener = TcpListener::bind(addr)
@@ -172,8 +189,13 @@ async fn delete_bucket(input: DeleteBucketInput) -> impl IntoResponse {
 }
 
 #[debug_handler]
-async fn list_buckets(input: ListBucketsInput) -> impl IntoResponse {
+async fn list_buckets(State(db): State<DbConn>, input: ListBucketsInput) -> impl IntoResponse {
     dbg!(&input);
+    let owner = OwnerQuery::find_by_name(&db, "minil")
+        .await
+        .expect("failed to find owner")
+        .expect("owner not found");
+    dbg!(&owner);
     let body = ListBucketsOutputBody {
         buckets: vec![],
         owner: None,
@@ -184,6 +206,60 @@ async fn list_buckets(input: ListBucketsInput) -> impl IntoResponse {
 }
 
 #[debug_handler]
+async fn list_objects_handler(
+    Query(query): Query<HashMap<String, String>>,
+    state: State<AppState>,
+    request: Request,
+) -> Result<Response, Response> {
+    if matches!(query.get("list-type"), Some(value) if value == "2") {
+        let input = ListObjectsV2Input::from_request(request, &state).await?;
+        Ok(list_objects_v2(input).await.into_response())
+    } else {
+        let input = ListObjectsInput::from_request(request, &state).await?;
+        Ok(list_objects(input).await.into_response())
+    }
+}
+
+#[debug_handler]
 async fn list_objects(input: ListObjectsInput) -> impl IntoResponse {
     dbg!(&input);
+    let header = ListObjectsOutputHeader {
+        request_charged: None,
+    };
+    let body = ListObjectsOutputBody {
+        common_prefixes: vec![],
+        contents: vec![],
+        delimiter: None,
+        encoding_type: None,
+        is_truncated: false,
+        marker: "".to_string(),
+        max_keys: 0,
+        name: "".to_string(),
+        next_marker: None,
+        prefix: "".to_string(),
+    };
+    ListObjectsOutput { header, body }
+}
+
+#[debug_handler]
+async fn list_objects_v2(input: ListObjectsV2Input) -> impl IntoResponse {
+    dbg!(&input);
+    let header = ListObjectsV2OutputHeader {
+        request_charged: None,
+    };
+    let body = ListObjectsV2OutputBody {
+        common_prefixes: vec![],
+        contents: vec![],
+        continuation_token: None,
+        delimiter: None,
+        encoding_type: None,
+        is_truncated: false,
+        key_count: 0,
+        max_keys: 0,
+        name: "".to_string(),
+        next_continuation_token: None,
+        prefix: "".to_string(),
+        start_after: None,
+    };
+    ListObjectsV2Output { header, body }
 }

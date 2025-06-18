@@ -5,9 +5,9 @@ use tower_http::request_id::MakeRequestId;
 use tower_http::request_id::RequestId;
 
 #[derive(Clone)]
-pub(crate) struct MakeAmzRequestId;
+pub(crate) struct AppMakeRequestId;
 
-impl MakeRequestId for MakeAmzRequestId {
+impl MakeRequestId for AppMakeRequestId {
     fn make_request_id<B>(&mut self, _request: &Request<B>) -> Option<RequestId> {
         let nanos = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
