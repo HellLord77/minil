@@ -1,5 +1,7 @@
 use sea_orm::entity::prelude::*;
 
+use super::prelude::*;
+
 #[derive(Debug, Clone, DeriveEntityModel)]
 #[sea_orm(table_name = "bucket")]
 pub struct Model {
@@ -9,6 +11,7 @@ pub struct Model {
     #[sea_orm(indexed)]
     pub owner_id: Uuid,
 
+    #[sea_orm(indexed)]
     pub name: String,
 
     pub region: String,
@@ -20,16 +23,25 @@ pub struct Model {
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "crate::owner::Entity",
+        belongs_to = "Owner",
         from = "Column::OwnerId",
-        to = "crate::owner::Column::Id"
+        to = "super::owner::Column::Id"
     )]
     Owner,
+
+    #[sea_orm(has_many = "Object")]
+    Object,
 }
 
-impl Related<crate::owner::Entity> for Entity {
+impl Related<Owner> for Entity {
     fn to() -> RelationDef {
         Relation::Owner.def()
+    }
+}
+
+impl Related<Object> for Entity {
+    fn to() -> RelationDef {
+        Relation::Object.def()
     }
 }
 

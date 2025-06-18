@@ -3,13 +3,22 @@ use sea_orm::entity::prelude::*;
 use super::prelude::*;
 
 #[derive(Debug, Clone, DeriveEntityModel)]
-#[sea_orm(table_name = "owner")]
+#[sea_orm(table_name = "object")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
 
-    #[sea_orm(unique, indexed)]
-    pub name: String,
+    #[sea_orm(indexed)]
+    pub bucket_id: Uuid,
+
+    #[sea_orm(indexed)]
+    pub key: String,
+
+    pub size: u64,
+
+    pub last_modified: DateTimeUtc,
+
+    pub e_tag: String,
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
@@ -17,7 +26,11 @@ pub struct Model {
 
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "Bucket")]
+    #[sea_orm(
+        belongs_to = "Bucket",
+        from = "Column::BucketId",
+        to = "super::bucket::Column::Id"
+    )]
     Bucket,
 }
 
