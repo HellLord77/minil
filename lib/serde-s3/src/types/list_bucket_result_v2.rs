@@ -7,11 +7,13 @@ use crate::types::Object;
 
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct ListBucketResult {
+#[serde(rename = "ListBucketResult", rename_all = "PascalCase")]
+pub struct ListBucketResultV2 {
     pub common_prefixes: Vec<CommonPrefix>,
 
     pub contents: Vec<Object>,
+
+    pub continuation_token: Option<String>,
 
     pub delimiter: Option<String>,
 
@@ -19,13 +21,15 @@ pub struct ListBucketResult {
 
     pub is_truncated: bool,
 
-    pub marker: String,
+    pub key_count: u16,
 
     pub max_keys: u16,
 
     pub name: String,
 
-    pub next_marker: Option<String>,
+    pub next_continuation_token: Option<String>,
 
     pub prefix: String,
+
+    pub start_after: Option<String>,
 }

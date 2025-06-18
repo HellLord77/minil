@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use serde_inline_default::serde_inline_default;
+use serdev::Deserialize;
 use validator::Validate;
 
 use crate::types::ListAllMyBucketsResult;
@@ -7,6 +7,7 @@ use crate::types::ListAllMyBucketsResult;
 #[serde_inline_default]
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+#[serde(validate = "Validate::validate")]
 pub struct ListBucketsInputQuery {
     pub bucket_region: Option<String>,
 
