@@ -1,14 +1,19 @@
 use serde::Serialize;
 use serde_with::skip_serializing_none;
+use smart_default::SmartDefault;
 
 use crate::types::CommonPrefix;
 use crate::types::EncodingType;
 use crate::types::Object;
 
 #[skip_serializing_none]
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, SmartDefault, Serialize)]
 #[serde(rename = "ListBucketResult", rename_all = "PascalCase")]
 pub struct ListBucketResultV2 {
+    #[default = "http://s3.amazonaws.com/doc/2006-03-01/"]
+    #[serde(rename = "@xmlns")]
+    pub xmlns: String,
+
     pub common_prefixes: Vec<CommonPrefix>,
 
     pub contents: Vec<Object>,
