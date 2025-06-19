@@ -21,7 +21,7 @@ pub struct ListObjectsInput {
     pub header: ListObjectsInputHeader,
 }
 
-#[derive(Debug, IntoResponse)]
+#[derive(Debug, Default, IntoResponse)]
 pub struct ListObjectsOutput {
     #[into_response(via(Header))]
     pub header: ListObjectsOutputHeader,

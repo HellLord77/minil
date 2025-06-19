@@ -11,7 +11,7 @@ pub struct ListBucketsInput {
     pub query: ListBucketsInputQuery,
 }
 
-#[derive(Debug, IntoResponse)]
+#[derive(Debug, Default, IntoResponse)]
 pub struct ListBucketsOutput {
     #[into_response(via(Xml))]
     pub body: ListBucketsOutputBody,

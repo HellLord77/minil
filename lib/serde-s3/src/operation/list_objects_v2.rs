@@ -48,7 +48,7 @@ pub struct ListObjectsV2InputHeader {
 }
 
 #[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 pub struct ListObjectsV2OutputHeader {
     pub request_charged: Option<RequestPayer>,
 }

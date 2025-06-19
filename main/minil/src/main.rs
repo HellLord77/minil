@@ -39,11 +39,6 @@ use migration::MigratorTrait;
 use sea_orm::Database;
 use sea_orm::DbConn;
 use serde_s3::operation::CreateBucketOutputHeader;
-use serde_s3::operation::ListBucketsOutputBody;
-use serde_s3::operation::ListObjectsOutputBody;
-use serde_s3::operation::ListObjectsOutputHeader;
-use serde_s3::operation::ListObjectsV2OutputBody;
-use serde_s3::operation::ListObjectsV2OutputHeader;
 use service::owner::Query as OwnerQuery;
 use sha2::Digest;
 use sha2::Sha256;
@@ -196,13 +191,7 @@ async fn list_buckets(State(db): State<DbConn>, input: ListBucketsInput) -> impl
         .expect("failed to find owner")
         .expect("owner not found");
     dbg!(&owner);
-    let body = ListBucketsOutputBody {
-        buckets: vec![],
-        owner: None,
-        continuation_token: None,
-        prefix: None,
-    };
-    ListBucketsOutput { body }
+    ListBucketsOutput::default()
 }
 
 #[debug_handler]
@@ -223,43 +212,11 @@ async fn list_objects_handler(
 #[debug_handler]
 async fn list_objects(input: ListObjectsInput) -> impl IntoResponse {
     dbg!(&input);
-    let header = ListObjectsOutputHeader {
-        request_charged: None,
-    };
-    let body = ListObjectsOutputBody {
-        common_prefixes: vec![],
-        contents: vec![],
-        delimiter: None,
-        encoding_type: None,
-        is_truncated: false,
-        marker: "".to_string(),
-        max_keys: 0,
-        name: "".to_string(),
-        next_marker: None,
-        prefix: "".to_string(),
-    };
-    ListObjectsOutput { header, body }
+    ListObjectsOutput::default()
 }
 
 #[debug_handler]
 async fn list_objects_v2(input: ListObjectsV2Input) -> impl IntoResponse {
     dbg!(&input);
-    let header = ListObjectsV2OutputHeader {
-        request_charged: None,
-    };
-    let body = ListObjectsV2OutputBody {
-        common_prefixes: vec![],
-        contents: vec![],
-        continuation_token: None,
-        delimiter: None,
-        encoding_type: None,
-        is_truncated: false,
-        key_count: 0,
-        max_keys: 0,
-        name: "".to_string(),
-        next_continuation_token: None,
-        prefix: "".to_string(),
-        start_after: None,
-    };
-    ListObjectsV2Output { header, body }
+    ListObjectsV2Output::default()
 }

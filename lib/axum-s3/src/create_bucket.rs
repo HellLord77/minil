@@ -19,7 +19,7 @@ pub struct CreateBucketInput {
     pub body: CreateBucketInputBody,
 }
 
-#[derive(Debug, IntoResponse)]
+#[derive(Debug, Default, IntoResponse)]
 pub struct CreateBucketOutput {
     #[into_response(via(Header))]
     pub header: CreateBucketOutputHeader,

@@ -6,7 +6,7 @@ use crate::types::EncodingType;
 use crate::types::Object;
 
 #[skip_serializing_none]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 #[serde(rename = "ListBucketResult", rename_all = "PascalCase")]
 pub struct ListBucketResultV2 {
     pub common_prefixes: Vec<CommonPrefix>,

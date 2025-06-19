@@ -5,7 +5,7 @@ use crate::types::Bucket;
 use crate::types::Owner;
 
 #[skip_serializing_none]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ListAllMyBucketsResult {
     pub buckets: Vec<Bucket>,
