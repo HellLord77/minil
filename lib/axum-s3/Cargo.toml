@@ -11,3 +11,4 @@ axum-header.workspace = true
 axum-into-response.workspace = true
 axum-xml.workspace = true
 serde-s3.workspace = true
+smart-default.workspace = true

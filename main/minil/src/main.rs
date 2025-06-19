@@ -16,7 +16,6 @@ use axum::extract::Request;
 use axum::extract::State;
 use axum::http::HeaderName;
 use axum::http::HeaderValue;
-use axum::http::StatusCode;
 use axum::http::header;
 use axum::middleware::Next;
 use axum::response::IntoResponse;
@@ -28,6 +27,7 @@ use axum_extra::vpath;
 use axum_s3::CreateBucketInput;
 use axum_s3::CreateBucketOutput;
 use axum_s3::DeleteBucketInput;
+use axum_s3::DeleteBucketOutput;
 use axum_s3::ListBucketsInput;
 use axum_s3::ListBucketsOutput;
 use axum_s3::ListObjectsInput;
@@ -38,7 +38,6 @@ use migration::Migrator;
 use migration::MigratorTrait;
 use sea_orm::Database;
 use sea_orm::DbConn;
-use serde_s3::operation::CreateBucketOutputHeader;
 use service::owner::Query as OwnerQuery;
 use sha2::Digest;
 use sha2::Sha256;
@@ -172,15 +171,15 @@ async fn set_process_time(request: Request, next: Next) -> Response {
 #[debug_handler]
 async fn create_bucket(input: CreateBucketInput) -> impl IntoResponse {
     dbg!(&input);
-    let location = format!("/{}", input.bucket);
-    let header = CreateBucketOutputHeader { location };
-    CreateBucketOutput { header }
+    let mut output = CreateBucketOutput::default();
+    output.header.location = format!("/{}", input.bucket);
+    output
 }
 
 #[debug_handler]
 async fn delete_bucket(input: DeleteBucketInput) -> impl IntoResponse {
     dbg!(&input);
-    StatusCode::NO_CONTENT
+    DeleteBucketOutput::default()
 }
 
 #[debug_handler]

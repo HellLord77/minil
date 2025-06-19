@@ -7,6 +7,7 @@ mod list_objects_v2;
 pub use create_bucket::CreateBucketInput;
 pub use create_bucket::CreateBucketOutput;
 pub use delete_bucket::DeleteBucketInput;
+pub use delete_bucket::DeleteBucketOutput;
 pub use list_buckets::ListBucketsInput;
 pub use list_buckets::ListBucketsOutput;
 pub use list_objects::ListObjectsInput;

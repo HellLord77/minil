@@ -689,6 +689,7 @@ dependencies = [
  "axum-into-response",
  "axum-xml",
  "serde-s3",
+ "smart-default",
 ]
 
 [[package]]

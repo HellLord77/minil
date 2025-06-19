@@ -1,3 +1,11 @@
+[profile.release-size]
+inherits = "release"
+opt-level = "z"     # Optimize for size.
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations.
+panic = "abort"     # Abort on panic
+strip = true        # Automatically strip symbols from the binary.
+
 [workspace]
 members = [
     "lib/axum-header",
@@ -32,6 +40,7 @@ sea-orm = { version = "1.1.12", features = ["runtime-tokio", "sqlx-sqlite"] }
 sea-orm-migration = { version = "1.1.12", features = ["runtime-tokio", "sqlx-sqlite", "with-uuid"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_path_to_error = "0.1.17"
+smart-default = "0.7.1"
 strum = { version = "0.27.1", features = ["derive"] }
 syn = { version = "2.0.103", features = ["full"] }
 thiserror = "2.0.12"
@@ -48,7 +57,6 @@ syn-utils = { path = "lib/syn-utils" }
 
 entity = { path = "main/entity" }
 migration = { path = "main/migration" }
-minil = { path = "main/minil" }
 service = { path = "main/service" }
 
 aws-sdk-s3 = "1.92.0"
