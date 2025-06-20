@@ -64,7 +64,7 @@ impl TryNewErrorKind {
 }
 
 #[derive(Debug, Display, Constructor, Error)]
-#[display("unknown renamer `{unknown}`, expected one of {}", self.kind.get_variants().join(", "))]
+#[display("unknown renamer `{unknown}`, expected one of {}", kind.get_variants().join(", "))]
 pub(crate) struct TryNewError {
     unknown: String,
     kind: TryNewErrorKind,

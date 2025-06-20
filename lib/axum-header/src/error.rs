@@ -7,15 +7,12 @@ use http::StatusCode;
 
 #[derive(Debug, Display)]
 pub enum TryIntoHeaderErrorKind {
-    #[display("name")]
     Name,
-
-    #[display("value")]
     Value,
 }
 
 #[derive(Debug, Display, Constructor, Error)]
-#[display("failed to convert `{unknown}` to header {kind}")]
+#[display("failed to convert `{unknown}` to header {}", kind.to_string().to_lowercase())]
 pub struct TryIntoHeaderError {
     unknown: String,
     kind: TryIntoHeaderErrorKind,
