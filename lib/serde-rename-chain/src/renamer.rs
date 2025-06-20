@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use derive_more::From;
 use strum::EnumDiscriminants;
 use strum::EnumString;
 use strum::VariantNames;
@@ -42,26 +41,20 @@ use dynfmt::PythonFormat;
 #[cfg(feature = "dynfmt_curly")]
 use dynfmt::SimpleCurlyFormat;
 
-#[derive(Debug, From, VariantNames, EnumDiscriminants)]
+#[derive(Debug, VariantNames, EnumDiscriminants)]
 #[strum(serialize_all = "snake_case")]
 #[strum_discriminants(derive(EnumString), strum(serialize_all = "snake_case"))]
 pub(crate) enum Renamer {
-    #[from(skip)]
     AddPrefix(String),
 
-    #[from(skip)]
     AddSuffix(String),
 
-    #[from(skip)]
     StripPrefix(String),
 
-    #[from(skip)]
     StripSuffix(String),
 
-    #[from(skip)]
     TrimStart(String),
 
-    #[from(skip)]
     TrimEnd(String),
 
     Str(Str),
@@ -78,15 +71,12 @@ pub(crate) enum Renamer {
     #[cfg(feature = "inflector")]
     Inflector(Inflector),
 
-    #[from(skip)]
     #[cfg(feature = "strfmt")]
     StrFmt(String),
 
-    #[from(skip)]
     #[cfg(feature = "dynfmt_python")]
     DynFmtPython(String),
 
-    #[from(skip)]
     #[cfg(feature = "dynfmt_curly")]
     DynFmtCurly(String),
 }
@@ -158,19 +148,21 @@ impl TryIntoRenamer for (String, String) {
             RenamerDiscriminants::StripSuffix => Renamer::StripSuffix(self.1),
             RenamerDiscriminants::TrimStart => Renamer::TrimStart(self.1),
             RenamerDiscriminants::TrimEnd => Renamer::TrimEnd(self.1),
-            RenamerDiscriminants::Str => Str::try_new(self.1)?.into(),
+            RenamerDiscriminants::Str => Renamer::Str(Str::try_new(self.1)?),
 
             #[cfg(feature = "ident_case")]
-            RenamerDiscriminants::IdentCase => IdentCase::try_new(self.1)?.into(),
+            RenamerDiscriminants::IdentCase => Renamer::IdentCase(IdentCase::try_new(self.1)?),
 
             #[cfg(feature = "convert_case")]
-            RenamerDiscriminants::ConvertCase => ConvertCase::try_new(self.1)?.into(),
+            RenamerDiscriminants::ConvertCase => {
+                Renamer::ConvertCase(ConvertCase::try_new(self.1)?)
+            }
 
             #[cfg(feature = "heck")]
-            RenamerDiscriminants::Heck => Heck::try_new(self.1)?.into(),
+            RenamerDiscriminants::Heck => Renamer::Heck(Heck::try_new(self.1)?),
 
             #[cfg(feature = "inflector")]
-            RenamerDiscriminants::Inflector => Inflector::try_new(self.1)?.into(),
+            RenamerDiscriminants::Inflector => Renamer::Inflector(Inflector::try_new(self.1)?),
 
             #[cfg(feature = "strfmt")]
             RenamerDiscriminants::StrFmt => Renamer::StrFmt(self.1),

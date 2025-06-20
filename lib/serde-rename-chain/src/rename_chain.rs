@@ -1,5 +1,4 @@
 use proc_macro2::TokenStream;
-use quote::ToTokens;
 use quote::quote;
 use syn::Expr;
 use syn::ExprLit;
@@ -15,6 +14,7 @@ use syn::token::Comma;
 use syn_utils::bail_spanned;
 use syn_utils::field_has_attribute;
 
+use crate::error::TryNewErrorKind;
 use crate::renamer::Renamer;
 use crate::renamer::TryIntoRenamer;
 
@@ -33,12 +33,11 @@ fn parse(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>> {
                     {
                         Ok(renamer) => renamers.push(renamer),
                         Err(err) => {
-                            let tokens = if err.kind().is_renamer() {
-                                path.to_token_stream()
+                            if err.kind().is_renamer() {
+                                bail_spanned!(path, err);
                             } else {
-                                lit_str.to_token_stream()
-                            };
-                            bail_spanned!(tokens, err);
+                                bail_spanned!(lit_str, err);
+                            }
                         }
                     };
                 }

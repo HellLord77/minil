@@ -1,6 +1,6 @@
 [package]
 name = "serde-rename-chain"
-version = "0.2.11"
+version = "0.2.12"
 edition.workspace = true
 
 [lib]
@@ -20,7 +20,6 @@ proc-macro2.workspace = true
 quote.workspace = true
 strum.workspace = true
 syn.workspace = true
-thiserror.workspace = true
 
 syn-utils.workspace = true
 

@@ -1,8 +1,8 @@
 use derive_more::Constructor;
-use strum::Display;
-use strum::EnumIs;
+use derive_more::Display;
+use derive_more::Error;
+use derive_more::IsVariant;
 use strum::VariantNames;
-use thiserror::Error;
 
 use crate::renamer::Renamer;
 use crate::str::Str;
@@ -23,8 +23,7 @@ use crate::ident_case::IdentCase;
 #[cfg(feature = "inflector")]
 use crate::inflector::Inflector;
 
-#[derive(Debug, Display, EnumIs)]
-#[strum(serialize_all = "snake_case")]
+#[derive(Debug, IsVariant)]
 pub(crate) enum TryNewErrorKind {
     Renamer,
     Str,
@@ -43,7 +42,8 @@ pub(crate) enum TryNewErrorKind {
 }
 
 impl TryNewErrorKind {
-    pub(crate) fn variants(&self) -> &'static [&'static str] {
+    #[inline]
+    pub(crate) fn get_variants(&self) -> &'static [&'static str] {
         match self {
             TryNewErrorKind::Renamer => Renamer::VARIANTS,
             Self::Str => Str::VARIANTS,
@@ -63,8 +63,8 @@ impl TryNewErrorKind {
     }
 }
 
-#[derive(Debug, Constructor, Error)]
-#[error("unknown renamer `{unknown}`, expected one of {expected}", expected = self.kind.variants().join(", "))]
+#[derive(Debug, Display, Constructor, Error)]
+#[display("unknown renamer `{unknown}`, expected one of {}", self.kind.get_variants().join(", "))]
 pub(crate) struct TryNewError {
     unknown: String,
     kind: TryNewErrorKind,
