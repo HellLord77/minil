@@ -1,19 +1,21 @@
 use axum_core::response::IntoResponse;
 use axum_core::response::Response;
 use derive_more::Constructor;
+use derive_more::Display;
+use derive_more::Error;
 use http::StatusCode;
-use strum::Display;
-use thiserror::Error;
 
 #[derive(Debug, Display)]
-#[strum(serialize_all = "snake_case")]
 pub enum TryIntoHeaderErrorKind {
+    #[display("name")]
     Name,
+
+    #[display("value")]
     Value,
 }
 
-#[derive(Debug, Constructor, Error)]
-#[error("failed to convert `{unknown}` to header {kind}")]
+#[derive(Debug, Display, Constructor, Error)]
+#[display("failed to convert `{unknown}` to header {kind}")]
 pub struct TryIntoHeaderError {
     unknown: String,
     kind: TryIntoHeaderErrorKind,

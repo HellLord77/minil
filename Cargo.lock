@@ -641,7 +641,7 @@ dependencies = [
 
 [[package]]
 name = "axum-header"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "axum",
  "axum-core",
@@ -653,8 +653,6 @@ dependencies = [
  "serde_html_form",
  "serde_path_to_error",
  "serde_urlencoded",
- "strum 0.27.1",
- "thiserror 2.0.12",
  "tokio",
 ]
 
@@ -3485,7 +3483,7 @@ dependencies = [
 
 [[package]]
 name = "serde-rename-chain"
-version = "0.2.11"
+version = "0.2.12"
 dependencies = [
  "Inflector",
  "convert_case 0.8.0",
@@ -3501,7 +3499,6 @@ dependencies = [
  "strum 0.27.1",
  "syn 2.0.103",
  "syn-utils",
- "thiserror 2.0.12",
 ]
 
 [[package]]
