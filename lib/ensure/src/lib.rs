@@ -24,8 +24,7 @@ macro_rules! ensure_eq {
         match (&$left, &$right) {
             (left_val, right_val) => {
                 if !(*left_val == *right_val) {
-                    let kind = $crate::formatting::EnsureKind::Eq;
-                    let dbg = $crate::formatting::ensure_failed(kind, &*left_val, &*right_val);
+                    let dbg = $crate::formatting::ensure_eq_failed(left_val, right_val);
                     ::std::eprintln!("{dbg}");
                 }
             }
@@ -35,8 +34,7 @@ macro_rules! ensure_eq {
         match (&$left, &$right) {
             (left_val, right_val) => {
                 if !(*left_val == *right_val) {
-                    let kind = $crate::formatting::EnsureKind::Eq;
-                    let dbg = $crate::formatting::ensure_failed(kind, &*left_val, &*right_val);
+                    let dbg = $crate::formatting::ensure_eq_failed(left_val, right_val);
                     ::std::eprintln!("{dbg}");
 
                     return ::std::result::Result::Err($err);
@@ -52,8 +50,7 @@ macro_rules! ensure_ne {
         match (&$left, &$right) {
             (left_val, right_val) => {
                 if *left_val == *right_val {
-                    let kind = $crate::formatting::EnsureKind::Ne;
-                    let dbg = $crate::formatting::ensure_failed(kind, &*left_val, &*right_val);
+                    let dbg = $crate::formatting::ensure_ne_failed(left_val, right_val);
                     ::std::eprintln!("{dbg}");
                 }
             }
@@ -63,8 +60,7 @@ macro_rules! ensure_ne {
         match (&$left, &$right) {
             (left_val, right_val) => {
                 if *left_val == *right_val {
-                    let kind = $crate::formatting::EnsureKind::Ne;
-                    let dbg = $crate::formatting::ensure_failed(kind, &*left_val, &*right_val);
+                    let dbg = $crate::formatting::ensure_ne_failed(left_val, right_val);
                     ::std::eprintln!("{dbg}");
 
                     return ::std::result::Result::Err($err);

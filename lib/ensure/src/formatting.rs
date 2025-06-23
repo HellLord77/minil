@@ -12,12 +12,22 @@ pub enum EnsureKind {
 
 #[track_caller]
 #[doc(hidden)]
-pub fn ensure_failed<T, U>(kind: EnsureKind, left: &T, right: &U) -> String
+pub fn ensure_eq_failed<T, U>(left: &T, right: &U) -> String
 where
     T: Debug + ?Sized,
     U: Debug + ?Sized,
 {
-    ensure_failed_inner(kind, &left, &right)
+    ensure_failed_inner(EnsureKind::Eq, &left, &right)
+}
+
+#[track_caller]
+#[doc(hidden)]
+pub fn ensure_ne_failed<T, U>(left: &T, right: &U) -> String
+where
+    T: Debug + ?Sized,
+    U: Debug + ?Sized,
+{
+    ensure_failed_inner(EnsureKind::Ne, &left, &right)
 }
 
 #[track_caller]
