@@ -6,7 +6,8 @@ macro_rules! is_ensure {
         if $cond {
             true
         } else {
-            if cfg!(feature = "debug") {
+            #[cfg(debug_assertions)]
+            {
                 let caller = ::std::panic::Location::caller();
                 ::std::eprintln!(
                     r#"[{}:{}] assurance failed: {}"#,
@@ -52,18 +53,16 @@ macro_rules! panic_ensure {
 #[macro_export]
 macro_rules! debug_ensure {
     ($($arg:tt)*) => {
-        if ::std::cfg!(debug_assertions) {
-            $crate::ensure!($($arg:tt)*);
-        }
+        #[cfg(debug_assertions)]
+        $crate::ensure!($($arg:tt)*);
     };
 }
 
 #[macro_export]
 macro_rules! debug_panic_ensure {
     ($($arg:tt)*) => {
-        if ::std::cfg!(debug_assertions) {
-            $crate::panic_ensure!($($arg:tt)*);
-        }
+        #[cfg(debug_assertions)]
+        $crate::panic_ensure!($($arg:tt)*);
     };
 }
 
@@ -77,7 +76,8 @@ macro_rules! is_ensure_eq {
                 if *left_val == *right_val {
                     true
                 } else {
-                    if cfg!(debug_assertions) {
+                    #[cfg(debug_assertions)]
+                    {
                         let caller = ::std::panic::Location::caller();
                         ::std::eprintln!(
                             r#"[{}:{}] assurance `left == right` failed
@@ -126,18 +126,16 @@ macro_rules! panic_ensure_eq {
 #[macro_export]
 macro_rules! debug_ensure_eq {
     ($($arg:tt)*) => {
-        if ::std::cfg!(debug_assertions) {
-            $crate::ensure_eq!($($arg:tt)*);
-        }
+        #[cfg(debug_assertions)]
+        $crate::ensure_eq!($($arg:tt)*);
     };
 }
 
 #[macro_export]
 macro_rules! debug_panic_ensure_eq {
     ($($arg:tt)*) => {
-        if ::std::cfg!(debug_assertions) {
-            $crate::panic_ensure_eq!($($arg:tt)*);
-        }
+        #[cfg(debug_assertions)]
+        $crate::panic_ensure_eq!($($arg:tt)*);
     };
 }
 
@@ -149,7 +147,8 @@ macro_rules! is_ensure_ne {
         match (&$left, &$right) {
             (left_val, right_val) => {
                 if *left_val == *right_val {
-                    if cfg!(debug_assertions) {
+                    #[cfg(debug_assertions)]
+                    {
                         let caller = ::std::panic::Location::caller();
                         ::std::eprintln!(
                             r#"[{}:{}] assurance `left != right` failed
@@ -200,18 +199,16 @@ macro_rules! panic_ensure_ne {
 #[macro_export]
 macro_rules! debug_ensure_ne {
     ($($arg:tt)*) => {
-        if ::std::cfg!(debug_assertions) {
-            $crate::ensure_ne!($($arg:tt)*);
-        }
+        #[cfg(debug_assertions)]
+        $crate::ensure_ne!($($arg:tt)*);
     };
 }
 
 #[macro_export]
 macro_rules! debug_panic_ensure_ne {
     ($($arg:tt)*) => {
-        if ::std::cfg!(debug_assertions) {
-            $crate::panic_ensure_ne!($($arg:tt)*);
-        }
+        #[cfg(debug_assertions)]
+        $crate::panic_ensure_ne!($($arg:tt)*);
     };
 }
 
@@ -225,7 +222,8 @@ macro_rules! is_ensure_matches {
                 true
             }
             ref left_val => {
-                if cfg!(debug_assertions) {
+                #[cfg(debug_assertions)]
+                {
                     let caller = ::std::panic::Location::caller();
                         ::std::eprintln!(
                             r#"[{}:{}] assurance `left matches right` failed
@@ -274,17 +272,15 @@ macro_rules! panic_ensure_matches {
 #[macro_export]
 macro_rules! debug_ensure_matches {
     ($($arg:tt)*) => {
-        if ::std::cfg!(debug_assertions) {
-            $crate::ensure_matches!($($arg:tt)*);
-        }
+        #[cfg(debug_assertions)]
+        $crate::ensure_matches!($($arg:tt)*);
     };
 }
 
 #[macro_export]
 macro_rules! debug_panic_ensure_matches {
     ($($arg:tt)*) => {
-        if ::std::cfg!(debug_assertions) {
-            $crate::panic_ensure_matches!($($arg:tt)*);
-        }
+        #[cfg(debug_assertions)]
+        $crate::panic_ensure_matches!($($arg:tt)*);
     };
 }
