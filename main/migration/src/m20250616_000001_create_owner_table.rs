@@ -15,7 +15,10 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(pk_uuid(Owner::Id))
                     .col(string_uniq(Owner::Name))
-                    .col(timestamp(Owner::CreatedAt).default(Expr::current_timestamp()))
+                    .col(
+                        timestamp_with_time_zone(Owner::CreatedAt)
+                            .default(Expr::current_timestamp()),
+                    )
                     .to_owned(),
             )
             .await?;

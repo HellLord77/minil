@@ -16,7 +16,10 @@ impl MigrationTrait for Migration {
                     .col(uuid(Bucket::OwnerId))
                     .col(string(Bucket::Name))
                     .col(string(Bucket::Region))
-                    .col(timestamp(Bucket::CreatedAt).default(Expr::current_timestamp()))
+                    .col(
+                        timestamp_with_time_zone(Bucket::CreatedAt)
+                            .default(Expr::current_timestamp()),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_bucket_owner")

@@ -16,9 +16,12 @@ impl MigrationTrait for Migration {
                     .col(uuid(Object::BucketId))
                     .col(string(Object::Key))
                     .col(big_unsigned(Object::Size))
-                    .col(timestamp(Object::LastModified))
+                    .col(timestamp_with_time_zone(Object::LastModified))
                     .col(string(Object::ETag))
-                    .col(timestamp(Object::CreatedAt).default(Expr::current_timestamp()))
+                    .col(
+                        timestamp_with_time_zone(Object::CreatedAt)
+                            .default(Expr::current_timestamp()),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_object_bucket")
