@@ -1,5 +1,5 @@
 #[cfg(all(feature = "heck", feature = "inflector"))]
-compile_error!("expected only one of heck and inflector");
+compile_error!("expected at most one of heck and inflector");
 
 mod error;
 mod rename_chain;
