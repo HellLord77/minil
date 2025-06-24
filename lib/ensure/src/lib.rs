@@ -1,16 +1,12 @@
 // ensure
 
 #[macro_export]
-#[doc(hidden)]
-macro_rules! __maybe_get_ensure {
+macro_rules! is_ensure {
     ($cond:expr $(,)?) => {
-        $crate::__maybe_get_ensure!($cond, ::std::option::Option::None::<()>)
-    };
-    ($cond:expr, $err:expr $(,)?) => {
         if $cond {
-            ::std::option::Option::None
+            true
         } else {
-            if cfg!(debug_assertions) {
+            if cfg!(feature = "debug") {
                 let caller = ::std::panic::Location::caller();
                 ::std::eprintln!(
                     r#"[{}:{}] assurance failed: {}"#,
@@ -20,29 +16,35 @@ macro_rules! __maybe_get_ensure {
                 );
             }
 
-            $err
+            false
         }
     };
 }
 
 #[macro_export]
 macro_rules! check_ensure {
-    ($cond:expr $(,)?) => {
-        $crate::__maybe_get_ensure!($cond)
-    };
     ($cond:expr, $err:expr $(,)?) => {
-        $crate::__maybe_get_ensure!($cond, ::std::option::Option::Some($err))
+        !($crate::is_ensure!($cond)).then_some($err)
     };
 }
 
 #[macro_export]
 macro_rules! ensure {
-    ($cond:expr $(,)?) => {
-        $crate::check_ensure!($cond);
-    };
     ($cond:expr, $err:expr $(,)?) => {
-        if let ::std::option::Option::Some(err) = $crate::check_ensure!($cond, $err) {
+        if !$crate::is_ensure!($cond) {
             return ::std::result::Result::Err(err);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! panic_ensure {
+    ($cond:expr) => {
+        $crate::panic_ensure!($cond,);
+    };
+    ($cond:expr, $($arg:tt)*) => {
+        if !$crate::is_ensure!($cond) {
+            ::std::panic!($($arg)*);
         }
     };
 }
@@ -56,19 +58,24 @@ macro_rules! debug_ensure {
     };
 }
 
+#[macro_export]
+macro_rules! debug_panic_ensure {
+    ($($arg:tt)*) => {
+        if ::std::cfg!(debug_assertions) {
+            $crate::panic_ensure!($($arg:tt)*);
+        }
+    };
+}
+
 // ensure_eq
 
 #[macro_export]
-#[doc(hidden)]
-macro_rules! __maybe_get_ensure_eq {
+macro_rules! is_ensure_eq {
     ($left:expr, $right:expr $(,)?) => {
-        $crate::__maybe_get_ensure_eq!($left, $right, ::std::option::Option::None::<()>)
-    };
-    ($left:expr, $right:expr, $err:expr $(,)?) => {
         match (&$left, &$right) {
             (left_val, right_val) => {
                 if *left_val == *right_val {
-                    ::std::option::Option::None
+                    true
                 } else {
                     if cfg!(debug_assertions) {
                         let caller = ::std::panic::Location::caller();
@@ -81,7 +88,7 @@ macro_rules! __maybe_get_ensure_eq {
                         );
                     }
 
-                    $err
+                    false
                 }
             }
         }
@@ -90,22 +97,28 @@ macro_rules! __maybe_get_ensure_eq {
 
 #[macro_export]
 macro_rules! check_ensure_eq {
-    ($left:expr, $right:expr $(,)?) => {
-        $crate::__maybe_get_ensure_eq!($left, $right)
-    };
     ($left:expr, $right:expr, $err:expr $(,)?) => {
-        $crate::__maybe_get_ensure_eq!($left, $right, ::std::option::Option::Some($err))
+        !($crate::is_ensure_eq!($left, $right)).then_some($err)
     };
 }
 
 #[macro_export]
 macro_rules! ensure_eq {
-    ($left:expr, $right:expr $(,)?) => {
-        $crate::check_ensure_eq!($left, $right);
-    };
     ($left:expr, $right:expr, $err:expr $(,)?) => {
-        if let ::std::option::Option::Some(err) = $crate::check_ensure_eq!($left, $right, $err) {
-            return ::std::result::Result::Err(err);
+        if !$crate::is_ensure_eq!($left, $right) {
+            return ::std::result::Result::Err($err);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! panic_ensure_eq {
+    ($left:expr, $right:expr) => {
+        $crate::panic_ensure_eq!($left, $right,);
+    };
+    ($left:expr, $right:expr, $($arg:tt)*) => {
+        if !$crate::is_ensure_eq!($left, $right) {
+            ::std::panic!($($arg)*);
         }
     };
 }
@@ -119,15 +132,20 @@ macro_rules! debug_ensure_eq {
     };
 }
 
+#[macro_export]
+macro_rules! debug_panic_ensure_eq {
+    ($($arg:tt)*) => {
+        if ::std::cfg!(debug_assertions) {
+            $crate::panic_ensure_eq!($($arg:tt)*);
+        }
+    };
+}
+
 // ensure_ne
 
 #[macro_export]
-#[doc(hidden)]
-macro_rules! __maybe_get_ensure_ne {
+macro_rules! is_ensure_ne {
     ($left:expr, $right:expr $(,)?) => {
-        $crate::__maybe_get_ensure_ne!($left, $right, ::std::option::Option::None::<()>)
-    };
-    ($left:expr, $right:expr, $err:expr $(,)?) => {
         match (&$left, &$right) {
             (left_val, right_val) => {
                 if *left_val == *right_val {
@@ -142,9 +160,9 @@ macro_rules! __maybe_get_ensure_ne {
                         );
                     }
 
-                    $err
+                    false
                 } else {
-                    ::std::option::Option::None
+                    true
                 }
             }
         }
@@ -153,22 +171,28 @@ macro_rules! __maybe_get_ensure_ne {
 
 #[macro_export]
 macro_rules! check_ensure_ne {
-    ($left:expr, $right:expr $(,)?) => {
-        $crate::__maybe_get_ensure_ne!($left, $right)
-    };
     ($left:expr, $right:expr, $err:expr $(,)?) => {
-        $crate::__maybe_get_ensure_ne!($left, $right, ::std::option::Option::Some($err))
+        !($crate::is_ensure_ne!($left, $right)).then_some($err)
     };
 }
 
 #[macro_export]
 macro_rules! ensure_ne {
-    ($left:expr, $right:expr $(,)?) => {
-        $crate::check_ensure_ne!($left, $right);
-    };
     ($left:expr, $right:expr, $err:expr $(,)?) => {
-        if let ::std::option::Option::Some(err) = $crate::check_ensure_ne!($left, $right, $err) {
-            return ::std::result::Result::Err(err);
+        if !$crate::is_ensure_ne!($left, $right) {
+            return ::std::result::Result::Err($err);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! panic_ensure_ne {
+    ($left:expr, $right:expr) => {
+        $crate::panic_ensure_ne!($left, $right,);
+    };
+    ($left:expr, $right:expr, $($arg:tt)*) => {
+        if !$crate::is_ensure_ne!($left, $right) {
+            ::std::panic!($($arg)*);
         }
     };
 }
@@ -182,18 +206,23 @@ macro_rules! debug_ensure_ne {
     };
 }
 
+#[macro_export]
+macro_rules! debug_panic_ensure_ne {
+    ($($arg:tt)*) => {
+        if ::std::cfg!(debug_assertions) {
+            $crate::panic_ensure_ne!($($arg:tt)*);
+        }
+    };
+}
+
 // ensure_matches
 
 #[macro_export]
-#[doc(hidden)]
-macro_rules! __maybe_get_ensure_matches {
+macro_rules! is_ensure_matches {
     ($left:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
-        $crate::__maybe_get_ensure_matches!($left, $(|)? $( $pattern )|+ $( if $guard )?, ::std::option::Option::None::<()>)
-    };
-    ($left:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )?, $err:expr $(,)?) => {
         match $left {
             $( $pattern )|+ $( if $guard )? => {
-                ::std::option::Option::None
+                true
             }
             ref left_val => {
                 if cfg!(debug_assertions) {
@@ -208,7 +237,7 @@ macro_rules! __maybe_get_ensure_matches {
                         );
                 }
 
-                $err
+                false
             }
         }
     };
@@ -216,22 +245,28 @@ macro_rules! __maybe_get_ensure_matches {
 
 #[macro_export]
 macro_rules! check_ensure_matches {
-    ($left:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
-        $crate::__maybe_get_ensure_matches!($left, $( $pattern )|+ $( if $guard )?)
-    };
     ($left:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )?, $err:expr $(,)?) => {
-        $crate::__maybe_get_ensure_matches!($left, $( $pattern )|+ $( if $guard )?, ::std::option::Option::Some($err))
+        !($crate::is_ensure_matches!($left, $($pattern)|+ $(if $guard)?)).then_some($err)
     };
 }
 
 #[macro_export]
 macro_rules! ensure_matches {
-    ($left:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )? $(,)?) => {
-        $crate::check_ensure_matches!($left, $( $pattern )|+ $( if $guard )?);
-    };
     ($left:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )?, $err:expr $(,)?) => {
-        if let ::std::option::Option::Some(err) = $crate::check_ensure_matches!($left, $( $pattern )|+ $( if $guard )?, $err) {
-            return ::std::result::Result::Err(err);
+        if !$crate::is_ensure_matches!($left, $($pattern)|+ $(if $guard)?) {
+            return ::std::result::Result::Err($err);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! panic_ensure_matches {
+    ($left:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )?) => {
+        $crate::panic_ensure_matches!($left, $($pattern)|+ $(if $guard)?,);
+    };
+    ($left:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )?, $($arg:tt)*) => {
+        if !$crate::is_ensure_matches!($left, $($pattern)|+ $(if $guard)?) {
+            ::std::panic!($($arg)*);
         }
     };
 }
@@ -241,6 +276,15 @@ macro_rules! debug_ensure_matches {
     ($($arg:tt)*) => {
         if ::std::cfg!(debug_assertions) {
             $crate::ensure_matches!($($arg:tt)*);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! debug_panic_ensure_matches {
+    ($($arg:tt)*) => {
+        if ::std::cfg!(debug_assertions) {
+            $crate::panic_ensure_matches!($($arg:tt)*);
         }
     };
 }
