@@ -5,13 +5,13 @@ use super::prelude::*;
 #[derive(Debug, Clone, DeriveEntityModel)]
 #[sea_orm(table_name = "object")]
 pub struct Model {
-    #[sea_orm(primary_key)]
+    #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
-    #[sea_orm(indexed)]
+    #[sea_orm(unique, indexed)]
     pub bucket_id: Uuid,
 
-    #[sea_orm(indexed)]
+    #[sea_orm(unique, indexed)]
     pub key: String,
 
     pub size: u64,
