@@ -14,9 +14,7 @@ use syn::token::Comma;
 use syn_utils::bail_spanned;
 use syn_utils::field_has_attribute;
 
-use crate::error::TryNewErrorKind;
 use crate::renamer::Renamer;
-use crate::renamer::TryIntoRenamer;
 
 fn parse(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>> {
     let mut renamers = vec![];
@@ -28,12 +26,12 @@ fn parse(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>> {
                     lit: Lit::Str(lit_str),
                     ..
                 }) => {
-                    match (path.get_ident().unwrap().to_string(), lit_str.value())
-                        .try_into_renamer()
-                    {
+                    let renamer =
+                        Renamer::try_from((path.get_ident().unwrap().to_string(), lit_str.value()));
+                    match renamer {
                         Ok(renamer) => renamers.push(renamer),
                         Err(err) => {
-                            if err.kind().is_renamer() {
+                            if err.is_renamer() {
                                 bail_spanned!(path, err);
                             } else {
                                 bail_spanned!(lit_str, err);

@@ -84,38 +84,38 @@ pub(crate) enum Renamer {
 impl Renamer {
     pub(crate) fn apply(&self, s: &str) -> String {
         match self {
-            Renamer::AddPrefix(prefix) => format!("{prefix}{s}"),
-            Renamer::AddSuffix(suffix) => format!("{s}{suffix}"),
-            Renamer::StripPrefix(prefix) => s.strip_prefix(prefix).unwrap_or(s).to_owned(),
-            Renamer::StripSuffix(suffix) => s.strip_suffix(suffix).unwrap_or(s).to_owned(),
-            Renamer::TrimStart(pattern) => s.trim_start_matches(pattern).to_owned(),
-            Renamer::TrimEnd(pattern) => s.trim_end_matches(pattern).to_owned(),
-            Renamer::Str(str) => str.apply(s),
+            Self::AddPrefix(prefix) => format!("{prefix}{s}"),
+            Self::AddSuffix(suffix) => format!("{s}{suffix}"),
+            Self::StripPrefix(prefix) => s.strip_prefix(prefix).unwrap_or(s).to_owned(),
+            Self::StripSuffix(suffix) => s.strip_suffix(suffix).unwrap_or(s).to_owned(),
+            Self::TrimStart(pattern) => s.trim_start_matches(pattern).to_owned(),
+            Self::TrimEnd(pattern) => s.trim_end_matches(pattern).to_owned(),
+            Self::Str(str) => str.apply(s),
 
             #[cfg(feature = "ident_case")]
-            Renamer::IdentCase(ident_case) => ident_case.apply(s),
+            Self::IdentCase(ident_case) => ident_case.apply(s),
 
             #[cfg(feature = "convert_case")]
-            Renamer::ConvertCase(convert_case) => convert_case.apply(s),
+            Self::ConvertCase(convert_case) => convert_case.apply(s),
 
             #[cfg(feature = "heck")]
-            Renamer::Heck(heck) => heck.apply(s),
+            Self::Heck(heck) => heck.apply(s),
 
             #[cfg(feature = "inflector")]
-            Renamer::Inflector(inflector) => inflector.apply(s),
+            Self::Inflector(inflector) => inflector.apply(s),
 
             #[cfg(feature = "strfmt")]
-            Renamer::StrFmt(fmt) => {
+            Self::StrFmt(fmt) => {
                 strfmt(fmt, &Self::vars(s).into()).unwrap_or_else(|_err| s.to_owned())
             }
 
             #[cfg(feature = "dynfmt_python")]
-            Renamer::DynFmtPython(fmt) => PythonFormat
+            Self::DynFmtPython(fmt) => PythonFormat
                 .format(fmt, Self::vars(s).map(|(_, v)| v))
                 .map_or_else(|_err| s.to_owned(), |s| s.into_owned()),
 
             #[cfg(feature = "dynfmt_curly")]
-            Renamer::DynFmtCurly(fmt) => SimpleCurlyFormat
+            Self::DynFmtCurly(fmt) => SimpleCurlyFormat
                 .format(fmt, Self::vars(s).map(|(_, v)| v))
                 .map_or_else(|_err| s.to_owned(), |s| s.into_owned()),
         }
@@ -130,48 +130,40 @@ impl Renamer {
     }
 }
 
-pub(crate) trait TryIntoRenamer {
-    type Error;
-
-    fn try_into_renamer(self) -> Result<Renamer, Self::Error>;
-}
-
-impl TryIntoRenamer for (String, String) {
+impl TryFrom<(String, String)> for Renamer {
     type Error = TryNewError;
 
     #[inline]
-    fn try_into_renamer(self) -> Result<Renamer, Self::Error> {
-        Ok(match RenamerDiscriminants::try_new(self.0)? {
-            RenamerDiscriminants::AddPrefix => Renamer::AddPrefix(self.1),
-            RenamerDiscriminants::AddSuffix => Renamer::AddSuffix(self.1),
-            RenamerDiscriminants::StripPrefix => Renamer::StripPrefix(self.1),
-            RenamerDiscriminants::StripSuffix => Renamer::StripSuffix(self.1),
-            RenamerDiscriminants::TrimStart => Renamer::TrimStart(self.1),
-            RenamerDiscriminants::TrimEnd => Renamer::TrimEnd(self.1),
-            RenamerDiscriminants::Str => Renamer::Str(Str::try_new(self.1)?),
+    fn try_from(value: (String, String)) -> Result<Self, Self::Error> {
+        Ok(match RenamerDiscriminants::try_new(value.0)? {
+            RenamerDiscriminants::AddPrefix => Self::AddPrefix(value.1),
+            RenamerDiscriminants::AddSuffix => Self::AddSuffix(value.1),
+            RenamerDiscriminants::StripPrefix => Self::StripPrefix(value.1),
+            RenamerDiscriminants::StripSuffix => Self::StripSuffix(value.1),
+            RenamerDiscriminants::TrimStart => Self::TrimStart(value.1),
+            RenamerDiscriminants::TrimEnd => Self::TrimEnd(value.1),
+            RenamerDiscriminants::Str => Self::Str(Str::try_new(value.1)?),
 
             #[cfg(feature = "ident_case")]
-            RenamerDiscriminants::IdentCase => Renamer::IdentCase(IdentCase::try_new(self.1)?),
+            RenamerDiscriminants::IdentCase => Self::IdentCase(IdentCase::try_new(value.1)?),
 
             #[cfg(feature = "convert_case")]
-            RenamerDiscriminants::ConvertCase => {
-                Renamer::ConvertCase(ConvertCase::try_new(self.1)?)
-            }
+            RenamerDiscriminants::ConvertCase => Self::ConvertCase(ConvertCase::try_new(value.1)?),
 
             #[cfg(feature = "heck")]
-            RenamerDiscriminants::Heck => Renamer::Heck(Heck::try_new(self.1)?),
+            RenamerDiscriminants::Heck => Self::Heck(Heck::try_new(value.1)?),
 
             #[cfg(feature = "inflector")]
-            RenamerDiscriminants::Inflector => Renamer::Inflector(Inflector::try_new(self.1)?),
+            RenamerDiscriminants::Inflector => Self::Inflector(Inflector::try_new(value.1)?),
 
             #[cfg(feature = "strfmt")]
-            RenamerDiscriminants::StrFmt => Renamer::StrFmt(self.1),
+            RenamerDiscriminants::StrFmt => Self::StrFmt(value.1),
 
             #[cfg(feature = "dynfmt_python")]
-            RenamerDiscriminants::DynFmtPython => Renamer::DynFmtPython(self.1),
+            RenamerDiscriminants::DynFmtPython => Self::DynFmtPython(value.1),
 
             #[cfg(feature = "dynfmt_curly")]
-            RenamerDiscriminants::DynFmtCurly => Renamer::DynFmtCurly(self.1),
+            RenamerDiscriminants::DynFmtCurly => Self::DynFmtCurly(value.1),
         })
     }
 }

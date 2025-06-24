@@ -45,7 +45,7 @@ impl TryNewErrorKind {
     #[inline]
     pub(crate) fn get_variants(&self) -> &'static [&'static str] {
         match self {
-            TryNewErrorKind::Renamer => Renamer::VARIANTS,
+            Self::Renamer => Renamer::VARIANTS,
             Self::Str => Str::VARIANTS,
 
             #[cfg(feature = "ident_case")]
@@ -77,8 +77,8 @@ impl TryNewError {
     }
 
     #[inline]
-    pub(crate) fn kind(&self) -> &TryNewErrorKind {
-        &self.kind
+    pub(crate) fn is_renamer(&self) -> bool {
+        self.kind.is_renamer()
     }
 }
 
