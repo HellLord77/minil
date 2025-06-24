@@ -64,27 +64,28 @@ macro_rules! __maybe_get_ensure_eq {
     ($left:expr, $right:expr $(,)?) => {
         $crate::__maybe_get_ensure_eq!($left, $right, ::std::option::Option::None::<()>)
     };
-    ($left:expr, $right:expr, $err:expr $(,)?) => {{
-        let left_val = &$left;
-        let right_val = &$right;
-
-        if *left_val == *right_val {
-            ::std::option::Option::None
-        } else {
-            if cfg!(debug_assertions) {
-                let caller = ::std::panic::Location::caller();
-                ::std::eprintln!(
-                    r#"[{}:{}] assurance `left == right` failed
+    ($left:expr, $right:expr, $err:expr $(,)?) => {
+        match (&$left, &$right) {
+            (left_val, right_val) => {
+                if *left_val == *right_val {
+                    ::std::option::Option::None
+                } else {
+                    if cfg!(debug_assertions) {
+                        let caller = ::std::panic::Location::caller();
+                        ::std::eprintln!(
+                            r#"[{}:{}] assurance `left == right` failed
   left: {left_val:?}
  right: {right_val:?}"#,
-                    caller.file(),
-                    caller.line()
-                );
-            }
+                            caller.file(),
+                            caller.line()
+                        );
+                    }
 
-            $err
+                    $err
+                }
+            }
         }
-    }};
+    };
 }
 
 #[macro_export]
@@ -126,27 +127,28 @@ macro_rules! __maybe_get_ensure_ne {
     ($left:expr, $right:expr $(,)?) => {
         $crate::__maybe_get_ensure_ne!($left, $right, ::std::option::Option::None::<()>)
     };
-    ($left:expr, $right:expr, $err:expr $(,)?) => {{
-        let left_val = &$left;
-        let right_val = &$right;
-
-        if *left_val == *right_val {
-            if cfg!(debug_assertions) {
-                let caller = ::std::panic::Location::caller();
-                ::std::eprintln!(
-                    r#"[{}:{}] assurance `left != right` failed
+    ($left:expr, $right:expr, $err:expr $(,)?) => {
+        match (&$left, &$right) {
+            (left_val, right_val) => {
+                if *left_val == *right_val {
+                    if cfg!(debug_assertions) {
+                        let caller = ::std::panic::Location::caller();
+                        ::std::eprintln!(
+                            r#"[{}:{}] assurance `left != right` failed
   left: {left_val:?}
  right: {right_val:?}"#,
-                    caller.file(),
-                    caller.line()
-                );
-            }
+                            caller.file(),
+                            caller.line()
+                        );
+                    }
 
-            $err
-        } else {
-            ::std::option::Option::None
+                    $err
+                } else {
+                    ::std::option::Option::None
+                }
+            }
         }
-    }};
+    };
 }
 
 #[macro_export]
