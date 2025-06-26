@@ -11,9 +11,11 @@ impl MakeRequestId for AppMakeRequestId {
     fn make_request_id<B>(&mut self, _request: &Request<B>) -> Option<RequestId> {
         let nanos = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_else(|_err| todo!())
             .as_nanos();
         let request_id = format!("{nanos:X}");
-        Some(RequestId::new(request_id.parse().unwrap()))
+        Some(RequestId::new(
+            request_id.parse().unwrap_or_else(|_err| unreachable!()),
+        ))
     }
 }
