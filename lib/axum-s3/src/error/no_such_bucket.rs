@@ -6,7 +6,7 @@ use bon::Builder;
 use serde_s3::types::error::NoSuchBucket;
 
 #[derive(Debug, Builder, ErrorFromRequestParts, IntoResponse)]
-pub struct NoSuchBucketResponse {
+pub struct NoSuchBucketOutput {
     #[builder(default = StatusCode::NOT_FOUND)]
     pub status: StatusCode,
 

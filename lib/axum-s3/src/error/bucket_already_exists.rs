@@ -6,7 +6,7 @@ use bon::Builder;
 use serde_s3::types::error::BucketAlreadyExists;
 
 #[derive(Debug, Builder, ErrorFromRequestParts, IntoResponse)]
-pub struct BucketAlreadyExistsResponse {
+pub struct BucketAlreadyExistsOutput {
     #[builder(default = StatusCode::CONFLICT)]
     pub status: StatusCode,
 
