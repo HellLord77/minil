@@ -1,5 +1,5 @@
-use ::entity::bucket;
-use ::entity::prelude::*;
+use minil_entity::bucket;
+use minil_entity::prelude::*;
 use sea_orm::*;
 use uuid::Uuid;
 

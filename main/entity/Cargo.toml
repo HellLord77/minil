@@ -1,5 +1,5 @@
 [package]
-name = "entity"
+name = "minil-entity"
 version = "0.1.2"
 edition.workspace = true
 

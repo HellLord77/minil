@@ -58,8 +58,8 @@ serde-rename-chain = { path = "lib/serde-rename-chain", features = ["full"] }
 serde-s3 = { path = "lib/serde-s3" }
 syn-utils = { path = "lib/syn-utils" }
 
-entity = { path = "main/entity" }
-migration = { path = "main/migration" }
-service = { path = "main/service" }
+minil-entity = { path = "main/entity" }
+minil-migration = { path = "main/migration" }
+minil-service = { path = "main/service" }
 
 aws-sdk-s3 = "1.93.0"

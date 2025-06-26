@@ -1460,13 +1460,6 @@ name = "ensure"
 version = "0.3.1"
 
 [[package]]
-name = "entity"
-version = "0.1.2"
-dependencies = [
- "sea-orm",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2357,15 +2350,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a282da65faaf38286cf3be983213fcf1d2e2a58700e808f83f4ea9a4804bc0"
 
 [[package]]
-name = "migration"
-version = "0.2.1"
-dependencies = [
- "sea-orm-migration",
- "tokio",
- "uuid",
-]
-
-[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2383,17 +2367,17 @@ dependencies = [
 
 [[package]]
 name = "minil"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "axum",
  "axum-extra",
  "axum-s3",
  "derive_more",
  "ensure",
- "migration",
+ "minil-migration",
+ "minil-service",
  "sea-orm",
  "serde-s3",
- "service",
  "sha2",
  "strum 0.27.1",
  "tokio",
@@ -2402,6 +2386,31 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unwrap-infallible",
+]
+
+[[package]]
+name = "minil-entity"
+version = "0.1.2"
+dependencies = [
+ "sea-orm",
+]
+
+[[package]]
+name = "minil-migration"
+version = "0.2.1"
+dependencies = [
+ "sea-orm-migration",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "minil-service"
+version = "0.1.2"
+dependencies = [
+ "minil-entity",
+ "sea-orm",
+ "uuid",
 ]
 
 [[package]]
@@ -3669,15 +3678,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.104",
-]
-
-[[package]]
-name = "service"
-version = "0.1.1"
-dependencies = [
- "entity",
- "sea-orm",
- "uuid",
 ]
 
 [[package]]

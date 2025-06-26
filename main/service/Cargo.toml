@@ -1,10 +1,10 @@
 [package]
-name = "service"
-version = "0.1.1"
+name = "minil-service"
+version = "0.1.2"
 edition.workspace = true
 
 [dependencies]
 sea-orm.workspace = true
 uuid.workspace = true
 
-entity.workspace = true
+minil-entity.workspace = true

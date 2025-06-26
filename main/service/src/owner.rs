@@ -1,5 +1,5 @@
-use ::entity::owner;
-use ::entity::prelude::*;
+use minil_entity::owner;
+use minil_entity::prelude::*;
 use sea_orm::*;
 
 pub struct OwnerQuery;
