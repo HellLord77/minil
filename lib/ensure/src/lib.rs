@@ -33,7 +33,7 @@ macro_rules! check_ensure {
 macro_rules! ensure {
     ($cond:expr, $err:expr $(,)?) => {
         if !$crate::is_ensure!($cond) {
-            return ::std::result::Result::Err(err);
+            ::std::result::Result::Err(err)?
         }
     };
 }
@@ -106,7 +106,7 @@ macro_rules! check_ensure_eq {
 macro_rules! ensure_eq {
     ($left:expr, $right:expr, $err:expr $(,)?) => {
         if !$crate::is_ensure_eq!($left, $right) {
-            return ::std::result::Result::Err($err);
+            ::std::result::Result::Err($err)?
         }
     };
 }
@@ -179,7 +179,7 @@ macro_rules! check_ensure_ne {
 macro_rules! ensure_ne {
     ($left:expr, $right:expr, $err:expr $(,)?) => {
         if !$crate::is_ensure_ne!($left, $right) {
-            return ::std::result::Result::Err($err);
+            ::std::result::Result::Err($err)?
         }
     };
 }
@@ -252,7 +252,7 @@ macro_rules! check_ensure_matches {
 macro_rules! ensure_matches {
     ($left:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )?, $err:expr $(,)?) => {
         if !$crate::is_ensure_matches!($left, $($pattern)|+ $(if $guard)?) {
-            return ::std::result::Result::Err($err);
+            ::std::result::Result::Err($err)?
         }
     };
 }
