@@ -17,27 +17,23 @@ pub(super) fn expand(item: Item) -> syn::Result<TokenStream> {
 
             Ok(quote! {
                 #[automatically_derived]
-                impl<S> ::axum::extract::FromRequestParts<S> for #ident
-                where
-                    S: ::std::marker::Send + ::std::marker::Sync,
+                impl ::std::convert::From<&::axum::http::request::Parts> for #ident
                 {
-                    type Rejection = ::std::convert::Infallible;
-
-                    async fn from_request_parts(parts: &mut ::axum::http::request::Parts, _state: &S) -> ::std::result::Result<Self, Self::Rejection> {
+                    fn from(parts: &::axum::http::request::Parts) -> Self {
                         let resource = parts.uri.path();
                         let maybe_request_id = parts
                             .headers
                             .get("x-amz-request-id")
                             .and_then(|value| value.to_str().ok());
 
-                        Ok(Self::builder()
+                        Self::builder()
                             .body(
                                 #err_ty::builder()
                                     .resource(resource)
                                     .maybe_request_id(maybe_request_id)
                                     .build(),
                             )
-                            .build())
+                            .build()
                     }
                 }
             })
