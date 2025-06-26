@@ -47,22 +47,25 @@ impl BucketMutation {
         db: &DbConn,
         bucket: bucket::ActiveModel,
     ) -> Result<Option<bucket::Model>, DbErr> {
-        TryInsert::from_insert(
-            Bucket::insert(bucket).on_conflict(
+        TryInsert::one(bucket)
+            .on_conflict(
                 sea_query::OnConflict::columns([bucket::Column::OwnerId, bucket::Column::Name])
                     .do_nothing()
                     .to_owned(),
-            ),
-        )
-        .exec_with_returning(db)
-        .await
-        .map(|res| match res {
-            TryInsertResult::Empty => {
-                unreachable!()
-            }
-            TryInsertResult::Conflicted => None,
-            TryInsertResult::Inserted(bucket) => Some(bucket),
-        })
+            )
+            .exec_with_returning(db)
+            .await
+            .map(|res| match res {
+                TryInsertResult::Empty => {
+                    unreachable!()
+                }
+                TryInsertResult::Conflicted => None,
+                TryInsertResult::Inserted(bucket) => Some(bucket),
+            })
+            .or_else(|err| match err {
+                DbErr::RecordNotFound(_) => Ok(None),
+                _ => Err(err),
+            })
     }
 
     pub async fn create(

@@ -23,6 +23,27 @@ use crate::ident_case::IdentCase;
 #[cfg(feature = "inflector")]
 use crate::inflector::Inflector;
 
+pub(crate) type TryNewResult<T> = Result<T, TryNewError>;
+
+#[derive(Debug, Display, Constructor, Error)]
+#[display("unknown renamer `{unknown}`, expected one of {}", kind.get_variants().join(", "))]
+pub(crate) struct TryNewError {
+    unknown: String,
+    kind: TryNewErrorKind,
+}
+
+impl TryNewError {
+    #[inline]
+    pub(crate) fn from_renamer(unknown: String) -> Self {
+        Self::new(unknown, TryNewErrorKind::Renamer)
+    }
+
+    #[inline]
+    pub(crate) fn is_renamer(&self) -> bool {
+        self.kind.is_renamer()
+    }
+}
+
 #[derive(Debug, IsVariant)]
 pub(crate) enum TryNewErrorKind {
     Renamer,
@@ -62,24 +83,3 @@ impl TryNewErrorKind {
         }
     }
 }
-
-#[derive(Debug, Display, Constructor, Error)]
-#[display("unknown renamer `{unknown}`, expected one of {}", kind.get_variants().join(", "))]
-pub(crate) struct TryNewError {
-    unknown: String,
-    kind: TryNewErrorKind,
-}
-
-impl TryNewError {
-    #[inline]
-    pub(crate) fn from_renamer(unknown: String) -> Self {
-        Self::new(unknown, TryNewErrorKind::Renamer)
-    }
-
-    #[inline]
-    pub(crate) fn is_renamer(&self) -> bool {
-        self.kind.is_renamer()
-    }
-}
-
-pub(crate) type TryNewResult<T> = Result<T, TryNewError>;

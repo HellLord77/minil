@@ -32,7 +32,7 @@ impl IntoResponse for AppError {
         #[allow(clippy::single_match)]
         match &self {
             Self::DatabaseError(err) => {
-                tracing::error!(%err, "DbErr");
+                tracing::error!(%err, "DatabaseError");
             }
             _ => {}
         };
@@ -45,18 +45,42 @@ impl AppErrorDiscriminants {
     pub(crate) fn into_response(self, parts: &Parts) -> Response {
         match self {
             AppErrorDiscriminants::BucketAlreadyExists => {
-                BucketAlreadyExistsOutput::from(parts).into_response()
+                let output = BucketAlreadyExistsOutput::from(parts);
+
+                dbg!(&output);
+                output.into_response()
             }
             AppErrorDiscriminants::BucketAlreadyOwnedByYou => {
-                BucketAlreadyOwnedByYouOutput::from(parts).into_response()
-            }
-            AppErrorDiscriminants::NoSuchBucket => NoSuchBucketOutput::from(parts).into_response(),
+                let output = BucketAlreadyOwnedByYouOutput::from(parts);
 
-            AppErrorDiscriminants::Forbidden => StatusCode::FORBIDDEN.into_response(),
-            AppErrorDiscriminants::NotImplemented => StatusCode::NOT_IMPLEMENTED.into_response(),
+                dbg!(&output);
+                output.into_response()
+            }
+            AppErrorDiscriminants::NoSuchBucket => {
+                let output = NoSuchBucketOutput::from(parts);
+
+                dbg!(&output);
+                output.into_response()
+            }
+
+            AppErrorDiscriminants::Forbidden => {
+                let output = StatusCode::FORBIDDEN;
+
+                dbg!(&output);
+                output.into_response()
+            }
+            AppErrorDiscriminants::NotImplemented => {
+                let output = StatusCode::NOT_IMPLEMENTED;
+
+                dbg!(&output);
+                output.into_response()
+            }
 
             AppErrorDiscriminants::DatabaseError => {
-                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+                let output = StatusCode::INTERNAL_SERVER_ERROR;
+
+                dbg!(&output);
+                output.into_response()
             }
         }
     }

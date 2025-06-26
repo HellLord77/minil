@@ -9,7 +9,6 @@ tower = { version = "0.5.2", features = ["full"] }
 tower-http = { version = "0.6.6", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-unwrap-infallible = "0.1.5"
 
 axum.workspace = true
 derive_more.workspace = true
