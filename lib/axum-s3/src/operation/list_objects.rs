@@ -4,6 +4,7 @@ use axum_extra::extract::Query;
 use axum_header::Header;
 use axum_into_response::IntoResponse;
 use axum_xml::Xml;
+use bon::Builder;
 use serde_s3::operation::ListObjectsInputHeader;
 use serde_s3::operation::ListObjectsInputQuery;
 use serde_s3::operation::ListObjectsOutputBody;
@@ -21,7 +22,7 @@ pub struct ListObjectsInput {
     pub header: ListObjectsInputHeader,
 }
 
-#[derive(Debug, Default, IntoResponse)]
+#[derive(Debug, Builder, IntoResponse)]
 pub struct ListObjectsOutput {
     #[into_response(via(Header))]
     pub header: ListObjectsOutputHeader,

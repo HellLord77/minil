@@ -2,6 +2,7 @@ use axum::extract::FromRequest;
 use axum_extra::extract::Query;
 use axum_into_response::IntoResponse;
 use axum_xml::Xml;
+use bon::Builder;
 use serde_s3::operation::ListBucketsInputQuery;
 use serde_s3::operation::ListBucketsOutputBody;
 
@@ -11,7 +12,7 @@ pub struct ListBucketsInput {
     pub query: ListBucketsInputQuery,
 }
 
-#[derive(Debug, Default, IntoResponse)]
+#[derive(Debug, Builder, IntoResponse)]
 pub struct ListBucketsOutput {
     #[into_response(via(Xml))]
     pub body: ListBucketsOutputBody,

@@ -3,6 +3,7 @@ use axum::extract::Path;
 use axum_header::Header;
 use axum_into_response::IntoResponse;
 use axum_xml::Xml;
+use bon::Builder;
 use serde_s3::operation::CreateBucketInputBody;
 use serde_s3::operation::CreateBucketInputHeader;
 use serde_s3::operation::CreateBucketOutputHeader;
@@ -16,10 +17,10 @@ pub struct CreateBucketInput {
     pub header: CreateBucketInputHeader,
 
     #[from_request(via(Xml))]
-    pub body: CreateBucketInputBody,
+    pub body: Option<CreateBucketInputBody>,
 }
 
-#[derive(Debug, Default, IntoResponse)]
+#[derive(Debug, Builder, IntoResponse)]
 pub struct CreateBucketOutput {
     #[into_response(via(Header))]
     pub header: CreateBucketOutputHeader,

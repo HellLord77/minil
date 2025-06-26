@@ -3,8 +3,8 @@ use axum::extract::Path;
 use axum::http::StatusCode;
 use axum_header::Header;
 use axum_into_response::IntoResponse;
+use bon::Builder;
 use serde_s3::operation::DeleteBucketInputHeader;
-use smart_default::SmartDefault;
 
 #[derive(Debug, FromRequest)]
 pub struct DeleteBucketInput {
@@ -15,8 +15,8 @@ pub struct DeleteBucketInput {
     pub header: DeleteBucketInputHeader,
 }
 
-#[derive(Debug, SmartDefault, IntoResponse)]
+#[derive(Debug, Builder, IntoResponse)]
 pub struct DeleteBucketOutput {
-    #[default(StatusCode::NO_CONTENT)]
+    #[builder(default = StatusCode::NO_CONTENT)]
     pub status: StatusCode,
 }
