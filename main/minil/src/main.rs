@@ -11,12 +11,10 @@ use std::time::Instant;
 use axum::Router;
 use axum::ServiceExt;
 use axum::extract::FromRequest;
-use axum::extract::FromRequestParts;
 use axum::extract::Request;
 use axum::extract::State;
 use axum::http::HeaderName;
 use axum::http::HeaderValue;
-use axum::http::StatusCode;
 use axum::http::header;
 use axum::middleware;
 use axum::middleware::Next;
@@ -29,9 +27,6 @@ use axum::routing::put;
 use axum_extra::extract::Query;
 use axum_extra::extract::QueryRejection;
 use axum_extra::vpath;
-use axum_s3::error::BucketAlreadyExistsResponse;
-use axum_s3::error::BucketAlreadyOwnedByYouResponse;
-use axum_s3::error::NoSuchBucketResponse;
 use axum_s3::operation::CreateBucketInput;
 use axum_s3::operation::CreateBucketOutput;
 use axum_s3::operation::DeleteBucketInput;
@@ -75,7 +70,6 @@ use tower_http::normalize_path::NormalizePathLayer;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use unwrap_infallible::UnwrapInfallible;
 
 use crate::error::AppError;
 use crate::error::AppErrorDiscriminants;
@@ -199,38 +193,15 @@ async fn set_process_time(request: Request, next: Next) -> Response {
 }
 
 async fn handle_app_error(request: Request, next: Next) -> Response {
-    let (mut parts, body) = request.into_parts();
+    let (parts, body) = request.into_parts();
     let request = Request::from_parts(parts.clone(), body);
-    let response = next.run(request).await;
+    let mut response = next.run(request).await;
 
-    match response.extensions().get::<AppErrorDiscriminants>() {
-        Some(err) => match err {
-            AppErrorDiscriminants::BucketAlreadyExists => {
-                BucketAlreadyExistsResponse::from_request_parts(&mut parts, &())
-                    .await
-                    .unwrap_infallible()
-                    .into_response()
-            }
-            AppErrorDiscriminants::BucketAlreadyOwnedByYou => {
-                BucketAlreadyOwnedByYouResponse::from_request_parts(&mut parts, &())
-                    .await
-                    .unwrap_infallible()
-                    .into_response()
-            }
-            AppErrorDiscriminants::NoSuchBucket => {
-                NoSuchBucketResponse::from_request_parts(&mut parts, &())
-                    .await
-                    .unwrap_infallible()
-                    .into_response()
-            }
-
-            AppErrorDiscriminants::Forbidden => StatusCode::FORBIDDEN.into_response(),
-            AppErrorDiscriminants::NotImplemented => StatusCode::NOT_IMPLEMENTED.into_response(),
-
-            AppErrorDiscriminants::DbErr => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-        },
-        None => response,
+    if let Some(err) = response.extensions().get::<AppErrorDiscriminants>() {
+        response = err.into_response(&parts);
     }
+
+    response
 }
 
 async fn create_bucket(
@@ -288,7 +259,7 @@ async fn delete_bucket(
 
     if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
         if expected_bucket_owner != owner.name {
-            return Err(AppError::Forbidden);
+            Err(AppError::Forbidden)?
         }
     }
     BucketMutation::delete_by_unique_id(&db, owner.id, &input.bucket)
@@ -311,7 +282,7 @@ async fn head_bucket(
 
     if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
         if expected_bucket_owner != owner.name {
-            return Err(AppError::Forbidden);
+            Err(AppError::Forbidden)?
         }
     }
     let bucket = BucketQuery::find_by_unique_id(&db, owner.id, &input.bucket)
