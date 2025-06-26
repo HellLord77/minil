@@ -1,17 +1,19 @@
 [package]
 name = "serde-s3"
-version = "0.2.1"
+version = "0.3.0"
 edition.workspace = true
 
 [dependencies]
 chrono = { version = "0.4.41", features = ["serde"] }
 serde-inline-default = "0.2.3"
 serde_with = "3.13.0"
-serdev = "0.2.0"
+serdev = "0.2.0" # https://github.com/serde-rs/serde/pull/2891
 validator = { version = "0.20.0", features = ["derive"] }
 
+bon.workspace = true
+derive_more.workspace = true
 serde.workspace = true
-smart-default.workspace = true
+uuid.workspace = true
 
 serde-rename-chain.workspace = true
 

@@ -1,9 +1,12 @@
+pub mod error;
+
 mod bucket;
 mod bucket_canned_acl;
 mod bucket_data_redundancy;
 mod bucket_info;
 mod bucket_location_constraint;
 mod bucket_type;
+mod buckets;
 mod checksum_algorithm;
 mod checksum_type;
 mod common_prefix;
@@ -28,6 +31,7 @@ pub use bucket_data_redundancy::BucketDataRedundancy;
 pub use bucket_info::BucketInfo;
 pub use bucket_location_constraint::BucketLocationConstraint;
 pub use bucket_type::BucketType;
+pub use buckets::Buckets;
 pub use checksum_algorithm::ChecksumAlgorithm;
 pub use checksum_type::ChecksumType;
 pub use common_prefix::CommonPrefix;

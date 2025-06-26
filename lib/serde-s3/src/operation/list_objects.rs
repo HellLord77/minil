@@ -1,3 +1,4 @@
+use bon::Builder;
 use serde::Serialize;
 use serde_inline_default::serde_inline_default;
 use serde_rename_chain::serde_rename_chain;
@@ -25,8 +26,7 @@ pub struct ListObjectsInputQuery {
     pub max_keys: u16,
 
     #[validate(length(min = 0, max = 1_024))]
-    #[serde(default)]
-    pub prefix: String,
+    pub prefix: Option<String>,
 }
 
 #[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
@@ -34,14 +34,13 @@ pub struct ListObjectsInputQuery {
 pub struct ListObjectsInputHeader {
     pub expected_bucket_owner: Option<String>,
 
-    #[serde(default)]
-    pub optional_object_attributes: Vec<OptionalObjectAttributes>,
+    pub optional_object_attributes: Option<Vec<OptionalObjectAttributes>>,
 
     pub request_payer: Option<RequestPayer>,
 }
 
 #[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Builder, Serialize)]
 pub struct ListObjectsOutputHeader {
     pub request_charged: Option<RequestPayer>,
 }

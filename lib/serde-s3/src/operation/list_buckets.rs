@@ -18,8 +18,7 @@ pub struct ListBucketsInputQuery {
     pub max_buckets: u16,
 
     #[validate(length(min = 0, max = 1_024))]
-    #[serde(default)]
-    pub prefix: String,
+    pub prefix: Option<String>,
 }
 
 pub type ListBucketsOutputBody = ListAllMyBucketsResult;

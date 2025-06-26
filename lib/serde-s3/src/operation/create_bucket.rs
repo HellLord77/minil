@@ -1,3 +1,4 @@
+use bon::Builder;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
@@ -29,7 +30,8 @@ pub struct CreateBucketInputHeader {
 pub type CreateBucketInputBody = CreateBucketConfiguration;
 
 #[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Builder, Serialize)]
 pub struct CreateBucketOutputHeader {
+    #[serde(rename = "Location")]
     pub location: String,
 }

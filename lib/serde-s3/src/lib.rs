@@ -1,5 +1,6 @@
 pub mod operation;
 pub mod types;
+pub mod utils;
 
 #[cfg(test)]
 mod tests {
@@ -9,6 +10,8 @@ mod tests {
     use aws_sdk_s3::operation::create_bucket::CreateBucketOutput;
     use aws_sdk_s3::operation::delete_bucket::DeleteBucketInput;
     use aws_sdk_s3::operation::delete_bucket::DeleteBucketOutput;
+    use aws_sdk_s3::operation::head_bucket::HeadBucketInput;
+    use aws_sdk_s3::operation::head_bucket::HeadBucketOutput;
     use aws_sdk_s3::operation::list_buckets::ListBucketsInput;
     use aws_sdk_s3::operation::list_buckets::ListBucketsOutput;
     use aws_sdk_s3::operation::list_objects::ListObjectsInput;
