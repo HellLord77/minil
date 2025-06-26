@@ -20,26 +20,26 @@ pub use crate::ty::peel_result_ok;
 #[macro_export]
 macro_rules! bail {
     ($span:expr, $message:literal $(,)?) => {
-        return ::std::result::Result::Err(syn::Error::new($span, $message))
+        return ::std::result::Result::Err(syn::Error::new($span, $message));
     };
     ($span:expr, $message:expr $(,)?) => {
-        return ::std::result::Result::Err(::syn::Error::new($span, $message))
+        return ::std::result::Result::Err(::syn::Error::new($span, $message));
     };
     ($span:expr, $fmt:expr, $($arg:tt)*) => {
-        return ::std::result::Result::Err(::syn::Error::new($span, format!($fmt, $($arg)*)))
+        return ::std::result::Result::Err(::syn::Error::new($span, format!($fmt, $($arg)*)));
     };
 }
 
 #[macro_export]
 macro_rules! bail_spanned {
     ($tokens:expr, $message:literal $(,)?) => {
-        return ::std::result::Result::Err(syn::Error::new_spanned($tokens, $message))
+        return ::std::result::Result::Err(syn::Error::new_spanned($tokens, $message));
     };
     ($tokens:expr, $message:expr $(,)?) => {
-        return ::std::result::Result::Err(::syn::Error::new_spanned($tokens, $message))
+        return ::std::result::Result::Err(::syn::Error::new_spanned($tokens, $message));
     };
     ($tokens:expr, $fmt:expr, $($arg:tt)*) => {
-        return ::std::result::Result::Err(::syn::Error::new_spanned($tokens, format!($fmt, $($arg)*)))
+        return ::std::result::Result::Err(::syn::Error::new_spanned($tokens, format!($fmt, $($arg)*)));
     };
 }
 
@@ -67,11 +67,11 @@ where
     expand(expand_result)
 }
 
-pub fn expand<T>(result: syn::Result<T>) -> TokenStream
+pub fn expand<T>(res: syn::Result<T>) -> TokenStream
 where
     T: ToTokens,
 {
-    match result {
+    match res {
         Ok(tokens) => {
             let tokens = quote! { #tokens }.into();
             if std::env::var_os("SYN_UTILS_DEBUG").is_some() {

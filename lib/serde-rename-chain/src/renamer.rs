@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::str::FromStr;
 
 use strum::EnumDiscriminants;
@@ -112,12 +113,12 @@ impl Renamer {
             #[cfg(feature = "dynfmt_python")]
             Self::DynFmtPython(fmt) => PythonFormat
                 .format(fmt, Self::vars(s).map(|(_, v)| v))
-                .map_or_else(|_err| s.to_owned(), |s| s.into_owned()),
+                .map_or_else(|_err| s.to_owned(), Cow::into_owned),
 
             #[cfg(feature = "dynfmt_curly")]
             Self::DynFmtCurly(fmt) => SimpleCurlyFormat
                 .format(fmt, Self::vars(s).map(|(_, v)| v))
-                .map_or_else(|_err| s.to_owned(), |s| s.into_owned()),
+                .map_or_else(|_err| s.to_owned(), Cow::into_owned),
         }
     }
 
