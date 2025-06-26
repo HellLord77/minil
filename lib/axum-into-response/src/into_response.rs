@@ -30,7 +30,7 @@ pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
             fn member(field: &Field, index: usize) -> TokenStream {
                 match &field.ident {
                     Some(ident) => quote! { #ident },
-                    _ => {
+                    None => {
                         let member = Member::Unnamed(Index {
                             index: index as u32,
                             span: field.span(),
@@ -58,10 +58,7 @@ pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
             }
 
             let mut fields_iter = fields.iter();
-            let last = match tr {
-                Trait::IntoResponse => None,
-                Trait::IntoResponseParts => fields_iter.next_back(),
-            };
+            let last = fields_iter.next_back();
 
             let mut extract_fields = fields_iter
                 .enumerate()
@@ -92,9 +89,14 @@ pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
                 let ty_span = field.ty.span();
                 let into_inner = into_inner(&via, member, ty_span);
 
-                let tokens = quote_spanned! {ty_span=>
-                    ::axum::response::IntoResponseParts::into_response_parts(#into_inner, res)
+                let tokens = match tr {
+                    Trait::IntoResponse => quote_spanned! {ty_span=>
+                        #into_inner
+                    },
+                    Trait::IntoResponseParts => quote_spanned! {ty_span=>
+                        ::axum::response::IntoResponseParts::into_response_parts(#into_inner, res)
                         .map_err(::axum::response::IntoResponse::into_response)
+                    },
                 };
                 extract_fields.push(tokens);
             };
@@ -113,7 +115,7 @@ pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
                     impl ::axum::response::IntoResponseParts for #ident {
                         type Error = ::axum::response::Response;
 
-                        fn into_response_parts(self, res: ResponseParts) -> Result<ResponseParts, Self::Error> {
+                        fn into_response_parts(self, res: ::axum::response::ResponseParts) -> ::std::result::Result<::axum::response::ResponseParts, Self::Error> {
                             #(#extract_fields)*
                         }
                     }
