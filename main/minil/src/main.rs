@@ -51,6 +51,7 @@ use minil_migration::MigratorTrait;
 use minil_service::BucketMutation;
 use minil_service::BucketQuery;
 use minil_service::OwnerQuery;
+use sea_orm::ConnectOptions;
 use sea_orm::Database;
 use sea_orm::DbConn;
 use serde_s3::operation::CreateBucketOutputHeader;
@@ -100,9 +101,11 @@ async fn main() {
         .try_init()
         .expect("unable to install global subscriber");
 
-    let db_url = env::var("DATABASE_URL").unwrap_or_else(|_err| unimplemented!());
+    let db_url = env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".to_owned());
     tracing::info!("connecting to {}", db_url);
-    let db_conn = Database::connect(db_url)
+    let mut db_opt = ConnectOptions::new(db_url);
+    db_opt.sqlx_logging(false);
+    let db_conn = Database::connect(db_opt)
         .await
         .expect("failed to connect to database");
     Migrator::up(&db_conn, None)
