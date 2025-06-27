@@ -1,4 +1,5 @@
 mod error;
+mod macros;
 mod make_request_id;
 mod service_builder_ext;
 mod state;
@@ -309,7 +310,6 @@ async fn list_buckets(
     let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
 
     dbg!(&input);
-    ensure_eq!(input.query.prefix, None, AppError::NotImplemented);
 
     let limit = input.query.max_buckets + 1;
     let mut buckets = BucketQuery::find_all_by_owner_id(

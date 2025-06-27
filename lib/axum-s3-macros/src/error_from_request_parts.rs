@@ -38,8 +38,6 @@ pub(super) fn expand(item: Item) -> syn::Result<TokenStream> {
                 }
             })
         }
-        _ => {
-            unimplemented!()
-        }
+        _ => unimplemented!(),
     }
 }

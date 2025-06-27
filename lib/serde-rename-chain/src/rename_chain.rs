@@ -41,9 +41,7 @@ fn parse(args: Punctuated<Meta, Comma>) -> syn::Result<Vec<Renamer>> {
                 }
                 _ => bail_spanned!(value, "expected string literal"),
             },
-            _ => {
-                bail_spanned!(arg, "expected name-value pair");
-            }
+            _ => bail_spanned!(arg, "expected name-value pair"),
         };
     }
 

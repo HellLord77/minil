@@ -122,9 +122,7 @@ pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
                 },
             })
         }
-        Item::Enum(_item) => {
-            unimplemented!()
-        }
+        Item::Enum(_item) => unimplemented!(),
         _ => Err(syn::Error::new_spanned(item, "expected struct or enum")),
     }
 }

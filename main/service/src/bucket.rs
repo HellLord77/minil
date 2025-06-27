@@ -60,9 +60,7 @@ impl BucketMutation {
                 _ => Err(err),
             })
             .map(|res| match res {
-                TryInsertResult::Empty => {
-                    unreachable!()
-                }
+                TryInsertResult::Empty => unreachable!(),
                 TryInsertResult::Conflicted => None,
                 TryInsertResult::Inserted(bucket) => Some(bucket),
             })
