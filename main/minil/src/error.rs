@@ -5,12 +5,19 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use axum_s3::error::BucketAlreadyExistsOutput;
 use axum_s3::error::BucketAlreadyOwnedByYouOutput;
+use axum_s3::error::ConditionalRequestConflictOutput;
+use axum_s3::error::EncryptionTypeMismatchOutput;
+use axum_s3::error::InvalidWriteOffsetOutput;
 use axum_s3::error::NoSuchBucketOutput;
+use axum_s3::error::PreconditionFailedOutput;
+use axum_s3::error::TooManyPartsOutput;
 use derive_more::Display;
 use derive_more::Error;
 use derive_more::From;
 use sea_orm::DbErr;
 use strum::EnumDiscriminants;
+
+use crate::macros::app_err_output;
 
 pub(crate) type AppResult<T> = Result<T, AppError>;
 
@@ -21,9 +28,17 @@ pub(crate) enum AppError {
     BucketAlreadyOwnedByYou,
     #[allow(dead_code)]
     ConditionalRequestConflict,
+    #[allow(dead_code)]
+    EncryptionTypeMismatch,
+    #[allow(dead_code)]
+    InvalidRequest,
+    #[allow(dead_code)]
+    InvalidWriteOffset,
     NoSuchBucket,
     #[allow(dead_code)]
     PreconditionFailed,
+    #[allow(dead_code)]
+    TooManyParts,
 
     Forbidden,
     NotImplemented,
@@ -48,56 +63,26 @@ impl IntoResponse for AppError {
 impl AppErrorDiscriminants {
     pub(crate) fn into_response(self, parts: &Parts) -> Response {
         match self {
-            Self::BucketAlreadyExists => {
-                let output = BucketAlreadyExistsOutput::from(parts);
-
-                dbg!(&output);
-                output.into_response()
-            }
+            Self::BucketAlreadyExists => app_err_output!(BucketAlreadyExistsOutput::from(parts)),
             Self::BucketAlreadyOwnedByYou => {
-                let output = BucketAlreadyOwnedByYouOutput::from(parts);
-
-                dbg!(&output);
-                output.into_response()
+                app_err_output!(BucketAlreadyOwnedByYouOutput::from(parts))
             }
             Self::ConditionalRequestConflict => {
-                let output = axum_s3::error::ConditionalRequestConflictOutput::from(parts);
-
-                dbg!(&output);
-                output.into_response()
+                app_err_output!(ConditionalRequestConflictOutput::from(parts))
             }
-            Self::NoSuchBucket => {
-                let output = NoSuchBucketOutput::from(parts);
-
-                dbg!(&output);
-                output.into_response()
+            Self::EncryptionTypeMismatch => {
+                app_err_output!(EncryptionTypeMismatchOutput::from(parts))
             }
-            Self::PreconditionFailed => {
-                let output = axum_s3::error::PreconditionFailedOutput::from(parts);
+            Self::InvalidRequest => todo!(),
+            Self::InvalidWriteOffset => app_err_output!(InvalidWriteOffsetOutput::from(parts)),
+            Self::NoSuchBucket => app_err_output!(NoSuchBucketOutput::from(parts)),
+            Self::PreconditionFailed => app_err_output!(PreconditionFailedOutput::from(parts)),
+            Self::TooManyParts => app_err_output!(TooManyPartsOutput::from(parts)),
 
-                dbg!(&output);
-                output.into_response()
-            }
+            Self::Forbidden => app_err_output!(StatusCode::FORBIDDEN),
+            Self::NotImplemented => app_err_output!(StatusCode::NOT_IMPLEMENTED),
 
-            Self::Forbidden => {
-                let output = StatusCode::FORBIDDEN;
-
-                dbg!(&output);
-                output.into_response()
-            }
-            Self::NotImplemented => {
-                let output = StatusCode::NOT_IMPLEMENTED;
-
-                dbg!(&output);
-                output.into_response()
-            }
-
-            Self::DatabaseError => {
-                let output = StatusCode::INTERNAL_SERVER_ERROR;
-
-                dbg!(&output);
-                output.into_response()
-            }
+            Self::DatabaseError => app_err_output!(StatusCode::INTERNAL_SERVER_ERROR),
         }
     }
 }
