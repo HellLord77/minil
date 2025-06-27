@@ -1,4 +1,4 @@
-#![cfg(feature = "extra")]
+#![cfg(feature = "multi")]
 
 use axum::Router;
 use axum::routing::get;

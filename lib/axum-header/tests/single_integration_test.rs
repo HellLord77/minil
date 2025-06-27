@@ -1,3 +1,5 @@
+#![cfg(feature = "single")]
+
 use std::fmt::Debug;
 
 use axum::Router;
