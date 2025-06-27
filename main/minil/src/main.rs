@@ -1,5 +1,6 @@
 mod error;
 mod make_request_id;
+mod service_builder_ext;
 mod state;
 
 use std::env;
@@ -16,7 +17,6 @@ use axum::extract::State;
 use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::http::header;
-use axum::middleware;
 use axum::middleware::Next;
 use axum::response::IntoResponse;
 use axum::response::Response;
@@ -75,6 +75,7 @@ use crate::error::AppError;
 use crate::error::AppErrorDiscriminants;
 use crate::error::AppResult;
 use crate::make_request_id::AppMakeRequestId;
+use crate::service_builder_ext::AppServiceBuilderExt;
 use crate::state::AppState;
 
 const NODE_NAME: &str = "minil";
@@ -111,8 +112,11 @@ async fn main() {
     let server = format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     let middleware = ServiceBuilder::new()
+        .trace_for_http()
+        .middleware_fn(set_process_time)
         .decompression()
         .set_request_id(REQUEST_ID_HEADER, AppMakeRequestId)
+        .middleware_fn(handle_app_error)
         .propagate_request_id(REQUEST_ID_HEADER)
         .override_response_header(
             NODE_ID_HEADER,
@@ -124,8 +128,7 @@ async fn main() {
                 .parse::<HeaderValue>()
                 .expect("invalid server header"),
         )
-        .compression()
-        .trace_for_http();
+        .compression();
 
     let router = Router::new()
         .route(vpath!("/{bucket}"), get(list_objects_handler))
@@ -134,9 +137,7 @@ async fn main() {
         .route(vpath!("/{bucket}"), head(head_bucket))
         .route(vpath!("/"), get(list_buckets))
         .with_state(state)
-        .layer(middleware)
-        .layer(middleware::from_fn(handle_app_error))
-        .layer(middleware::from_fn(set_process_time));
+        .layer(middleware);
 
     let app = ServiceExt::<Request>::into_make_service(
         NormalizePathLayer::trim_trailing_slash().layer(router),

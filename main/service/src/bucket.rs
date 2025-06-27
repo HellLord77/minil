@@ -55,16 +55,16 @@ impl BucketMutation {
             )
             .exec_with_returning(db)
             .await
+            .or_else(|err| match err {
+                DbErr::RecordNotFound(_) => Ok(TryInsertResult::Conflicted),
+                _ => Err(err),
+            })
             .map(|res| match res {
                 TryInsertResult::Empty => {
                     unreachable!()
                 }
                 TryInsertResult::Conflicted => None,
                 TryInsertResult::Inserted(bucket) => Some(bucket),
-            })
-            .or_else(|err| match err {
-                DbErr::RecordNotFound(_) => Ok(None),
-                _ => Err(err),
             })
     }
 
