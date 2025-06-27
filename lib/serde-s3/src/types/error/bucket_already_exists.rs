@@ -1,13 +1,14 @@
 use bon::Builder;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
+use tynm::type_name;
 
 #[skip_serializing_none]
 #[derive(Debug, Builder, Serialize)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename = "Error", rename_all = "PascalCase")]
 pub struct BucketAlreadyExists {
-    #[builder(default = "BucketAlreadyExists")]
-    pub code: &'static str,
+    #[builder(default = type_name::<BucketAlreadyExists>())]
+    pub code: String,
 
     #[builder(default = "The requested bucket name is not available.")]
     pub message: &'static str,

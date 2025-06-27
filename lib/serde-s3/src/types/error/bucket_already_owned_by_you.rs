@@ -1,13 +1,14 @@
 use bon::Builder;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
+use tynm::type_name;
 
 #[skip_serializing_none]
 #[derive(Debug, Builder, Serialize)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename = "Error", rename_all = "PascalCase")]
 pub struct BucketAlreadyOwnedByYou {
-    #[builder(default = "BucketAlreadyOwnedByYou")]
-    pub code: &'static str,
+    #[builder(default = type_name::<BucketAlreadyOwnedByYou>())]
+    pub code: String,
 
     #[builder(default = "The bucket that you tried to create already exists, and you own it.")]
     pub message: &'static str,
