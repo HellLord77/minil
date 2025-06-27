@@ -679,7 +679,7 @@ dependencies = [
 
 [[package]]
 name = "axum-s3"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "axum",
  "axum-extra",
@@ -3564,7 +3564,7 @@ dependencies = [
 
 [[package]]
 name = "serde-s3"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "aws-sdk-s3",
  "bon",

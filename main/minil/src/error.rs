@@ -19,7 +19,11 @@ pub(crate) enum AppError {
     #[allow(dead_code)]
     BucketAlreadyExists,
     BucketAlreadyOwnedByYou,
+    #[allow(dead_code)]
+    ConditionalRequestConflict,
     NoSuchBucket,
+    #[allow(dead_code)]
+    PreconditionFailed,
 
     Forbidden,
     NotImplemented,
@@ -44,39 +48,51 @@ impl IntoResponse for AppError {
 impl AppErrorDiscriminants {
     pub(crate) fn into_response(self, parts: &Parts) -> Response {
         match self {
-            AppErrorDiscriminants::BucketAlreadyExists => {
+            Self::BucketAlreadyExists => {
                 let output = BucketAlreadyExistsOutput::from(parts);
 
                 dbg!(&output);
                 output.into_response()
             }
-            AppErrorDiscriminants::BucketAlreadyOwnedByYou => {
+            Self::BucketAlreadyOwnedByYou => {
                 let output = BucketAlreadyOwnedByYouOutput::from(parts);
 
                 dbg!(&output);
                 output.into_response()
             }
-            AppErrorDiscriminants::NoSuchBucket => {
+            Self::ConditionalRequestConflict => {
+                let output = axum_s3::error::ConditionalRequestConflictOutput::from(parts);
+
+                dbg!(&output);
+                output.into_response()
+            }
+            Self::NoSuchBucket => {
                 let output = NoSuchBucketOutput::from(parts);
 
                 dbg!(&output);
                 output.into_response()
             }
+            Self::PreconditionFailed => {
+                let output = axum_s3::error::PreconditionFailedOutput::from(parts);
 
-            AppErrorDiscriminants::Forbidden => {
+                dbg!(&output);
+                output.into_response()
+            }
+
+            Self::Forbidden => {
                 let output = StatusCode::FORBIDDEN;
 
                 dbg!(&output);
                 output.into_response()
             }
-            AppErrorDiscriminants::NotImplemented => {
+            Self::NotImplemented => {
                 let output = StatusCode::NOT_IMPLEMENTED;
 
                 dbg!(&output);
                 output.into_response()
             }
 
-            AppErrorDiscriminants::DatabaseError => {
+            Self::DatabaseError => {
                 let output = StatusCode::INTERNAL_SERVER_ERROR;
 
                 dbg!(&output);
