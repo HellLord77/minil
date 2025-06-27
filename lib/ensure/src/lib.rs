@@ -1,3 +1,29 @@
+// eprintln
+
+#[macro_export]
+macro_rules! eprintln {
+    () => {
+        ::std::eprintln!("[{}:{}:{}]", ::std::file!(), ::std::line!(), ::std::column!())
+    };
+    ($($arg:tt)*) => {
+        match ::std::format_args!($($arg)*) {
+            tmp => {
+                ::std::eprintln!("[{}:{}:{}] {}",
+                    ::std::file!(), ::std::line!(), ::std::column!(), tmp);
+                tmp
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! debug_eprintln {
+    ($($arg:tt)*) => {
+        #[cfg(debug_assertions)]
+        $crate::eprintln!($($arg)*);
+    };
+}
+
 // ensure
 
 #[macro_export]
@@ -6,16 +32,7 @@ macro_rules! is_ensure {
         if $cond {
             true
         } else {
-            #[cfg(debug_assertions)]
-            {
-                let caller = ::std::panic::Location::caller();
-                ::std::eprintln!(
-                    r#"[{}:{}] assurance failed: {}"#,
-                    caller.file(),
-                    caller.line(),
-                    ::std::stringify!($cond)
-                );
-            }
+            $crate::debug_eprintln!(r#"assurance failed: {}"#, ::std::stringify!($cond));
 
             false
         }
@@ -76,17 +93,11 @@ macro_rules! is_ensure_eq {
                 if *left_val == *right_val {
                     true
                 } else {
-                    #[cfg(debug_assertions)]
-                    {
-                        let caller = ::std::panic::Location::caller();
-                        ::std::eprintln!(
-                            r#"[{}:{}] assurance `left == right` failed
+                    $crate::debug_eprintln!(
+                        r#"assurance `left == right` failed
   left: {left_val:?}
- right: {right_val:?}"#,
-                            caller.file(),
-                            caller.line()
-                        );
-                    }
+ right: {right_val:?}"#
+                    );
 
                     false
                 }
@@ -147,17 +158,11 @@ macro_rules! is_ensure_ne {
         match (&$left, &$right) {
             (left_val, right_val) => {
                 if *left_val == *right_val {
-                    #[cfg(debug_assertions)]
-                    {
-                        let caller = ::std::panic::Location::caller();
-                        ::std::eprintln!(
-                            r#"[{}:{}] assurance `left != right` failed
+                    $crate::debug_eprintln!(
+                        r#"assurance `left != right` failed
   left: {left_val:?}
- right: {right_val:?}"#,
-                            caller.file(),
-                            caller.line()
-                        );
-                    }
+ right: {right_val:?}"#
+                    );
 
                     false
                 } else {
@@ -222,18 +227,12 @@ macro_rules! is_ensure_matches {
                 true
             }
             ref left_val => {
-                #[cfg(debug_assertions)]
-                {
-                    let caller = ::std::panic::Location::caller();
-                        ::std::eprintln!(
-                            r#"[{}:{}] assurance `left matches right` failed
+                $crate::debug_eprintln!(
+                    r#"assurance `left matches right` failed
   left: {left_val:?}
  right: {}"#,
-                            caller.file(),
-                            caller.line(),
-                            ::std::stringify!($($pattern)|+ $(if $guard)?)
-                        );
-                }
+                    ::std::stringify!($($pattern)|+ $(if $guard)?)
+                );
 
                 false
             }
