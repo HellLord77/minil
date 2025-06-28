@@ -16,6 +16,8 @@ mod tests {
     use aws_sdk_s3::operation::delete_object::DeleteObjectOutput;
     use aws_sdk_s3::operation::delete_objects::DeleteObjectsInput;
     use aws_sdk_s3::operation::delete_objects::DeleteObjectsOutput;
+    use aws_sdk_s3::operation::get_bucket_versioning::GetBucketVersioningInput;
+    use aws_sdk_s3::operation::get_bucket_versioning::GetBucketVersioningOutput;
     use aws_sdk_s3::operation::get_object::GetObjectInput;
     use aws_sdk_s3::operation::get_object::GetObjectOutput;
     use aws_sdk_s3::operation::head_bucket::HeadBucketInput;
@@ -28,6 +30,8 @@ mod tests {
     use aws_sdk_s3::operation::list_objects::ListObjectsOutput;
     use aws_sdk_s3::operation::list_objects_v2::ListObjectsV2Input;
     use aws_sdk_s3::operation::list_objects_v2::ListObjectsV2Output;
+    use aws_sdk_s3::operation::put_bucket_versioning::PutBucketVersioningInput;
+    use aws_sdk_s3::operation::put_bucket_versioning::PutBucketVersioningOutput;
     use aws_sdk_s3::operation::put_object::PutObjectInput;
     use aws_sdk_s3::operation::put_object::PutObjectOutput;
 }
