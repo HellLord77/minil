@@ -32,6 +32,6 @@ pub type CreateBucketInputBody = CreateBucketConfiguration;
 #[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
 #[derive(Debug, Builder, Serialize)]
 pub struct CreateBucketOutputHeader {
-    #[serde(rename = "Location")]
+    #[serde_rename_chain(convert_case = "train")]
     pub location: String,
 }
