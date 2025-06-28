@@ -6,12 +6,13 @@ use axum_xml::Xml;
 use bon::Builder;
 use serde_s3::operation::CreateBucketInputBody;
 use serde_s3::operation::CreateBucketInputHeader;
+use serde_s3::operation::CreateBucketInputPath;
 use serde_s3::operation::CreateBucketOutputHeader;
 
 #[derive(Debug, FromRequest)]
 pub struct CreateBucketInput {
     #[from_request(via(Path))]
-    pub bucket: String,
+    pub path: CreateBucketInputPath,
 
     #[from_request(via(Header))]
     pub header: CreateBucketInputHeader,

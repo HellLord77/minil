@@ -5,12 +5,13 @@ use axum_header::Header;
 use axum_into_response::IntoResponse;
 use bon::Builder;
 use serde_s3::operation::PutObjectInputHeader;
+use serde_s3::operation::PutObjectInputPath;
 use serde_s3::operation::PutObjectOutputHeader;
 
 #[derive(Debug, FromRequest)]
 pub struct PutObjectInput {
     #[from_request(via(Path))]
-    pub bucket: String,
+    pub path: PutObjectInputPath,
 
     #[from_request(via(Header))]
     pub header: PutObjectInputHeader,

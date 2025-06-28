@@ -3,16 +3,17 @@ use axum::extract::Path;
 use axum_header::Header;
 use axum_into_response::IntoResponse;
 use bon::Builder;
-use serde_s3::operation::DeleteBucketInputHeader;
+use serde_s3::operation::HeadBucketInputHeader;
+use serde_s3::operation::HeadBucketInputPath;
 use serde_s3::operation::HeadBucketOutputHeader;
 
 #[derive(Debug, FromRequest)]
 pub struct HeadBucketInput {
     #[from_request(via(Path))]
-    pub bucket: String,
+    pub path: HeadBucketInputPath,
 
     #[from_request(via(Header))]
-    pub header: DeleteBucketInputHeader,
+    pub header: HeadBucketInputHeader,
 }
 
 #[derive(Debug, Builder, IntoResponse)]

@@ -5,11 +5,12 @@ use axum_header::Header;
 use axum_into_response::IntoResponse;
 use bon::Builder;
 use serde_s3::operation::DeleteBucketInputHeader;
+use serde_s3::operation::DeleteBucketInputPath;
 
 #[derive(Debug, FromRequest)]
 pub struct DeleteBucketInput {
     #[from_request(via(Path))]
-    pub bucket: String,
+    pub path: DeleteBucketInputPath,
 
     #[from_request(via(Header))]
     pub header: DeleteBucketInputHeader,

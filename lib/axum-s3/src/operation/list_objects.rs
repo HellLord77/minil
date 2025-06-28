@@ -6,6 +6,7 @@ use axum_into_response::IntoResponse;
 use axum_xml::Xml;
 use bon::Builder;
 use serde_s3::operation::ListObjectsInputHeader;
+use serde_s3::operation::ListObjectsInputPath;
 use serde_s3::operation::ListObjectsInputQuery;
 use serde_s3::operation::ListObjectsOutputBody;
 use serde_s3::operation::ListObjectsOutputHeader;
@@ -13,7 +14,7 @@ use serde_s3::operation::ListObjectsOutputHeader;
 #[derive(Debug, FromRequest)]
 pub struct ListObjectsInput {
     #[from_request(via(Path))]
-    pub bucket: String,
+    pub path: ListObjectsInputPath,
 
     #[from_request(via(Query))]
     pub query: ListObjectsInputQuery,
