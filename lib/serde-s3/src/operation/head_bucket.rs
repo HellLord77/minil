@@ -5,6 +5,12 @@ use serde_rename_chain::serde_rename_chain;
 
 use crate::types::LocationType;
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct HeadBucketInputPath {
+    pub bucket: String,
+}
+
 #[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
 #[derive(Debug, Deserialize)]
 pub struct HeadBucketInputHeader {

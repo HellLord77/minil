@@ -15,6 +15,16 @@ use crate::types::RequestPayer;
 use crate::types::ServerSideEncryption;
 use crate::types::StorageClass;
 
+#[derive(Debug, Validate, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+#[serde(validate = "Validate::validate")]
+pub struct PutObjectInputPath {
+    pub bucket: String,
+
+    #[validate(length(min = 1))]
+    pub key: String,
+}
+
 #[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
 #[derive(Debug, Validate, Deserialize)]
 #[serde(validate = "Validate::validate")]
@@ -45,10 +55,6 @@ pub struct PutObjectInputHeader {
 
     #[serde_rename_chain(convert_case = "train")]
     pub if_none_match: Option<String>,
-
-    #[serde(rename = "Key")]
-    #[validate(length(min = 1))]
-    pub key: String,
 
     pub acl: Option<ObjectCannedAcl>,
 

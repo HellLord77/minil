@@ -10,6 +10,12 @@ use crate::types::ListBucketResult;
 use crate::types::OptionalObjectAttributes;
 use crate::types::RequestPayer;
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ListObjectsInputPath {
+    pub bucket: String,
+}
+
 #[serde_inline_default]
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "kebab-case")]
