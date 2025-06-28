@@ -63,3 +63,4 @@ minil-migration = { path = "main/migration" }
 minil-service = { path = "main/service" }
 
 aws-sdk-s3 = "1.93.0"
+cache_control = "0.2.0"

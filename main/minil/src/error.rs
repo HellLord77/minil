@@ -61,6 +61,7 @@ impl IntoResponse for AppError {
 }
 
 impl AppErrorDiscriminants {
+    #[inline]
     pub(crate) fn into_response(self, parts: &Parts) -> Response {
         match self {
             Self::BucketAlreadyExists => app_err_output!(BucketAlreadyExistsOutput::from(parts)),

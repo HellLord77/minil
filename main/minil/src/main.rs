@@ -32,6 +32,8 @@ use axum_s3::operation::CreateBucketInput;
 use axum_s3::operation::CreateBucketOutput;
 use axum_s3::operation::DeleteBucketInput;
 use axum_s3::operation::DeleteBucketOutput;
+use axum_s3::operation::GetBucketVersioningInput;
+use axum_s3::operation::GetBucketVersioningOutput;
 use axum_s3::operation::HeadBucketInput;
 use axum_s3::operation::HeadBucketOutput;
 use axum_s3::operation::ListBucketsInput;
@@ -51,6 +53,7 @@ use sea_orm::ConnectOptions;
 use sea_orm::Database;
 use sea_orm::DbConn;
 use serde_s3::operation::CreateBucketOutputHeader;
+use serde_s3::operation::GetBucketVersioningOutputBody;
 use serde_s3::operation::HeadBucketOutputHeader;
 use serde_s3::operation::ListBucketsOutputBody;
 use serde_s3::operation::ListObjectsOutputBody;
@@ -132,11 +135,12 @@ async fn main() {
         .compression();
 
     let router = Router::new()
-        .route(vpath!("/{bucket}"), get(list_objects_handler))
-        .route(vpath!("/{bucket}"), put(create_bucket))
-        .route(vpath!("/{bucket}"), delete(delete_bucket))
-        .route(vpath!("/{bucket}"), head(head_bucket))
         .route(vpath!("/"), get(list_buckets))
+        .route(vpath!("/{bucket}"), delete(delete_bucket))
+        .route(vpath!("/{bucket}"), get(list_objects_handler))
+        .route(vpath!("/{bucket}"), head(head_bucket))
+        .route(vpath!("/{bucket}"), put(create_bucket))
+        .route(vpath!("/{bucket}/versioning"), get(get_bucket_versioning))
         .with_state(state)
         .layer(middleware);
 
@@ -351,6 +355,28 @@ async fn list_buckets(
                 .maybe_prefix(input.query.prefix)
                 .build(),
         )
+        .build();
+
+    dbg!(&output);
+    Ok(output)
+}
+
+async fn get_bucket_versioning(
+    State(db): State<DbConn>,
+    input: GetBucketVersioningInput,
+) -> AppResult<GetBucketVersioningOutput> {
+    let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
+
+    dbg!(&input);
+
+    if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
+        if expected_bucket_owner != owner.name {
+            Err(AppError::Forbidden)?
+        }
+    }
+
+    let output = GetBucketVersioningOutput::builder()
+        .body(GetBucketVersioningOutputBody::builder().build())
         .build();
 
     dbg!(&output);
