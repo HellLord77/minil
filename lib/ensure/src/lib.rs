@@ -1,7 +1,7 @@
-// eprintln
+// debug
 
 #[macro_export]
-macro_rules! eprintln {
+macro_rules! debug {
     () => {
         ::std::eprintln!("[{}:{}:{}]", ::std::file!(), ::std::line!(), ::std::column!())
     };
@@ -17,10 +17,35 @@ macro_rules! eprintln {
 }
 
 #[macro_export]
-macro_rules! debug_eprintln {
+macro_rules! debug_debug {
     ($($arg:tt)*) => {
         #[cfg(debug_assertions)]
-        $crate::eprintln!($($arg)*);
+        $crate::debug!($($arg)*);
+    };
+}
+
+// fixme
+
+#[macro_export]
+macro_rules! fixme {
+    () => {
+        $crate::debug!("not yet implemented")
+    };
+    ($($arg:tt)+) => {
+        match ::std::format_args!($($arg)*) {
+            tmp => {
+                $crate::debug!("not yet implemented: {}", tmp);
+                tmp
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! debug_fixme {
+    ($($arg:tt)*) => {
+        #[cfg(debug_assertions)]
+        $crate::fixme!($($arg)*);
     };
 }
 
@@ -32,7 +57,7 @@ macro_rules! is_ensure {
         if $cond {
             true
         } else {
-            $crate::debug_eprintln!(r#"assurance failed: {}"#, ::std::stringify!($cond));
+            $crate::debug_debug!(r#"assurance failed: {}"#, ::std::stringify!($cond));
 
             false
         }
@@ -93,7 +118,7 @@ macro_rules! is_ensure_eq {
                 if *left_val == *right_val {
                     true
                 } else {
-                    $crate::debug_eprintln!(
+                    $crate::debug_debug!(
                         r#"assurance `left == right` failed
   left: {left_val:?}
  right: {right_val:?}"#
@@ -158,7 +183,7 @@ macro_rules! is_ensure_ne {
         match (&$left, &$right) {
             (left_val, right_val) => {
                 if *left_val == *right_val {
-                    $crate::debug_eprintln!(
+                    $crate::debug_debug!(
                         r#"assurance `left != right` failed
   left: {left_val:?}
  right: {right_val:?}"#
@@ -227,7 +252,7 @@ macro_rules! is_ensure_matches {
                 true
             }
             ref left_val => {
-                $crate::debug_eprintln!(
+                $crate::debug_debug!(
                     r#"assurance `left matches right` failed
   left: {left_val:?}
  right: {}"#,
