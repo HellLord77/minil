@@ -42,8 +42,11 @@ use axum_s3::operation::ListObjectsInput;
 use axum_s3::operation::ListObjectsOutput;
 use axum_s3::operation::ListObjectsV2Input;
 use axum_s3::operation::ListObjectsV2Output;
+use axum_s3::operation::PutObjectInput;
+use axum_s3::operation::PutObjectOutput;
 use ensure::ensure_eq;
 use ensure::ensure_matches;
+use ensure::fixme;
 use minil_migration::Migrator;
 use minil_migration::MigratorTrait;
 use minil_service::BucketMutation;
@@ -60,6 +63,7 @@ use serde_s3::operation::ListObjectsOutputBody;
 use serde_s3::operation::ListObjectsOutputHeader;
 use serde_s3::operation::ListObjectsV2OutputBody;
 use serde_s3::operation::ListObjectsV2OutputHeader;
+use serde_s3::operation::PutObjectOutputHeader;
 use serde_s3::types::Bucket;
 use serde_s3::types::Owner;
 use serde_s3::utils::ListType2;
@@ -136,11 +140,12 @@ async fn main() {
 
     let router = Router::new()
         .route(vpath!("/"), get(list_buckets))
-        .route(vpath!("/{bucket}"), delete(delete_bucket))
-        .route(vpath!("/{bucket}"), get(list_objects_handler))
-        .route(vpath!("/{bucket}"), head(head_bucket))
-        .route(vpath!("/{bucket}"), put(create_bucket))
-        .route(vpath!("/{bucket}/versioning"), get(get_bucket_versioning))
+        .route(vpath!("/{Bucket}"), delete(delete_bucket))
+        .route(vpath!("/{Bucket}"), get(list_objects_handler))
+        .route(vpath!("/{Bucket}"), head(head_bucket))
+        .route(vpath!("/{Bucket}"), put(create_bucket))
+        .route(vpath!("/{Bucket}/versioning"), get(get_bucket_versioning))
+        .route(vpath!("/{Bucket}/{*Key}"), put(put_object))
         .with_state(state)
         .layer(middleware);
 
@@ -239,7 +244,7 @@ async fn create_bucket(
     );
     ensure_matches!(input.body, None, AppError::NotImplemented);
 
-    let bucket = BucketMutation::create(&db, owner.id, &input.bucket, NODE_REGION)
+    let bucket = BucketMutation::create(&db, owner.id, &input.path.bucket, NODE_REGION)
         .await?
         .ok_or(AppError::BucketAlreadyOwnedByYou)?;
 
@@ -268,7 +273,7 @@ async fn delete_bucket(
             Err(AppError::Forbidden)?
         }
     }
-    BucketMutation::delete_by_unique_id(&db, owner.id, &input.bucket)
+    BucketMutation::delete_by_unique_id(&db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
@@ -291,7 +296,7 @@ async fn head_bucket(
             Err(AppError::Forbidden)?
         }
     }
-    let bucket = BucketQuery::find_by_unique_id(&db, owner.id, &input.bucket)
+    let bucket = BucketQuery::find_by_unique_id(&db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
@@ -383,6 +388,24 @@ async fn get_bucket_versioning(
     Ok(output)
 }
 
+async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResult<PutObjectOutput> {
+    let _owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
+
+    dbg!(&input);
+    fixme!();
+
+    let output = PutObjectOutput::builder()
+        .header(
+            PutObjectOutputHeader::builder()
+                .e_tag("".to_owned())
+                .build(),
+        )
+        .build();
+
+    dbg!(&output);
+    Ok(output)
+}
+
 async fn list_objects_handler(
     list_type_2: Result<Query<ListType2>, QueryRejection>,
     state: State<AppState>,
@@ -399,6 +422,7 @@ async fn list_objects_handler(
 
 async fn list_objects(input: ListObjectsInput) -> impl IntoResponse {
     dbg!(&input);
+    fixme!();
 
     let output = ListObjectsOutput::builder()
         .header(ListObjectsOutputHeader::builder().build())
@@ -421,6 +445,7 @@ async fn list_objects(input: ListObjectsInput) -> impl IntoResponse {
 
 async fn list_objects_v2(input: ListObjectsV2Input) -> impl IntoResponse {
     dbg!(&input);
+    fixme!();
 
     let output = ListObjectsV2Output::builder()
         .header(ListObjectsV2OutputHeader::builder().build())
