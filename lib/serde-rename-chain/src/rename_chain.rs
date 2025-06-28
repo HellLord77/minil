@@ -32,6 +32,10 @@ pub(super) fn expand(
                     continue;
                 }
 
+                if field_has_attribute(field, "serde_rename_chain", "skip") {
+                    continue;
+                }
+
                 let args =
                     parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", &field.attrs)?;
                 let renamers_iter = if args.renamers.is_empty() {
