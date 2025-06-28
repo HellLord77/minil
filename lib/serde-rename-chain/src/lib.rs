@@ -15,18 +15,26 @@ mod heck;
 #[cfg(feature = "ident_case")]
 mod ident_case;
 
+mod attr;
 #[cfg(feature = "inflector")]
 mod inflector;
 
 use proc_macro::TokenStream;
-use syn::Meta;
-use syn::Token;
+use syn::ItemStruct;
 use syn::parse_macro_input;
-use syn::punctuated::Punctuated;
-use syn_utils::expand_with;
+use syn_utils::expand;
+
+use crate::attr::SerdeRenameChainAttrs;
 
 #[proc_macro_attribute]
 pub fn serde_rename_chain(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(attr with Punctuated::<Meta, Token![,]>::parse_terminated);
-    expand_with(input, |item| rename_chain::expand(args, item))
+    let args = parse_macro_input!(attr as SerdeRenameChainAttrs);
+    let item = parse_macro_input!(input as ItemStruct);
+
+    expand(rename_chain::expand(args, item))
+}
+
+#[proc_macro_derive(_SerdeRenameChain, attributes(serde_rename_chain))]
+pub fn _serde_rename_chain_derive(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
 }
