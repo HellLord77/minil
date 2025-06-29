@@ -1,63 +1,100 @@
+use proc_macro2::Ident;
 use proc_macro2::TokenStream;
 use quote::quote;
+use syn::Attribute;
 use syn::Fields;
+use syn::Item;
+use syn::ItemEnum;
 use syn::ItemStruct;
 use syn::parse_quote;
-use syn_utils::field_has_attribute;
+use syn_utils::bail_spanned;
+use syn_utils::has_attribute;
 use syn_utils::parse_attrs;
 
 use crate::attr::SerdeRenameChainAttrs;
+use crate::renamer::Renamer;
 
-pub(super) fn expand(
-    args: SerdeRenameChainAttrs,
-    mut item: ItemStruct,
-) -> syn::Result<TokenStream> {
+fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn::Result<()> {
+    if has_attribute(attrs, "serde_rename_chain", "skip") || has_attribute(attrs, "serde", "rename")
+    {
+        return Ok(());
+    }
+
+    let args = parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)?;
+    let field_renamers = if args.renamers.is_empty() {
+        renamers
+    } else {
+        &args.renamers
+    };
+
+    if !field_renamers.is_empty() {
+        let rename = field_renamers
+            .iter()
+            .fold(ident.to_string(), |acc, renamer| renamer.apply(&acc));
+        let rename_attr = parse_quote!(#[serde(rename = #rename)]);
+        attrs.push(rename_attr);
+    }
+
+    Ok(())
+}
+
+pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<TokenStream> {
     let SerdeRenameChainAttrs { mut renamers } = args;
 
-    let ItemStruct {
-        ref mut attrs,
-        ref mut fields,
-        ..
-    } = item;
-    parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)
-        .map(|args| renamers.extend(args.renamers))?;
+    match item {
+        Item::Struct(mut item) => {
+            let ItemStruct {
+                ref mut attrs,
+                ref mut fields,
+                ..
+            } = item;
 
-    let derive_attr = parse_quote!(#[derive(::serde_rename_chain::_SerdeRenameChain)]);
-    attrs.push(derive_attr);
-
-    match fields {
-        Fields::Named(fields) => {
-            for field in fields.named.iter_mut() {
-                if field_has_attribute(field, "serde", "rename") {
-                    continue;
-                }
-
-                if field_has_attribute(field, "serde_rename_chain", "skip") {
-                    continue;
-                }
-
-                let args =
-                    parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", &field.attrs)?;
-                let renamers_iter = if args.renamers.is_empty() {
-                    renamers.iter()
-                } else {
-                    args.renamers.iter()
-                };
-
-                let rename = renamers_iter.fold(
-                    field
-                        .ident
-                        .clone()
-                        .unwrap_or_else(|| unreachable!())
-                        .to_string(),
-                    |acc, renamer| renamer.apply(&acc),
-                );
-
-                let rename_attr = parse_quote!(#[serde(rename = #rename)]);
-                field.attrs.push(rename_attr);
+            parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)
+                .map(|args| renamers.extend(args.renamers))?;
+            if has_attribute(attrs, "serde", "rename_all") {
+                renamers.clear();
             }
+
+            let derive_attr = parse_quote!(#[derive(::serde_rename_chain::_SerdeRenameChain)]);
+            attrs.push(derive_attr);
+
+            match fields {
+                Fields::Named(fields) => {
+                    fields.named.iter_mut().try_for_each(|field| {
+                        apply(
+                            &renamers,
+                            field.ident.as_ref().unwrap_or_else(|| unreachable!()),
+                            &mut field.attrs,
+                        )
+                    })?;
+
+                    Ok(quote! { #item })
+                }
+                _ => bail_spanned!(fields, "expected named fields"),
+            }
+        }
+        Item::Enum(mut item) => {
+            let ItemEnum {
+                ref mut attrs,
+                ref mut variants,
+                ..
+            } = item;
+
+            parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)
+                .map(|args| renamers.extend(args.renamers))?;
+            if has_attribute(attrs, "serde", "rename_all") {
+                renamers.clear();
+            }
+
+            let derive_attr = parse_quote!(#[derive(::serde_rename_chain::_SerdeRenameChain)]);
+            attrs.push(derive_attr);
+
+            variants
+                .iter_mut()
+                .try_for_each(|variant| apply(&renamers, &variant.ident, &mut variant.attrs))?;
+
             Ok(quote! { #item })
         }
-        _ => Err(syn::Error::new_spanned(fields, "expected named fields")),
+        _ => bail_spanned!(item, "expected struct or enum"),
     }
 }

@@ -20,18 +20,16 @@ mod attr;
 mod inflector;
 
 use proc_macro::TokenStream;
-use syn::ItemStruct;
 use syn::parse_macro_input;
-use syn_utils::expand;
+use syn_utils::expand_with;
 
 use crate::attr::SerdeRenameChainAttrs;
 
 #[proc_macro_attribute]
 pub fn serde_rename_chain(attr: TokenStream, input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attr as SerdeRenameChainAttrs);
-    let item = parse_macro_input!(input as ItemStruct);
 
-    expand(rename_chain::expand(args, item))
+    expand_with(input, |item| rename_chain::expand(args, item))
 }
 
 #[proc_macro_derive(_SerdeRenameChain, attributes(serde_rename_chain))]
