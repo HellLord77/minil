@@ -7,7 +7,7 @@ use validator::ValidationError;
 #[serde(validate = "Validate::validate")]
 pub struct GetBucketLocationCheckQuery {
     #[validate(custom(function = "validate_location"))]
-    location: Vec<String>,
+    pub location: Vec<String>,
 }
 
 fn validate_location(location: &[String]) -> Result<(), ValidationError> {

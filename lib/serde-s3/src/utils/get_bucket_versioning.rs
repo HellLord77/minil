@@ -7,7 +7,7 @@ use validator::ValidationError;
 #[serde(validate = "Validate::validate")]
 pub struct GetBucketVersioningCheckQuery {
     #[validate(custom(function = "validate_versioning"))]
-    versioning: Vec<String>,
+    pub versioning: Vec<String>,
 }
 
 fn validate_versioning(versioning: &[String]) -> Result<(), ValidationError> {

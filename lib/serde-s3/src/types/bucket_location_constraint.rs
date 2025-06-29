@@ -1,8 +1,9 @@
 use serde::Deserialize;
 use serde::Serialize;
+use serde_rename_chain::serde_rename_chain;
 
+#[serde_rename_chain(convert_case = "kebab")]
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub enum BucketLocationConstraint {
     AfSouth1,
     ApEast1,

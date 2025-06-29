@@ -6,5 +6,5 @@ use crate::types::Bucket;
 #[derive(Debug, From, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Buckets {
-    bucket: Vec<Bucket>,
+    pub bucket: Vec<Bucket>,
 }

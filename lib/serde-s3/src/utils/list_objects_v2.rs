@@ -7,7 +7,7 @@ use validator::ValidationError;
 #[serde(validate = "Validate::validate")]
 pub struct ListObjectsV2CheckQuery {
     #[validate(custom(function = "validate_list_type"))]
-    list_type: Vec<u8>,
+    pub list_type: Vec<u8>,
 }
 
 fn validate_list_type(list_type: &[u8]) -> Result<(), ValidationError> {
