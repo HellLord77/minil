@@ -3,6 +3,11 @@ name = "axum-header"
 version = "0.3.3"
 edition.workspace = true
 
+[features]
+default = ["multi"]
+single = ["dep:serde_urlencoded"]
+multi = ["dep:serde_html_form"]
+
 [dependencies]
 form_urlencoded = "1.2.1"
 
@@ -19,8 +24,3 @@ serde_path_to_error.workspace = true
 axum.workspace = true
 axum-test.workspace = true
 tokio.workspace = true
-
-[features]
-default = ["multi"]
-single = ["dep:serde_urlencoded"]
-multi = ["dep:serde_html_form"]

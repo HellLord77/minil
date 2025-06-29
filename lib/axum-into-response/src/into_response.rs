@@ -9,11 +9,12 @@ use syn::ItemStruct;
 use syn::Member;
 use syn::Path;
 use syn::spanned::Spanned;
+use syn_utils::bail_spanned;
 use syn_utils::parse_attrs;
-use tr::Trait;
 
 use crate::attr::IntoResponseAttrs;
 use crate::attr::kw;
+use crate::into_response::tr::Trait;
 
 pub(crate) mod tr {
     pub(crate) enum Trait {
@@ -123,6 +124,6 @@ pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
             })
         }
         Item::Enum(_item) => unimplemented!(),
-        _ => Err(syn::Error::new_spanned(item, "expected struct or enum")),
+        _ => bail_spanned!(item, "expected struct or enum"),
     }
 }
