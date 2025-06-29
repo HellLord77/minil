@@ -1,5 +1,6 @@
 mod create_bucket;
 mod delete_bucket;
+mod get_bucket_location;
 mod get_bucket_versioning;
 mod head_bucket;
 mod list_buckets;
@@ -11,6 +12,8 @@ pub use create_bucket::CreateBucketInput;
 pub use create_bucket::CreateBucketOutput;
 pub use delete_bucket::DeleteBucketInput;
 pub use delete_bucket::DeleteBucketOutput;
+pub use get_bucket_location::GetBucketLocationInput;
+pub use get_bucket_location::GetBucketLocationOutput;
 pub use get_bucket_versioning::GetBucketVersioningInput;
 pub use get_bucket_versioning::GetBucketVersioningOutput;
 pub use head_bucket::HeadBucketInput;
