@@ -16,6 +16,8 @@ mod tests {
     use aws_sdk_s3::operation::delete_object::DeleteObjectOutput;
     use aws_sdk_s3::operation::delete_objects::DeleteObjectsInput;
     use aws_sdk_s3::operation::delete_objects::DeleteObjectsOutput;
+    use aws_sdk_s3::operation::get_bucket_location::GetBucketLocationInput;
+    use aws_sdk_s3::operation::get_bucket_location::GetBucketLocationOutput;
     use aws_sdk_s3::operation::get_bucket_versioning::GetBucketVersioningInput;
     use aws_sdk_s3::operation::get_bucket_versioning::GetBucketVersioningOutput;
     use aws_sdk_s3::operation::get_object::GetObjectInput;

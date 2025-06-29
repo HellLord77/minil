@@ -5,7 +5,7 @@ use validator::ValidationError;
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
-pub struct ListType2 {
+pub struct ListObjectsV2 {
     #[validate(custom(function = "validate_list_type"))]
     pub list_type: Vec<u8>,
 }

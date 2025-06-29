@@ -1,23 +1,24 @@
 use serde::Deserialize;
+use serde::Serialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum BucketLocationConstraint {
     AfSouth1,
     ApEast1,
-    ApNortheast1,
-    ApNortheast2,
-    ApNortheast3,
+    ApNorthEast1,
+    ApNorthEast2,
+    ApNorthEast3,
     ApSouth1,
     ApSouth2,
-    ApSoutheast1,
-    ApSoutheast2,
-    ApSoutheast3,
-    ApSoutheast4,
+    ApSouthEast1,
+    ApSouthEast2,
+    ApSouthEast3,
+    ApSouthEast4,
     ApSouthEast5,
     CaCentral1,
     CnNorth1,
-    CnNorthwest1,
+    CnNorthWest1,
     #[serde(rename = "EU")]
     Eu,
     EuCentral1,
@@ -33,6 +34,7 @@ pub enum BucketLocationConstraint {
     MeSouth1,
     SaEast1,
     UsEast1,
+    UsEast2,
     UsGovEast1,
     UsGovWest1,
     UsWest1,
