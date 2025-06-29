@@ -5,7 +5,7 @@ use axum_xml::Xml;
 use bon::Builder;
 use serde_s3::types::error::NoSuchBucket;
 
-#[derive(Debug, Builder, ErrorFromRequestParts, IntoResponse)]
+#[derive(Debug, Builder, IntoResponse, ErrorFromRequestParts)]
 pub struct NoSuchBucketOutput {
     #[builder(default = StatusCode::NOT_FOUND)]
     pub status: StatusCode,

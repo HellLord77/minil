@@ -1,5 +1,11 @@
+use axum::extract::FromRequestParts;
 use axum_extra::extract::Query;
-use axum_extra::extract::QueryRejection;
-use serde_s3::utils::GetBucketLocation;
+use axum_optional_from_request::OptionalFromRequestParts;
+use serde_s3::utils::GetBucketLocationCheckQuery;
 
-pub type GetBucketLocationResult = Result<Query<GetBucketLocation>, QueryRejection>;
+#[derive(Debug, FromRequestParts, OptionalFromRequestParts)]
+pub struct GetBucketLocationCheck(
+    #[allow(dead_code)]
+    #[from_request(via(Query))]
+    GetBucketLocationCheckQuery,
+);

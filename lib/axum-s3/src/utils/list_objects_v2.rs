@@ -1,5 +1,11 @@
+use axum::extract::FromRequestParts;
 use axum_extra::extract::Query;
-use axum_extra::extract::QueryRejection;
-use serde_s3::utils::ListObjectsV2;
+use axum_optional_from_request::OptionalFromRequestParts;
+use serde_s3::utils::ListObjectsV2CheckQuery;
 
-pub type ListObjectsV2Result = Result<Query<ListObjectsV2>, QueryRejection>;
+#[derive(Debug, FromRequestParts, OptionalFromRequestParts)]
+pub struct ListObjectsV2Check(
+    #[allow(dead_code)]
+    #[from_request(via(Query))]
+    ListObjectsV2CheckQuery,
+);

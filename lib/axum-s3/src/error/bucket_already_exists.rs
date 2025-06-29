@@ -5,7 +5,7 @@ use axum_xml::Xml;
 use bon::Builder;
 use serde_s3::types::error::BucketAlreadyExists;
 
-#[derive(Debug, Builder, ErrorFromRequestParts, IntoResponse)]
+#[derive(Debug, Builder, IntoResponse, ErrorFromRequestParts)]
 pub struct BucketAlreadyExistsOutput {
     #[builder(default = StatusCode::CONFLICT)]
     pub status: StatusCode,

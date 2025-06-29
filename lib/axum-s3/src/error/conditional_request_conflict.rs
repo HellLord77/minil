@@ -5,7 +5,7 @@ use axum_xml::Xml;
 use bon::Builder;
 use serde_s3::types::error::ConditionalRequestConflict;
 
-#[derive(Debug, Builder, ErrorFromRequestParts, IntoResponse)]
+#[derive(Debug, Builder, IntoResponse, ErrorFromRequestParts)]
 pub struct ConditionalRequestConflictOutput {
     #[builder(default = StatusCode::CONFLICT)]
     pub status: StatusCode,

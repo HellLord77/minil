@@ -5,7 +5,7 @@ use axum_xml::Xml;
 use bon::Builder;
 use serde_s3::types::error::EncryptionTypeMismatch;
 
-#[derive(Debug, Builder, ErrorFromRequestParts, IntoResponse)]
+#[derive(Debug, Builder, IntoResponse, ErrorFromRequestParts)]
 pub struct EncryptionTypeMismatchOutput {
     #[builder(default = StatusCode::BAD_REQUEST)]
     pub status: StatusCode,

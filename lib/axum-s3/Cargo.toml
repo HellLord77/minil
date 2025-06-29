@@ -9,6 +9,7 @@ axum-extra.workspace = true
 bon.workspace = true
 
 axum-header.workspace = true
+axum-optional-from-request.workspace = true
 axum-into-response.workspace = true
 axum-xml.workspace = true
 serde-s3.workspace = true
