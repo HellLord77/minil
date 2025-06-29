@@ -1,17 +1,27 @@
+mod access_denied;
+mod bad_digest;
 mod bucket_already_exists;
 mod bucket_already_owned_by_you;
 mod conditional_request_conflict;
 mod encryption_type_mismatch;
+mod internal_error;
 mod invalid_write_offset;
 mod no_such_bucket;
+mod no_such_key;
+mod no_such_upload;
 mod precondition_failed;
 mod too_many_parts;
 
+pub use access_denied::AccessDeniedOutput;
+pub use bad_digest::BadDigestOutput;
 pub use bucket_already_exists::BucketAlreadyExistsOutput;
 pub use bucket_already_owned_by_you::BucketAlreadyOwnedByYouOutput;
 pub use conditional_request_conflict::ConditionalRequestConflictOutput;
 pub use encryption_type_mismatch::EncryptionTypeMismatchOutput;
+pub use internal_error::InternalErrorOutput;
 pub use invalid_write_offset::InvalidWriteOffsetOutput;
 pub use no_such_bucket::NoSuchBucketOutput;
+pub use no_such_key::NoSuchKeyOutput;
+pub use no_such_upload::NoSuchUploadOutput;
 pub use precondition_failed::PreconditionFailedOutput;
 pub use too_many_parts::TooManyPartsOutput;

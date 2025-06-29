@@ -4,8 +4,7 @@ use axum_optional_from_request::OptionalFromRequestParts;
 use serde_s3::utils::GetBucketVersioningCheckQuery;
 
 #[derive(Debug, FromRequestParts, OptionalFromRequestParts)]
-pub struct GetBucketVersioningCheck(
-    #[allow(dead_code)]
+pub struct GetBucketVersioningCheck {
     #[from_request(via(Query))]
-    GetBucketVersioningCheckQuery,
-);
+    pub query: GetBucketVersioningCheckQuery,
+}

@@ -4,8 +4,7 @@ use axum_optional_from_request::OptionalFromRequestParts;
 use serde_s3::utils::ListObjectsV2CheckQuery;
 
 #[derive(Debug, FromRequestParts, OptionalFromRequestParts)]
-pub struct ListObjectsV2Check(
-    #[allow(dead_code)]
+pub struct ListObjectsV2Check {
     #[from_request(via(Query))]
-    ListObjectsV2CheckQuery,
-);
+    pub query: ListObjectsV2CheckQuery,
+}
