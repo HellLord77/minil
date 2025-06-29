@@ -12,9 +12,9 @@ use std::time::Instant;
 
 use axum::Router;
 use axum::ServiceExt;
-use axum::extract::FromRequest;
 use axum::extract::Request;
 use axum::extract::State;
+use axum::handler::Handler;
 use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::http::header;
@@ -25,13 +25,13 @@ use axum::routing::delete;
 use axum::routing::get;
 use axum::routing::head;
 use axum::routing::put;
-use axum_extra::extract::Query;
-use axum_extra::extract::QueryRejection;
 use axum_extra::vpath;
 use axum_s3::operation::CreateBucketInput;
 use axum_s3::operation::CreateBucketOutput;
 use axum_s3::operation::DeleteBucketInput;
 use axum_s3::operation::DeleteBucketOutput;
+use axum_s3::operation::GetBucketLocationInput;
+use axum_s3::operation::GetBucketLocationOutput;
 use axum_s3::operation::GetBucketVersioningInput;
 use axum_s3::operation::GetBucketVersioningOutput;
 use axum_s3::operation::HeadBucketInput;
@@ -44,9 +44,14 @@ use axum_s3::operation::ListObjectsV2Input;
 use axum_s3::operation::ListObjectsV2Output;
 use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
+use axum_s3::utils::GetBucketLocationCheck;
+use axum_s3::utils::GetBucketVersioningCheck;
+use axum_s3::utils::ListObjectsV2Check;
+use crc_fast::CrcAlgorithm;
 use ensure::ensure_eq;
 use ensure::ensure_matches;
 use ensure::fixme;
+use md5::Md5;
 use minil_migration::Migrator;
 use minil_migration::MigratorTrait;
 use minil_service::BucketMutation;
@@ -56,6 +61,7 @@ use sea_orm::ConnectOptions;
 use sea_orm::Database;
 use sea_orm::DbConn;
 use serde_s3::operation::CreateBucketOutputHeader;
+use serde_s3::operation::GetBucketLocationOutputBody;
 use serde_s3::operation::GetBucketVersioningOutputBody;
 use serde_s3::operation::HeadBucketOutputHeader;
 use serde_s3::operation::ListBucketsOutputBody;
@@ -65,12 +71,14 @@ use serde_s3::operation::ListObjectsV2OutputBody;
 use serde_s3::operation::ListObjectsV2OutputHeader;
 use serde_s3::operation::PutObjectOutputHeader;
 use serde_s3::types::Bucket;
+use serde_s3::types::BucketLocationConstraint;
 use serde_s3::types::Owner;
-use serde_s3::utils::ListType2;
+use sha1::Sha1;
 use sha2::Digest;
 use sha2::Sha256;
 use tokio::net::TcpListener;
 use tokio::signal;
+use tokio_stream::StreamExt;
 use tower::Layer;
 use tower::ServiceBuilder;
 use tower_http::ServiceBuilderExt;
@@ -87,7 +95,6 @@ use crate::service_builder_ext::AppServiceBuilderExt;
 use crate::state::AppState;
 
 const NODE_NAME: &str = "minil";
-const NODE_REGION: &str = "minil";
 const PROCESS_TIME: &str = "x-process-time";
 
 const NODE_ID_HEADER: HeaderName = HeaderName::from_static("x-amz-id-2");
@@ -141,7 +148,7 @@ async fn main() {
     let router = Router::new()
         .route(vpath!("/"), get(list_buckets))
         .route(vpath!("/{Bucket}"), delete(delete_bucket))
-        .route(vpath!("/{Bucket}"), get(list_objects_handler))
+        .route(vpath!("/{Bucket}"), get(get_bucket_handler))
         .route(vpath!("/{Bucket}"), head(head_bucket))
         .route(vpath!("/{Bucket}"), put(create_bucket))
         .route(vpath!("/{Bucket}/versioning"), get(get_bucket_versioning))
@@ -244,7 +251,9 @@ async fn create_bucket(
     );
     ensure_matches!(input.body, None, AppError::NotImplemented);
 
-    let bucket = BucketMutation::create(&db, owner.id, &input.path.bucket, NODE_REGION)
+    let region = serde_plain::to_string(&BucketLocationConstraint::UsEast1)
+        .unwrap_or_else(|_| unreachable!());
+    let bucket = BucketMutation::create(&db, owner.id, &input.path.bucket, region.as_str())
         .await?
         .ok_or(AppError::BucketAlreadyOwnedByYou)?;
 
@@ -366,6 +375,178 @@ async fn list_buckets(
     Ok(output)
 }
 
+async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResult<PutObjectOutput> {
+    let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
+
+    dbg!(&input);
+    fixme!();
+    ensure_matches!(input.header.cache_control, None, AppError::NotImplemented);
+    ensure_matches!(
+        input.header.content_disposition,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.content_encoding,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.content_language,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(input.header.content_md5, None, AppError::NotImplemented);
+    ensure_matches!(input.header.content_type, None, AppError::NotImplemented);
+    ensure_matches!(input.header.expires, None, AppError::NotImplemented);
+    ensure_matches!(input.header.if_match, None, AppError::NotImplemented);
+    ensure_matches!(input.header.if_none_match, None, AppError::NotImplemented);
+    ensure_matches!(input.header.acl, None, AppError::NotImplemented);
+    ensure_matches!(input.header.checksum_crc32, None, AppError::NotImplemented);
+    ensure_matches!(input.header.checksum_crc32c, None, AppError::NotImplemented);
+    ensure_matches!(
+        input.header.checksum_crc64nvme,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(input.header.checksum_sha1, None, AppError::NotImplemented);
+    ensure_matches!(input.header.checksum_sha256, None, AppError::NotImplemented);
+    ensure_matches!(
+        input.header.grant_full_control,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(input.header.grant_read, None, AppError::NotImplemented);
+    ensure_matches!(input.header.grant_read_acp, None, AppError::NotImplemented);
+    ensure_matches!(input.header.grant_write_acp, None, AppError::NotImplemented);
+    ensure_matches!(
+        input.header.object_lock_legal_hold,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.object_lock_mode,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.object_lock_retain_until_date,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(input.header.request_payer, None, AppError::NotImplemented);
+    ensure_matches!(
+        input.header.sdk_checksum_algorithm,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.server_side_encryption,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.server_side_encryption_aws_kms_key_id,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.server_side_encryption_bucket_key_enabled,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.server_side_encryption_context,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.server_side_encryption_customer_algorithm,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.server_side_encryption_customer_key,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.server_side_encryption_customer_key_md5,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(input.header.storage_class, None, AppError::NotImplemented);
+    ensure_matches!(input.header.tagging, None, AppError::NotImplemented);
+    ensure_matches!(
+        input.header.website_redirect_location,
+        None,
+        AppError::NotImplemented
+    );
+    ensure_matches!(
+        input.header.write_offset_bytes,
+        None | Some(0),
+        AppError::NotImplemented
+    );
+
+    if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
+        if expected_bucket_owner != owner.name {
+            Err(AppError::Forbidden)?
+        }
+    }
+    let mut stream = input.body.into_data_stream();
+    use crc_fast::Digest;
+    let mut crc32 = Digest::new(CrcAlgorithm::Crc32IsoHdlc);
+    let mut crc32c = Digest::new(CrcAlgorithm::Crc32Iscsi);
+    let mut crc64nvme = Digest::new(CrcAlgorithm::Crc64Nvme);
+    let mut sha1 = Sha1::new();
+    let mut sha256 = Sha256::new();
+    let mut md5 = Md5::new();
+    while let Some(chunk) = stream.try_next().await? {
+        dbg!(&chunk);
+        crc32.update(&chunk);
+        crc32c.update(&chunk);
+        crc64nvme.update(&chunk);
+        sha1.update(&chunk);
+        sha256.update(&chunk);
+        md5.update(&chunk);
+    }
+    dbg!(crc32.finalize());
+    dbg!(crc32c.finalize());
+    dbg!(crc64nvme.finalize());
+    dbg!(sha1.finalize());
+    dbg!(sha256.finalize());
+    dbg!(md5.finalize());
+
+    let output = PutObjectOutput::builder()
+        .header(
+            PutObjectOutputHeader::builder()
+                .e_tag("".to_owned())
+                .build(),
+        )
+        .build();
+
+    dbg!(&output);
+    Ok(output)
+}
+
+async fn get_bucket_handler(
+    maybe_get_bucket_versioning: Option<GetBucketVersioningCheck>,
+    maybe_get_bucket_location: Option<GetBucketLocationCheck>,
+    maybe_list_objects_v2: Option<ListObjectsV2Check>,
+    State(state): State<AppState>,
+    request: Request,
+) -> Response {
+    if maybe_get_bucket_versioning.is_some() {
+        get_bucket_versioning.call(request, state).await
+    } else if maybe_get_bucket_location.is_some() {
+        get_bucket_location.call(request, state).await
+    } else if maybe_list_objects_v2.is_some() {
+        list_objects_v2.call(request, state).await
+    } else {
+        list_objects.call(request, state).await
+    }
+}
+
 async fn get_bucket_versioning(
     State(db): State<DbConn>,
     input: GetBucketVersioningInput,
@@ -388,16 +569,29 @@ async fn get_bucket_versioning(
     Ok(output)
 }
 
-async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResult<PutObjectOutput> {
-    let _owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
+async fn get_bucket_location(
+    State(db): State<DbConn>,
+    input: GetBucketLocationInput,
+) -> AppResult<GetBucketLocationOutput> {
+    let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
 
     dbg!(&input);
-    fixme!();
 
-    let output = PutObjectOutput::builder()
-        .header(
-            PutObjectOutputHeader::builder()
-                .e_tag("".to_owned())
+    if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
+        if expected_bucket_owner != owner.name {
+            Err(AppError::Forbidden)?
+        }
+    }
+    let bucket = BucketQuery::find_by_unique_id(&db, owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let content = serde_plain::from_str::<BucketLocationConstraint>(&bucket.region)
+        .unwrap_or_else(|_err| unreachable!());
+
+    let output = GetBucketLocationOutput::builder()
+        .body(
+            GetBucketLocationOutputBody::builder()
+                .content(content)
                 .build(),
         )
         .build();
@@ -406,21 +600,7 @@ async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResul
     Ok(output)
 }
 
-async fn list_objects_handler(
-    list_type_2: Result<Query<ListType2>, QueryRejection>,
-    state: State<AppState>,
-    request: Request,
-) -> Result<Response, Response> {
-    if list_type_2.is_err() {
-        let input = ListObjectsInput::from_request(request, &state).await?;
-        Ok(list_objects(input).await.into_response())
-    } else {
-        let input = ListObjectsV2Input::from_request(request, &state).await?;
-        Ok(list_objects_v2(input).await.into_response())
-    }
-}
-
-async fn list_objects(input: ListObjectsInput) -> impl IntoResponse {
+async fn list_objects(State(_db): State<DbConn>, input: ListObjectsInput) -> impl IntoResponse {
     dbg!(&input);
     fixme!();
 
@@ -443,7 +623,10 @@ async fn list_objects(input: ListObjectsInput) -> impl IntoResponse {
     output
 }
 
-async fn list_objects_v2(input: ListObjectsV2Input) -> impl IntoResponse {
+async fn list_objects_v2(
+    State(_db): State<DbConn>,
+    input: ListObjectsV2Input,
+) -> impl IntoResponse {
     dbg!(&input);
     fixme!();
 
@@ -464,4 +647,11 @@ async fn list_objects_v2(input: ListObjectsV2Input) -> impl IntoResponse {
 
     dbg!(&output);
     output
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(unused_imports)]
+
+    use blake3::traits;
 }

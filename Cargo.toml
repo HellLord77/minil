@@ -1,28 +1,5 @@
-[profile.release-size]
-inherits = "release"
-opt-level = "z"     # Optimize for size.
-lto = true          # Enable Link Time Optimization
-codegen-units = 1   # Reduce number of codegen units to increase optimizations.
-panic = "abort"     # Abort on panic
-strip = true        # Automatically strip symbols from the binary.
-
 [workspace]
-members = [
-    "lib/axum-header",
-    "lib/axum-into-response",
-    "lib/axum-s3",
-    "lib/axum-s3-macros",
-    "lib/axum-xml",
-    "lib/ensure",
-    "lib/serde-rename-chain",
-    "lib/serde-s3",
-    "lib/syn-utils",
-
-    "main/entity",
-    "main/migration",
-    "main/minil",
-    "main/service",
-]
+members = ["lib/*", "main/*"]
 default-members = ["main/minil"]
 resolver = "3"
 
@@ -50,6 +27,7 @@ uuid = { version = "1.17.0", features = ["serde", "v4"] }
 
 axum-header = { path = "lib/axum-header" }
 axum-into-response = { path = "lib/axum-into-response" }
+axum-optional-from-request = { path = "lib/axum-optional-from-request" }
 axum-s3 = { path = "lib/axum-s3" }
 axum-s3-macros = { path = "lib/axum-s3-macros" }
 axum-xml = { path = "lib/axum-xml" }
@@ -62,5 +40,13 @@ minil-entity = { path = "main/entity" }
 minil-migration = { path = "main/migration" }
 minil-service = { path = "main/service" }
 
-aws-sdk-s3 = "1.93.0"
-cache_control = "0.2.0"
+aws-sdk-s3 = "1.94.0"
+blake3 = { version = "1.8.2", features = ["traits-preview"] }
+
+[profile.release-size]
+inherits = "release"
+opt-level = "z"     # Optimize for size.
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations.
+panic = "abort"     # Abort on panic
+strip = true        # Automatically strip symbols from the binary.
