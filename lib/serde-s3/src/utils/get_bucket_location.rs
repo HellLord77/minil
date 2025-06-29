@@ -5,9 +5,9 @@ use validator::ValidationError;
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
-pub struct GetBucketLocation {
+pub struct GetBucketLocationCheckQuery {
     #[validate(custom(function = "validate_location"))]
-    pub location: Vec<String>,
+    location: Vec<String>,
 }
 
 fn validate_location(location: &[String]) -> Result<(), ValidationError> {

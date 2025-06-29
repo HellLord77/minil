@@ -5,9 +5,9 @@ use validator::ValidationError;
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
-pub struct GetBucketVersioning {
+pub struct GetBucketVersioningCheckQuery {
     #[validate(custom(function = "validate_versioning"))]
-    pub versioning: Vec<String>,
+    versioning: Vec<String>,
 }
 
 fn validate_versioning(versioning: &[String]) -> Result<(), ValidationError> {
