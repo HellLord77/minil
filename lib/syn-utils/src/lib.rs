@@ -1,5 +1,5 @@
 mod attr;
-mod fld;
+mod attrs;
 mod ty;
 
 use quote::ToTokens;
@@ -13,7 +13,7 @@ pub use crate::attr::combine_attribute;
 pub use crate::attr::parse_assignment_attribute;
 pub use crate::attr::parse_attrs;
 pub use crate::attr::parse_parenthesized_attribute;
-pub use crate::fld::field_has_attribute;
+pub use crate::attrs::has_attribute;
 pub use crate::ty::peel_option;
 pub use crate::ty::peel_result_ok;
 
