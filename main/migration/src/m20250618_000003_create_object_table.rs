@@ -16,8 +16,12 @@ impl MigrationTrait for Migration {
                     .col(uuid(Object::BucketId))
                     .col(string(Object::Key))
                     .col(big_unsigned(Object::Size))
-                    .col(timestamp_with_time_zone(Object::LastModified))
-                    .col(string(Object::ETag))
+                    .col(unsigned(Object::Crc32))
+                    .col(unsigned(Object::Crc32c))
+                    .col(big_unsigned(Object::Crc64nvme))
+                    .col(binary_len(Object::Sha1, 20))
+                    .col(binary_len(Object::Sha256, 32))
+                    .col(binary_len(Object::Md5, 16))
                     .col(
                         timestamp_with_time_zone(Object::CreatedAt)
                             .default(Expr::current_timestamp()),
@@ -102,7 +106,11 @@ enum Object {
     BucketId,
     Key,
     Size,
-    LastModified,
-    ETag,
+    Crc32,
+    Crc32c,
+    Crc64nvme,
+    Sha1,
+    Sha256,
+    Md5,
     CreatedAt,
 }
