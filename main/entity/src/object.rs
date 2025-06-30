@@ -14,13 +14,16 @@ pub struct Model {
     #[sea_orm(unique, indexed)]
     pub key: String,
 
-    pub size: u64,
+    pub size: i64,
 
-    pub crc32: u32,
+    #[sea_orm(column_type = "Binary(4)")]
+    pub crc32: Vec<u8>,
 
-    pub crc32c: u32,
+    #[sea_orm(column_type = "Binary(4)")]
+    pub crc32c: Vec<u8>,
 
-    pub crc64nvme: u64,
+    #[sea_orm(column_type = "Binary(8)")]
+    pub crc64nvme: Vec<u8>,
 
     #[sea_orm(column_type = "Binary(20)")]
     pub sha1: Vec<u8>,
@@ -33,6 +36,8 @@ pub struct Model {
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
+
+    pub updated_at: Option<DateTimeUtc>,
 }
 
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
