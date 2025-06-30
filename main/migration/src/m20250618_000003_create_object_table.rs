@@ -15,10 +15,10 @@ impl MigrationTrait for Migration {
                     .col(pk_uuid(Object::Id))
                     .col(uuid(Object::BucketId))
                     .col(string(Object::Key))
-                    .col(big_unsigned(Object::Size))
-                    .col(unsigned(Object::Crc32))
-                    .col(unsigned(Object::Crc32c))
-                    .col(big_unsigned(Object::Crc64nvme))
+                    .col(big_integer(Object::Size))
+                    .col(binary_len(Object::Crc32, 4))
+                    .col(binary_len(Object::Crc32c, 4))
+                    .col(binary_len(Object::Crc64nvme, 8))
                     .col(binary_len(Object::Sha1, 20))
                     .col(binary_len(Object::Sha256, 32))
                     .col(binary_len(Object::Md5, 16))
@@ -26,6 +26,7 @@ impl MigrationTrait for Migration {
                         timestamp_with_time_zone(Object::CreatedAt)
                             .default(Expr::current_timestamp()),
                     )
+                    .col(timestamp_with_time_zone_null(Object::UpdatedAt))
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_object_bucket")
@@ -113,4 +114,5 @@ enum Object {
     Sha256,
     Md5,
     CreatedAt,
+    UpdatedAt,
 }
