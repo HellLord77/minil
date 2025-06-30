@@ -16,9 +16,20 @@ pub struct Model {
 
     pub size: u64,
 
-    pub last_modified: DateTimeUtc,
+    pub crc32: u32,
 
-    pub e_tag: String,
+    pub crc32c: u32,
+
+    pub crc64nvme: u64,
+
+    #[sea_orm(column_type = "Binary(20)")]
+    pub sha1: Vec<u8>,
+
+    #[sea_orm(column_type = "Binary(32)")]
+    pub sha256: Vec<u8>,
+
+    #[sea_orm(column_type = "Binary(16)")]
+    pub md5: Vec<u8>,
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
