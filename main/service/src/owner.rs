@@ -12,3 +12,7 @@ impl OwnerQuery {
             .await
     }
 }
+
+pub struct OwnerMutation;
+
+impl OwnerMutation {}

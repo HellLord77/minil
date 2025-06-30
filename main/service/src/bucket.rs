@@ -23,7 +23,7 @@ impl BucketQuery {
         owner_id: Uuid,
         starts_with: Option<&str>,
         start_after: Option<&str>,
-        limit: Option<u64>,
+        limit: u16,
     ) -> Result<Vec<bucket::Model>, DbErr> {
         let mut query = Bucket::find().filter(bucket::Column::OwnerId.eq(owner_id));
         if let Some(starts_with) = starts_with {
@@ -34,7 +34,7 @@ impl BucketQuery {
         }
         query
             .order_by_asc(bucket::Column::Name)
-            .limit(limit)
+            .limit(Some(limit as u64))
             .all(db)
             .await
     }
