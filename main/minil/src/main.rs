@@ -376,7 +376,6 @@ async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResul
     let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
 
     dbg!(&input);
-    fixme!();
     ensure_matches!(input.header.cache_control, None, AppError::NotImplemented);
     ensure_matches!(
         input.header.content_disposition,
@@ -499,8 +498,7 @@ async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResul
         &input.path.key,
         input.body.into_data_stream(),
     )
-    .await??
-    .unwrap_or_else(|| todo!());
+    .await??;
 
     let output = PutObjectOutput::builder()
         .header(
