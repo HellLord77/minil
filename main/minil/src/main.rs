@@ -47,15 +47,15 @@ use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::GetBucketLocationCheck;
 use axum_s3::utils::GetBucketVersioningCheck;
 use axum_s3::utils::ListObjectsV2Check;
-use crc_fast::CrcAlgorithm;
+use digest::Digest;
 use ensure::ensure_eq;
 use ensure::ensure_matches;
 use ensure::fixme;
-use md5::Md5;
 use minil_migration::Migrator;
 use minil_migration::MigratorTrait;
 use minil_service::BucketMutation;
 use minil_service::BucketQuery;
+use minil_service::ObjectMutation;
 use minil_service::OwnerQuery;
 use sea_orm::ConnectOptions;
 use sea_orm::Database;
@@ -73,12 +73,9 @@ use serde_s3::operation::PutObjectOutputHeader;
 use serde_s3::types::Bucket;
 use serde_s3::types::BucketLocationConstraint;
 use serde_s3::types::Owner;
-use sha1::Sha1;
-use sha2::Digest;
 use sha2::Sha256;
 use tokio::net::TcpListener;
 use tokio::signal;
-use tokio_stream::StreamExt;
 use tower::Layer;
 use tower::ServiceBuilder;
 use tower_http::ServiceBuilderExt;
@@ -335,7 +332,7 @@ async fn list_buckets(
         owner.id,
         input.query.prefix.as_deref(),
         input.query.continuation_token.as_deref(),
-        Some(limit as u64),
+        limit,
     )
     .await?;
     let continuation_token = if buckets.len() == limit as usize {
@@ -493,34 +490,22 @@ async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResul
             Err(AppError::Forbidden)?
         }
     }
-    let mut stream = input.body.into_data_stream();
-    use crc_fast::Digest;
-    let mut crc32 = Digest::new(CrcAlgorithm::Crc32IsoHdlc);
-    let mut crc32c = Digest::new(CrcAlgorithm::Crc32Iscsi);
-    let mut crc64nvme = Digest::new(CrcAlgorithm::Crc64Nvme);
-    let mut sha1 = Sha1::new();
-    let mut sha256 = Sha256::new();
-    let mut md5 = Md5::new();
-    while let Some(chunk) = stream.try_next().await? {
-        dbg!(&chunk);
-        crc32.update(&chunk);
-        crc32c.update(&chunk);
-        crc64nvme.update(&chunk);
-        sha1.update(&chunk);
-        sha256.update(&chunk);
-        md5.update(&chunk);
-    }
-    dbg!(crc32.finalize());
-    dbg!(crc32c.finalize());
-    dbg!(crc64nvme.finalize());
-    dbg!(sha1.finalize());
-    dbg!(sha256.finalize());
-    dbg!(md5.finalize());
+    let bucket = BucketQuery::find_by_unique_id(&db, owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let object = ObjectMutation::create(
+        &db,
+        bucket.id,
+        &input.path.key,
+        input.body.into_data_stream(),
+    )
+    .await??
+    .unwrap_or_else(|| todo!());
 
     let output = PutObjectOutput::builder()
         .header(
             PutObjectOutputHeader::builder()
-                .e_tag("".to_owned())
+                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
                 .build(),
         )
         .build();
@@ -647,11 +632,4 @@ async fn list_objects_v2(
 
     dbg!(&output);
     output
-}
-
-#[cfg(test)]
-mod tests {
-    #![allow(unused_imports)]
-
-    use blake3::traits;
 }

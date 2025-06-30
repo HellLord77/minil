@@ -146,12 +146,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
-name = "arrayref"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76a2e8124351fda1ef8aaaa3bbd7ebbcb486bbcd4225aca0aa0d84bb2db8fecb"
-
-[[package]]
 name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -872,20 +866,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blake3"
-version = "1.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3888aaa89e4b2a40fca9848e400f6a658a5a3978de7be858e209cafa8be9a4a0"
-dependencies = [
- "arrayref",
- "arrayvec",
- "cc",
- "cfg-if",
- "constant_time_eq",
- "digest",
-]
-
-[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1146,12 +1126,6 @@ name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
-
-[[package]]
-name = "constant_time_eq"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "convert_case"
@@ -2409,21 +2383,18 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-s3",
- "blake3",
- "crc-fast",
  "derive_more",
+ "digest",
  "ensure",
- "md-5",
+ "hex",
  "minil-migration",
  "minil-service",
  "sea-orm",
  "serde-s3",
  "serde_plain",
- "sha1",
  "sha2",
  "strum 0.27.1",
  "tokio",
- "tokio-stream",
  "tower",
  "tower-http",
  "tracing",
@@ -2432,14 +2403,14 @@ dependencies = [
 
 [[package]]
 name = "minil-entity"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "sea-orm",
 ]
 
 [[package]]
 name = "minil-migration"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "sea-orm-migration",
  "tokio",
@@ -2448,10 +2419,17 @@ dependencies = [
 
 [[package]]
 name = "minil-service"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
+ "axum",
+ "crc-fast",
+ "digest",
+ "md-5",
  "minil-entity",
  "sea-orm",
+ "sha1",
+ "sha2",
+ "tokio-stream",
  "uuid",
 ]
 

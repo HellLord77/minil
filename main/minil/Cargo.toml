@@ -4,23 +4,21 @@ version = "0.1.1"
 edition.workspace = true
 
 [dependencies]
+hex = "0.4.3"
 serde_plain = "1.0.2"
-tokio-stream = { version = "0.1.17", features = ["full"] }
 tower = { version = "0.5.2", features = ["full"] }
 tower-http = { version = "0.6.6", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-
-crc-fast = "1.3.0"
-md-5 = "0.10.6"
-sha1 = "0.10.6"
-sha2 = "0.10.9"
 
 axum.workspace = true
 derive_more.workspace = true
 sea-orm.workspace = true
 strum.workspace = true
 tokio.workspace = true
+
+digest.workspace = true
+sha2.workspace = true
 
 axum-extra.workspace = true
 axum-s3.workspace = true
@@ -29,6 +27,3 @@ serde-s3.workspace = true
 
 minil-migration.workspace = true
 minil-service.workspace = true
-
-[dev-dependencies]
-blake3.workspace = true
