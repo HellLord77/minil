@@ -1,9 +1,8 @@
-#![cfg(feature = "single")]
-
 use std::fmt::Debug;
 
 use axum::Router;
 use axum::routing::get;
+use axum::routing::post;
 use axum_core::body::Body;
 use axum_core::extract::FromRequest;
 use axum_header::Header;
@@ -92,4 +91,29 @@ async fn correct_rejection_status_code() {
         res.text(),
         "Failed to deserialize header string: n: invalid digit found in string"
     );
+}
+
+#[tokio::test]
+async fn header_supports_multiple_values() {
+    #[derive(Deserialize)]
+    struct Data {
+        #[serde(rename = "value")]
+        values: Vec<String>,
+    }
+
+    let app = Router::new().route(
+        "/",
+        post(|Header(data): Header<Data>| async move { data.values.join(",") }),
+    );
+
+    let server = TestServer::new(app).unwrap();
+
+    let res = server
+        .post("/")
+        .add_header("value", "one")
+        .add_header("value", "two")
+        .await;
+
+    assert_eq!(res.status_code(), StatusCode::OK);
+    assert_eq!(res.text(), "one,two");
 }

@@ -15,26 +15,30 @@ use crate::attr::SerdeRenameChainAttrs;
 use crate::renamer::Renamer;
 
 fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn::Result<()> {
-    if has_attribute(attrs, "serde_rename_chain", "skip") || has_attribute(attrs, "serde", "rename")
+    if has_attribute(attrs, "serde_rename_chain", "skip")
+        || has_attribute(attrs, "serde", "skip")
+        || (has_attribute(attrs, "serde", "skip_serializing")
+            && has_attribute(attrs, "serde", "skip_deserializing"))
+        || has_attribute(attrs, "serde", "rename")
     {
         return Ok(());
     }
 
     let args = parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)?;
-    let field_renamers = if args.renamers.is_empty() {
+    let renamers = if args.renamers.is_empty() {
         renamers
     } else {
         &args.renamers
     };
-
-    if !field_renamers.is_empty() {
-        let rename = field_renamers
-            .iter()
-            .fold(ident.to_string(), |acc, renamer| renamer.apply(&acc));
-        let rename_attr = parse_quote!(#[serde(rename = #rename)]);
-        attrs.push(rename_attr);
+    if renamers.is_empty() {
+        return Ok(());
     }
 
+    let rename = renamers
+        .iter()
+        .fold(ident.to_string(), |acc, renamer| renamer.apply(&acc));
+    let rename_attr = parse_quote!(#[serde(rename = #rename)]);
+    attrs.push(rename_attr);
     Ok(())
 }
 
