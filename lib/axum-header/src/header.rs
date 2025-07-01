@@ -34,9 +34,6 @@ where
             .finish();
 
         let parser = form_urlencoded::parse(encoded.as_bytes());
-        #[cfg(feature = "single")]
-        let deserializer = serde_urlencoded::Deserializer::new(parser);
-        #[cfg(feature = "multi")]
         let deserializer = serde_html_form::Deserializer::new(parser);
 
         Ok(Header(
@@ -62,9 +59,6 @@ where
 
     fn into_response_parts(self, mut res: ResponseParts) -> Result<ResponseParts, Self::Error> {
         let mut encoder = form_urlencoded::Serializer::new(String::new());
-        #[cfg(feature = "single")]
-        let serializer = serde_urlencoded::Serializer::new(&mut encoder);
-        #[cfg(feature = "multi")]
         let serializer = serde_html_form::Serializer::new(&mut encoder);
 
         self.0.serialize(serializer).unwrap_or_else(|_err| todo!());
