@@ -25,22 +25,30 @@ impl<'de> Name<'de> {
 }
 
 impl<'de> PartialEq for Name<'de> {
+    #[cfg(feature = "unicase")]
     #[inline]
     fn eq(&self, other: &Name<'de>) -> bool {
-        #[cfg(feature = "unicase")]
-        return unicase::eq(self.0, other.0);
-        #[cfg(not(feature = "unicase"))]
-        return self.0.to_lowercase() == other.0.to_lowercase();
+        unicase::eq(self.0, other.0)
+    }
+
+    #[cfg(not(feature = "unicase"))]
+    #[inline]
+    fn eq(&self, other: &Name<'de>) -> bool {
+        self.0.to_lowercase() == other.0.to_lowercase()
     }
 }
 
 impl<'de> Hash for Name<'de> {
+    #[cfg(feature = "unicase")]
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        #[cfg(feature = "unicase")]
-        unicase::UniCase::new(&self.0).hash(state);
-        #[cfg(not(feature = "unicase"))]
-        self.0.to_lowercase().hash(state);
+        unicase::UniCase::new(&self.0).hash(state)
+    }
+
+    #[cfg(not(feature = "unicase"))]
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_lowercase().hash(state)
     }
 }
 

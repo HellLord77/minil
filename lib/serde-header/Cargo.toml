@@ -1,13 +1,16 @@
 [package]
 name = "serde-header"
-version = "0.1.0"
+version = "0.2.0"
 edition.workspace = true
 
 [features]
-default = ["http"]
+default = ["caseless", "http"]
+caseless = []
 http = ["dep:http"]
 httparse = ["dep:httparse"]
 unicase = ["dep:unicase"]
+full_slim = ["default", "httparse"]
+full = ["full_slim", "unicase"]
 
 [dependencies]
 indexmap = "2.10.0"
