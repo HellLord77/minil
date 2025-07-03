@@ -24,22 +24,10 @@ where
     type Rejection = HeaderRejection;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let encoded = form_urlencoded::Serializer::new(String::new())
-            .extend_pairs(
-                parts
-                    .headers
-                    .iter()
-                    .map(|(key, value)| (key, value.to_str().unwrap_or_else(|_err| todo!()))),
-            )
-            .finish();
-
-        let parser = form_urlencoded::parse(encoded.as_bytes());
-        let deserializer = serde_html_form::Deserializer::new(parser);
-
-        Ok(Header(
-            serde_path_to_error::deserialize(deserializer)
-                .map_err(FailedToDeserializeHeaderString::from_err)?,
-        ))
+        let deserializer = serde_header::Deserializer::from_header_map(&parts.headers);
+        let value = serde_path_to_error::deserialize(deserializer)
+            .map_err(FailedToDeserializeHeaderString::from_err)?;
+        Ok(Header(value))
     }
 }
 
