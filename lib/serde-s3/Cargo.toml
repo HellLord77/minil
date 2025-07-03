@@ -6,7 +6,7 @@ edition.workspace = true
 [dependencies]
 chrono = { version = "0.4.41", features = ["serde"] }
 serde-inline-default = "0.2.3"
-serde_with = "3.13.0"
+serde_with = "3.14.0"
 serdev = "0.2.0" # https://github.com/serde-rs/serde/pull/2891
 tynm = "0.2.0"
 validator = { version = "0.20.0", features = ["derive"] }

@@ -25,7 +25,7 @@ _dynfmt = ["dep:dynfmt"]
 dynfmt_python = ["_dynfmt", "dynfmt/python"]
 dynfmt_curly = ["_dynfmt", "dynfmt/curly"]
 
-full_slim = ["convert_case", "ident_case", "inflector", "strfmt"]
+full_slim = ["default", "convert_case", "inflector", "strfmt"]
 full = ["full_slim", "convert_case_random", "inflector_heavyweight", "dynfmt_curly"]
 
 [dependencies]
