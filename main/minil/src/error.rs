@@ -10,10 +10,12 @@ use axum_s3::error::BucketAlreadyOwnedByYouOutput;
 use axum_s3::error::ConditionalRequestConflictOutput;
 use axum_s3::error::EncryptionTypeMismatchOutput;
 use axum_s3::error::InternalErrorOutput;
+use axum_s3::error::InvalidDigestOutput;
 use axum_s3::error::InvalidWriteOffsetOutput;
 use axum_s3::error::NoSuchBucketOutput;
 use axum_s3::error::NoSuchKeyOutput;
 use axum_s3::error::NoSuchUploadOutput;
+use axum_s3::error::NotImplementedOutput;
 use axum_s3::error::PreconditionFailedOutput;
 use axum_s3::error::TooManyPartsOutput;
 use derive_more::Display;
@@ -30,7 +32,6 @@ pub(crate) type AppResult<T> = Result<T, AppError>;
 pub(crate) enum AppError {
     #[allow(dead_code)]
     AccessDenied,
-    #[allow(dead_code)]
     BadDigest,
     #[allow(dead_code)]
     BucketAlreadyExists,
@@ -41,6 +42,7 @@ pub(crate) enum AppError {
     EncryptionTypeMismatch,
     #[allow(dead_code)]
     InternalError,
+    InvalidDigest,
     #[allow(dead_code)]
     InvalidWriteOffset,
     NoSuchBucket,
@@ -48,13 +50,13 @@ pub(crate) enum AppError {
     NoSuchKey,
     #[allow(dead_code)]
     NoSuchUpload,
+    NotImplemented,
     #[allow(dead_code)]
     PreconditionFailed,
     #[allow(dead_code)]
     TooManyParts,
 
     Forbidden,
-    NotImplemented,
 
     AxumError(axum::Error),
     DatabaseError(DbErr),
@@ -94,14 +96,15 @@ impl AppErrorDiscriminants {
             }
             Self::InternalError => app_err_output!(InternalErrorOutput::from(parts)),
             Self::InvalidWriteOffset => app_err_output!(InvalidWriteOffsetOutput::from(parts)),
+            Self::InvalidDigest => app_err_output!(InvalidDigestOutput::from(parts)),
             Self::NoSuchBucket => app_err_output!(NoSuchBucketOutput::from(parts)),
             Self::NoSuchKey => app_err_output!(NoSuchKeyOutput::from(parts)),
             Self::NoSuchUpload => app_err_output!(NoSuchUploadOutput::from(parts)),
+            Self::NotImplemented => app_err_output!(NotImplementedOutput::from(parts)),
             Self::PreconditionFailed => app_err_output!(PreconditionFailedOutput::from(parts)),
             Self::TooManyParts => app_err_output!(TooManyPartsOutput::from(parts)),
 
             Self::Forbidden => app_err_output!(StatusCode::FORBIDDEN),
-            Self::NotImplemented => app_err_output!(StatusCode::NOT_IMPLEMENTED),
 
             Self::AxumError => app_err_output!(StatusCode::INTERNAL_SERVER_ERROR),
             Self::DatabaseError => app_err_output!(StatusCode::INTERNAL_SERVER_ERROR),

@@ -47,6 +47,8 @@ use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::GetBucketLocationCheck;
 use axum_s3::utils::GetBucketVersioningCheck;
 use axum_s3::utils::ListObjectsV2Check;
+use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 use digest::Digest;
 use ensure::ensure_eq;
 use ensure::ensure_matches;
@@ -392,8 +394,11 @@ async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResul
         None,
         AppError::NotImplemented
     );
-    ensure_matches!(input.header.content_md5, None, AppError::NotImplemented);
-    ensure_matches!(input.header.content_type, None, AppError::NotImplemented);
+    ensure_matches!(
+        input.header.content_type.as_deref(),
+        None | Some("application/octet-stream"),
+        AppError::NotImplemented
+    );
     ensure_matches!(input.header.expires, None, AppError::NotImplemented);
     ensure_matches!(input.header.if_match, None, AppError::NotImplemented);
     ensure_matches!(input.header.if_none_match, None, AppError::NotImplemented);
@@ -499,6 +504,17 @@ async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResul
         input.body.into_data_stream(),
     )
     .await??;
+    if let Some(content_md5) = input.header.content_md5 {
+        let content_md5 = BASE64_STANDARD
+            .decode(content_md5)
+            .map_err(|_err| AppError::InvalidDigest)?;
+        if content_md5.len() != 16 {
+            Err(AppError::InvalidDigest)?
+        }
+        if content_md5 != object.md5 {
+            Err(AppError::BadDigest)?
+        }
+    }
 
     let output = PutObjectOutput::builder()
         .header(
