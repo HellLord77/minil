@@ -1,0 +1,19 @@
+[package]
+name = "serde-header"
+version = "0.1.0"
+edition.workspace = true
+
+[features]
+default = ["http"]
+http = ["dep:http"]
+httparse = ["dep:httparse"]
+unicase = ["dep:unicase"]
+
+[dependencies]
+indexmap = "2.10.0"
+
+serde.workspace = true
+
+http = { workspace = true, optional = true }
+httparse = { workspace = true, optional = true }
+unicase = { workspace = true, optional = true }
