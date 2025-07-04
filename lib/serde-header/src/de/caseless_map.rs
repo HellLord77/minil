@@ -18,11 +18,11 @@ where
     #[inline]
     pub fn new<I>(m: M, i: I) -> Self
     where
-        I: Iterator<Item = (Name<'de>, &'static str)>,
+        I: IntoIterator<Item = (Name<'de>, &'static str)>,
     {
         Self {
             inner: m,
-            map: i.collect(),
+            map: i.into_iter().collect(),
         }
     }
 }

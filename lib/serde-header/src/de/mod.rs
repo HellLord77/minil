@@ -24,15 +24,51 @@ pub fn from_headers<'de, T>(input: &'de HeaderRefSeq<'de>) -> Result<T, Error>
 where
     T: serde::Deserialize<'de>,
 {
-    T::deserialize(Deserializer::from_headers(input))
+    T::deserialize(Deserializer::new(input))
 }
 
 #[cfg(feature = "httparse")]
-pub fn try_from_bytes<'de, T>(input: &'de [u8]) -> Result<Result<T, Error>, httparse::Error>
+pub fn from_bytes<'de, T>(input: &'de [u8]) -> Result<T, Error>
 where
     T: serde::Deserialize<'de>,
 {
-    Ok(T::deserialize(Deserializer::try_from_bytes(input)?))
+    let mut headers = vec![httparse::EMPTY_HEADER; 30];
+
+    loop {
+        match httparse::parse_headers(input, &mut headers) {
+            Ok(httparse::Status::Complete((_, headers))) => {
+                break T::deserialize(Deserializer::from_headers(headers));
+            }
+            Ok(httparse::Status::Partial) => {
+                break Err(de::Error::custom(httparse::Error::TooManyHeaders));
+            }
+            Err(httparse::Error::TooManyHeaders) => {
+                headers.resize_with(headers.len() * 2, || httparse::EMPTY_HEADER);
+            }
+            Err(err) => break Err(de::Error::custom(err)),
+        }
+    }
+}
+
+#[cfg(feature = "httparse")]
+pub fn from_str<'de, T>(input: &'de str) -> Result<T, Error>
+where
+    T: serde::Deserialize<'de>,
+{
+    from_bytes(input.as_bytes())
+}
+
+#[cfg(feature = "httparse")]
+pub fn from_reader<T, R>(mut reader: R) -> Result<T, Error>
+where
+    T: de::DeserializeOwned,
+    R: std::io::Read,
+{
+    let mut buf = vec![];
+    reader
+        .read_to_end(&mut buf)
+        .map_err(|e| de::Error::custom(format_args!("could not read input: {e}")))?;
+    from_bytes(&buf)
 }
 
 #[cfg(feature = "http")]
@@ -47,27 +83,14 @@ pub struct Deserializer<'de>(Box<HeaderRefSeq<'de>>);
 
 impl<'de> Deserializer<'de> {
     #[inline]
-    pub fn from_headers(headers: &'de HeaderRefSeq<'de>) -> Self {
+    pub fn new(headers: &'de HeaderRefSeq<'de>) -> Self {
         Self(headers.into())
     }
 
     #[cfg(feature = "httparse")]
     #[inline]
-    pub fn try_from_bytes(bytes: &'de [u8]) -> Result<Self, httparse::Error> {
-        let mut headers = vec![httparse::EMPTY_HEADER; 30];
-
-        loop {
-            match httparse::parse_headers(bytes, &mut headers) {
-                Ok(httparse::Status::Complete((_, headers))) => {
-                    return Ok(Self(headers.iter().map(|h| (h.name, h.value)).collect()));
-                }
-                Ok(httparse::Status::Partial) => return Err(httparse::Error::TooManyHeaders),
-                Err(httparse::Error::TooManyHeaders) => {
-                    headers.resize_with(headers.len() * 2, || httparse::EMPTY_HEADER);
-                }
-                Err(err) => return Err(err),
-            }
-        }
+    pub fn from_headers(headers: &[httparse::Header<'de>]) -> Self {
+        Self(headers.iter().map(|h| (h.name, h.value)).collect())
     }
 
     #[cfg(feature = "http")]
@@ -75,7 +98,7 @@ impl<'de> Deserializer<'de> {
     pub fn from_header_map(headers: &'de http::HeaderMap) -> Self {
         Self(
             headers
-                .iter()
+                .into_iter()
                 .map(|(k, v)| (k.as_str(), v.as_bytes()))
                 .collect(),
         )
