@@ -16,14 +16,6 @@ use crate::types::HeaderNameRef;
 #[derive(Debug, Eq)]
 pub struct Name<'de>(pub HeaderNameRef<'de>);
 
-impl<'de> Name<'de> {
-    #[cfg(feature = "http")]
-    #[inline]
-    pub fn from_header_name(name: &'de http::HeaderName) -> Self {
-        Self(name.as_str())
-    }
-}
-
 impl<'de> PartialEq for Name<'de> {
     #[cfg(feature = "unicase")]
     #[inline]

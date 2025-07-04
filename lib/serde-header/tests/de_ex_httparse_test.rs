@@ -12,7 +12,7 @@ fn deserialize_partial() {
     }
 
     let input = b"foo: qux\nbar: quux\n";
-    let result = "too many headers";
+    let result = "could not parse headers: incomplete headers";
 
     assert_eq!(from_bytes::<Form>(input).unwrap_err().to_string(), result);
 }

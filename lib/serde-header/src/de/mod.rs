@@ -40,12 +40,18 @@ where
                 break T::deserialize(Deserializer::from_headers(headers));
             }
             Ok(httparse::Status::Partial) => {
-                break Err(de::Error::custom(httparse::Error::TooManyHeaders));
+                break Err(de::Error::custom(
+                    "could not parse headers: incomplete headers",
+                ));
             }
             Err(httparse::Error::TooManyHeaders) => {
                 headers.resize_with(headers.len() * 2, || httparse::EMPTY_HEADER);
             }
-            Err(err) => break Err(de::Error::custom(err)),
+            Err(err) => {
+                break Err(de::Error::custom(format_args!(
+                    "could not parse headers: {err}"
+                )));
+            }
         }
     }
 }
@@ -59,15 +65,15 @@ where
 }
 
 #[cfg(feature = "httparse")]
-pub fn from_reader<T, R>(mut reader: R) -> Result<T, Error>
+pub fn from_reader<T, R>(mut input: R) -> Result<T, Error>
 where
     T: de::DeserializeOwned,
     R: std::io::Read,
 {
     let mut buf = vec![];
-    reader
+    input
         .read_to_end(&mut buf)
-        .map_err(|e| de::Error::custom(format_args!("could not read input: {e}")))?;
+        .map_err(|err| de::Error::custom(format_args!("could not read input: {err}")))?;
     from_bytes(&buf)
 }
 

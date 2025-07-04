@@ -16,14 +16,6 @@ use crate::types::HeaderValueRef;
 #[derive(Debug)]
 pub struct Value<'de>(pub HeaderValueRef<'de>);
 
-impl<'de> Value<'de> {
-    #[cfg(feature = "http")]
-    #[inline]
-    pub fn from_header_value(value: &'de http::HeaderValue) -> Self {
-        Self(value.as_bytes())
-    }
-}
-
 impl<'de> IntoDeserializer<'de> for Value<'de> {
     type Deserializer = Self;
 
