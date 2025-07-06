@@ -1,7 +1,7 @@
 #![cfg(feature = "caseless")]
 
 use serde::Deserialize;
-use serde_header::de::from_headers;
+use serde_header::de::from_header_seq;
 use serde_header::types::HeaderRef;
 
 #[test]
@@ -17,7 +17,7 @@ fn deserialize_rename() {
         bar_baz: "quux".to_owned(),
     };
 
-    assert_eq!(from_headers(&input), Ok(result));
+    assert_eq!(from_header_seq(&input), Ok(result));
 }
 
 #[test]
@@ -35,5 +35,5 @@ fn deserialize_rename_all() {
         baz: 42,
     };
 
-    assert_eq!(from_headers(&input), Ok(result));
+    assert_eq!(from_header_seq(&input), Ok(result));
 }

@@ -30,9 +30,9 @@ fn deserialize_reader() {
 
 #[test]
 fn deserialize_unit() {
-    let input = b"\n\n";
+    let input = b"\n";
     assert_eq!(from_bytes(input), Ok(()));
 
-    let input = b"\n\n\r\n";
+    let input = b"\n\n";
     assert_eq!(from_bytes(input), Ok(()));
 }

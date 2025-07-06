@@ -20,7 +20,7 @@ use crate::de::val_or_vec::ValOrVec;
 use crate::de::value::Value;
 use crate::types::HeaderRefSeq;
 
-pub fn from_headers<'de, T>(input: &'de HeaderRefSeq<'de>) -> Result<T, Error>
+pub fn from_header_seq<'de, T>(input: &'de HeaderRefSeq<'de>) -> Result<T, Error>
 where
     T: serde::Deserialize<'de>,
 {

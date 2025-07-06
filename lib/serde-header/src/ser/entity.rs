@@ -219,7 +219,7 @@ where
     #[cfg(not(feature = "itoa"))]
     fn serialize_integer<I>(self, value: I) -> Result<S::Ok, S::Error>
     where
-        I: ToString + num::Integer,
+        I: ToString,
     {
         let value_str = value.to_string();
         self.0.serialize_str(&value_str)
@@ -237,7 +237,7 @@ where
     #[cfg(not(feature = "ryu"))]
     fn serialize_float<F>(self, value: F) -> Result<S::Ok, S::Error>
     where
-        F: ToString + num::Float,
+        F: ToString,
     {
         let value_str = value.to_string();
         self.0.serialize_str(&value_str)

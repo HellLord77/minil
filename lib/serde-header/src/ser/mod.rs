@@ -21,11 +21,76 @@ use crate::ser::value::ValueEntity;
 use crate::types::HeaderNameOwned;
 use crate::types::HeaderOwnedSeq;
 
-pub fn to_headers<T>(value: T) -> Result<HeaderOwnedSeq, Error>
+pub fn to_header_seq<T>(input: T) -> Result<HeaderOwnedSeq, Error>
 where
     T: Serialize,
 {
-    value.serialize(Serializer::new())
+    input.serialize(Serializer::new())
+}
+
+pub fn to_bytes<T>(input: T) -> Result<Vec<u8>, Error>
+where
+    T: Serialize,
+{
+    let mut bytes = vec![];
+
+    for header in to_header_seq(input)? {
+        bytes.extend(header.0.as_bytes());
+        bytes.extend(b": ");
+        bytes.extend(header.1);
+        bytes.extend(b"\r\n");
+    }
+    bytes.extend(b"\r\n");
+
+    Ok(bytes)
+}
+
+pub fn to_string<T>(input: T) -> Result<String, Error>
+where
+    T: Serialize,
+{
+    String::from_utf8(to_bytes(input)?)
+        .map_err(|err| Error::Custom(format!("could not convert to string: {err}")))
+}
+
+pub fn to_writer<W, T>(mut writer: W, input: &T) -> Result<W, Error>
+where
+    W: std::io::Write,
+    T: Serialize,
+{
+    let headers = to_bytes(input)?;
+    writer
+        .write_all(&headers)
+        .map_err(|err| Error::Custom(format!("could not write headers: {err}")))?;
+    Ok(writer)
+}
+
+#[cfg(feature = "httparse")]
+pub fn to_headers<'ser, T>(value: T) -> Result<httparse::Header<'ser>, Error>
+where
+    T: Serialize,
+{
+    let _ = value.serialize(Serializer::new())?;
+    todo!()
+}
+
+#[cfg(feature = "http")]
+pub fn to_header_map<T>(value: T) -> Result<http::HeaderMap, Error>
+where
+    T: Serialize,
+{
+    let headers = to_header_seq(value)?;
+    let mut map = http::HeaderMap::with_capacity(headers.len());
+
+    for (name, value) in headers {
+        let name = http::HeaderName::try_from(name)
+            .map_err(|err| Error::Custom(format!("could not convert to header name: {err}")))?;
+        let value = http::HeaderValue::try_from(value)
+            .map_err(|err| Error::Custom(format!("could not convert to header value: {err}")))?;
+        map.append(name, value);
+    }
+
+    Ok(map)
 }
 
 #[derive(Debug, Default)]

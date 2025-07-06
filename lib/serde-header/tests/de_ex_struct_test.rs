@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use serde_header::de::from_headers;
+use serde_header::de::from_header_seq;
 use serde_header::types::HeaderRef;
 
 #[test]
@@ -16,7 +16,7 @@ fn deserialize_struct() {
         baz: 42,
     };
 
-    assert_eq!(from_headers(&input), Ok(result));
+    assert_eq!(from_header_seq(&input), Ok(result));
 }
 
 #[test]
@@ -34,5 +34,5 @@ fn deserialize_renamed_struct() {
         baz: 42,
     };
 
-    assert_eq!(from_headers(&input), Ok(result));
+    assert_eq!(from_header_seq(&input), Ok(result));
 }

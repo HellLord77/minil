@@ -18,7 +18,7 @@ fn deserialize_partial() {
 }
 
 #[test]
-fn deserialize_too_many() {
+fn deserialize_many() {
     let input = format!("{}\n\n", "foo: bar\n".repeat(1000));
     let result = vec![("foo", "bar"); 1000];
 
