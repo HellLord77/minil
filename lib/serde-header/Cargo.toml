@@ -1,22 +1,36 @@
 [package]
 name = "serde-header"
-version = "0.2.2"
+version = "0.3.0"
 edition.workspace = true
 
 [features]
-default = ["caseless", "http"]
+default = ["itoa", "ryu", "caseless", "http"]
+
+_num = ["dep:num"]
+itoa = ["_num", "dep:itoa"]
+ryu = ["_num", "dep:ryu"]
+
 caseless = []
+
 http = ["dep:http"]
 httparse = ["dep:httparse"]
+
 unicase = ["dep:unicase"]
+
 full_slim = ["default", "httparse"]
 full = ["full_slim", "unicase"]
 
 [dependencies]
 indexmap = "2.10.0"
 
+derive_more.workspace = true
 serde.workspace = true
+
+num = { version = "0.4.3", optional = true}
+itoa = { version = "1.0.15", optional = true }
+ryu = { version = "1.0.20", optional = true }
 
 http = { workspace = true, optional = true }
 httparse = { workspace = true, optional = true }
+
 unicase = { workspace = true, optional = true }

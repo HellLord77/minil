@@ -48,9 +48,7 @@ where
                 headers.resize_with(headers.len() * 2, || httparse::EMPTY_HEADER);
             }
             Err(err) => {
-                break Err(de::Error::custom(format_args!(
-                    "could not parse headers: {err}"
-                )));
+                break Err(de::Error::custom(format!("could not parse headers: {err}")));
             }
         }
     }
@@ -73,13 +71,14 @@ where
     let mut buf = vec![];
     input
         .read_to_end(&mut buf)
-        .map_err(|err| de::Error::custom(format_args!("could not read input: {err}")))?;
+        .map_err(|err| de::Error::custom(format!("could not read input: {err}")))?;
     from_bytes(&buf)
 }
 
 #[cfg(feature = "http")]
-pub fn from_header_map<'de, T>(input: &'de http::HeaderMap) -> Result<T, Error>
+pub fn from_header_map<'de, I, T>(input: I) -> Result<T, Error>
 where
+    I: IntoIterator<Item = (&'de http::HeaderName, &'de http::HeaderValue)>,
     T: serde::Deserialize<'de>,
 {
     T::deserialize(Deserializer::from_header_map(input))
@@ -95,13 +94,28 @@ impl<'de> Deserializer<'de> {
 
     #[cfg(feature = "httparse")]
     #[inline]
-    pub fn from_headers(headers: &[httparse::Header<'de>]) -> Self {
-        Self(headers.iter().map(|h| (h.name, h.value)).collect())
+    pub fn from_headers<I, Item>(headers: I) -> Self
+    where
+        I: IntoIterator<Item = Item>,
+        Item: std::borrow::Borrow<httparse::Header<'de>>,
+    {
+        Self(
+            headers
+                .into_iter()
+                .map(|i| {
+                    let h = i.borrow();
+                    (h.name, h.value)
+                })
+                .collect(),
+        )
     }
 
     #[cfg(feature = "http")]
     #[inline]
-    pub fn from_header_map(headers: &'de http::HeaderMap) -> Self {
+    pub fn from_header_map<I>(headers: I) -> Self
+    where
+        I: IntoIterator<Item = (&'de http::HeaderName, &'de http::HeaderValue)>,
+    {
         Self(
             headers
                 .into_iter()
@@ -172,7 +186,10 @@ impl<'de> de::Deserializer<'de> for Deserializer<'de> {
         let canonical_fields: indexmap::IndexSet<_> =
             indexmap::IndexSet::from_iter(fields.iter().copied().map(Name));
         if fields.len() > canonical_fields.len() {
-            return Err(de::Error::custom("expected field with unique name"));
+            return Err(de::Error::custom(format!(
+                "duplicate caseless field {}",
+                fields.join(", ")
+            )));
         }
 
         let map = MapDeserializer::new(group_entries(&self.0).into_iter());

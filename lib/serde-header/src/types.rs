@@ -1,3 +1,9 @@
+pub type HeaderNameOwned = String;
+pub type HeaderValueOwned = Vec<u8>;
+
+pub type HeaderOwned = (HeaderNameOwned, HeaderValueOwned);
+pub type HeaderOwnedSeq = Vec<HeaderOwned>;
+
 pub type HeaderName = str;
 pub type HeaderValue = [u8];
 
