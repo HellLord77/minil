@@ -94,20 +94,12 @@ impl<'de> Deserializer<'de> {
 
     #[cfg(feature = "httparse")]
     #[inline]
-    pub fn from_headers<I, Item>(headers: I) -> Self
+    pub fn from_headers<'item, I>(headers: I) -> Self
     where
-        I: IntoIterator<Item = Item>,
-        Item: std::borrow::Borrow<httparse::Header<'de>>,
+        'de: 'item,
+        I: IntoIterator<Item = &'item httparse::Header<'de>>,
     {
-        Self(
-            headers
-                .into_iter()
-                .map(|i| {
-                    let h = i.borrow();
-                    (h.name, h.value)
-                })
-                .collect(),
-        )
+        Self(headers.into_iter().map(|h| (h.name, h.value)).collect())
     }
 
     #[cfg(feature = "http")]

@@ -6,36 +6,37 @@ use crate::ser::entity::Entity;
 use crate::ser::entity::EntitySerializer;
 use crate::ser::error::Error;
 use crate::types::HeaderNameRef;
-use crate::types::HeaderOwnedSeq;
+use crate::types::HeaderOwnedSeqRef;
 
-#[derive(Debug, Default)]
-pub struct ValueEntity<'ser> {
-    headers: HeaderOwnedSeq,
-    name: HeaderNameRef<'ser>,
+#[derive(Debug)]
+pub struct ValueEntity<'ser, 'name> {
+    headers: HeaderOwnedSeqRef<'ser>,
+    name: HeaderNameRef<'name>,
     nested: bool,
 }
 
-impl<'ser> ValueEntity<'ser> {
+impl<'ser, 'name> ValueEntity<'ser, 'name> {
     #[inline]
-    pub fn new(name: HeaderNameRef<'ser>) -> Self {
+    pub fn new(headers: HeaderOwnedSeqRef<'ser>, name: HeaderNameRef<'name>) -> Self {
         Self {
+            headers,
             name,
-            ..Self::default()
+            nested: false,
         }
     }
 
     #[inline]
-    pub fn new_nested(name: HeaderNameRef<'ser>) -> Self {
+    pub fn new_nested(headers: HeaderOwnedSeqRef<'ser>, name: HeaderNameRef<'name>) -> Self {
         Self {
+            headers,
             name,
             nested: true,
-            ..Self::default()
         }
     }
 }
 
-impl<'ser> EntitySerializer for ValueEntity<'ser> {
-    type Ok = HeaderOwnedSeq;
+impl<'ser, 'name> EntitySerializer for ValueEntity<'ser, 'name> {
+    type Ok = HeaderOwnedSeqRef<'ser>;
     type Error = Error;
     type SerializeSeq = Self;
 
@@ -43,7 +44,7 @@ impl<'ser> EntitySerializer for ValueEntity<'ser> {
         self.serialize_bytes(value.as_bytes())
     }
 
-    fn serialize_bytes(mut self, value: &[u8]) -> Result<Self::Ok, Self::Error> {
+    fn serialize_bytes(self, value: &[u8]) -> Result<Self::Ok, Self::Error> {
         self.headers.push((self.name.to_owned(), value.to_owned()));
         Ok(self.headers)
     }
@@ -72,16 +73,16 @@ impl<'ser> EntitySerializer for ValueEntity<'ser> {
     }
 }
 
-impl<'ser> SerializeSeq for ValueEntity<'ser> {
-    type Ok = HeaderOwnedSeq;
+impl<'ser, 'name> SerializeSeq for ValueEntity<'ser, 'name> {
+    type Ok = HeaderOwnedSeqRef<'ser>;
     type Error = Error;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        let headers = value.serialize(Entity(Self::new_nested(self.name)))?;
-        self.headers.extend(headers);
+        let nested = ValueEntity::new_nested(self.headers, self.name);
+        value.serialize(Entity(nested))?;
         Ok(())
     }
 

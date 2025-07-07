@@ -20,12 +20,15 @@ use crate::ser::name::NameEntity;
 use crate::ser::value::ValueEntity;
 use crate::types::HeaderNameOwned;
 use crate::types::HeaderOwnedSeq;
+use crate::types::HeaderOwnedSeqRef;
 
 pub fn to_header_seq<T>(input: T) -> Result<HeaderOwnedSeq, Error>
 where
     T: Serialize,
 {
-    input.serialize(Serializer::new())
+    let mut headers = vec![];
+    input.serialize(Serializer::new(&mut headers))?;
+    Ok(headers)
 }
 
 pub fn to_bytes<T>(input: T) -> Result<Vec<u8>, Error>
@@ -70,7 +73,7 @@ pub fn to_headers<'ser, T>(value: T) -> Result<httparse::Header<'ser>, Error>
 where
     T: Serialize,
 {
-    let _ = value.serialize(Serializer::new())?;
+    let _ = to_header_seq(value)?;
     todo!()
 }
 
@@ -93,26 +96,26 @@ where
     Ok(map)
 }
 
-#[derive(Debug, Default)]
-pub struct Serializer {
-    headers: HeaderOwnedSeq,
+#[derive(Debug)]
+pub struct Serializer<'ser> {
+    headers: HeaderOwnedSeqRef<'ser>,
 }
 
-impl Serializer {
+impl<'ser> Serializer<'ser> {
     #[inline]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(headers: HeaderOwnedSeqRef<'ser>) -> Self {
+        Self { headers }
     }
 }
 
-impl ser::Serializer for Serializer {
-    type Ok = HeaderOwnedSeq;
+impl<'ser> ser::Serializer for Serializer<'ser> {
+    type Ok = HeaderOwnedSeqRef<'ser>;
     type Error = Error;
     type SerializeSeq = Self;
     type SerializeTuple = Self;
     type SerializeTupleStruct = Impossible<Self::Ok, Self::Error>;
     type SerializeTupleVariant = Impossible<Self::Ok, Self::Error>;
-    type SerializeMap = MapSerializer;
+    type SerializeMap = MapSerializer<'ser>;
     type SerializeStruct = Self;
     type SerializeStructVariant = Impossible<Self::Ok, Self::Error>;
 
@@ -251,7 +254,7 @@ impl ser::Serializer for Serializer {
     }
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
-        Ok(MapSerializer::new())
+        Ok(MapSerializer::new(self.headers))
     }
 
     fn serialize_struct(
@@ -273,16 +276,15 @@ impl ser::Serializer for Serializer {
     }
 }
 
-impl SerializeSeq for Serializer {
-    type Ok = HeaderOwnedSeq;
+impl<'ser> SerializeSeq for Serializer<'ser> {
+    type Ok = HeaderOwnedSeqRef<'ser>;
     type Error = Error;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        let headers = value.serialize(Header::new())?;
-        self.headers.extend(headers);
+        value.serialize(Header::new(self.headers))?;
         Ok(())
     }
 
@@ -291,16 +293,15 @@ impl SerializeSeq for Serializer {
     }
 }
 
-impl SerializeTuple for Serializer {
-    type Ok = HeaderOwnedSeq;
+impl<'ser> SerializeTuple for Serializer<'ser> {
+    type Ok = HeaderOwnedSeqRef<'ser>;
     type Error = Error;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        let headers = value.serialize(Header::new())?;
-        self.headers.extend(headers);
+        value.serialize(Header::new(self.headers))?;
         Ok(())
     }
 
@@ -309,16 +310,15 @@ impl SerializeTuple for Serializer {
     }
 }
 
-impl SerializeStruct for Serializer {
-    type Ok = HeaderOwnedSeq;
+impl<'ser> SerializeStruct for Serializer<'ser> {
+    type Ok = HeaderOwnedSeqRef<'ser>;
     type Error = Error;
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        let headers = value.serialize(Entity(ValueEntity::new(key)))?;
-        self.headers.extend(headers);
+        value.serialize(Entity(ValueEntity::new(self.headers, key)))?;
         Ok(())
     }
 
@@ -327,21 +327,24 @@ impl SerializeStruct for Serializer {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct MapSerializer {
-    headers: HeaderOwnedSeq,
+#[derive(Debug)]
+pub struct MapSerializer<'ser> {
+    headers: HeaderOwnedSeqRef<'ser>,
     name: Option<HeaderNameOwned>,
 }
 
-impl MapSerializer {
+impl<'ser> MapSerializer<'ser> {
     #[inline]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(headers: HeaderOwnedSeqRef<'ser>) -> Self {
+        Self {
+            headers,
+            name: None,
+        }
     }
 }
 
-impl SerializeMap for MapSerializer {
-    type Ok = HeaderOwnedSeq;
+impl<'ser> SerializeMap for MapSerializer<'ser> {
+    type Ok = HeaderOwnedSeqRef<'ser>;
     type Error = Error;
 
     fn serialize_key<T>(&mut self, key: &T) -> Result<(), Self::Error>
@@ -358,8 +361,7 @@ impl SerializeMap for MapSerializer {
         T: ?Sized + Serialize,
     {
         let name = self.name.as_ref().ok_or_else(Error::map_no_name)?;
-        let headers = value.serialize(Entity(ValueEntity::new(name)))?;
-        self.headers.extend(headers);
+        value.serialize(Entity(ValueEntity::new(self.headers, name)))?;
         self.name = None;
         Ok(())
     }
@@ -370,8 +372,7 @@ impl SerializeMap for MapSerializer {
         V: ?Sized + Serialize,
     {
         let name = key.serialize(Entity(NameEntity::new(|name| Ok(name.to_owned()))))?;
-        let headers = value.serialize(Entity(ValueEntity::new(&name)))?;
-        self.headers.extend(headers);
+        value.serialize(Entity(ValueEntity::new(self.headers, &name)))?;
         self.name = None;
         Ok(())
     }

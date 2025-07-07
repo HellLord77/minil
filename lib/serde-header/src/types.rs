@@ -4,6 +4,8 @@ pub type HeaderValueOwned = Vec<u8>;
 pub type HeaderOwned = (HeaderNameOwned, HeaderValueOwned);
 pub type HeaderOwnedSeq = Vec<HeaderOwned>;
 
+pub type HeaderOwnedSeqRef<'h> = &'h mut HeaderOwnedSeq;
+
 pub type HeaderName = str;
 pub type HeaderValue = [u8];
 

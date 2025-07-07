@@ -12,31 +12,33 @@ use crate::ser::error::Error;
 use crate::ser::name::NameEntity;
 use crate::ser::value::ValueEntity;
 use crate::types::HeaderNameOwned;
-use crate::types::HeaderOwnedSeq;
+use crate::types::HeaderOwnedSeqRef;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 enum HeaderState {
-    #[default]
     SerializingName,
     SerializingValue(HeaderNameOwned),
     Serialized,
 }
 
-#[derive(Debug, Default)]
-pub struct Header {
-    headers: HeaderOwnedSeq,
+#[derive(Debug)]
+pub struct Header<'ser> {
+    headers: HeaderOwnedSeqRef<'ser>,
     state: HeaderState,
 }
 
-impl Header {
+impl<'ser> Header<'ser> {
     #[inline]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(headers: HeaderOwnedSeqRef<'ser>) -> Self {
+        Self {
+            headers,
+            state: HeaderState::SerializingName,
+        }
     }
 }
 
-impl Serializer for Header {
-    type Ok = HeaderOwnedSeq;
+impl<'ser> Serializer for Header<'ser> {
+    type Ok = HeaderOwnedSeqRef<'ser>;
     type Error = Error;
     type SerializeSeq = Impossible<Self::Ok, Self::Error>;
     type SerializeTuple = Self;
@@ -207,8 +209,8 @@ impl Serializer for Header {
     }
 }
 
-impl SerializeTuple for Header {
-    type Ok = HeaderOwnedSeq;
+impl<'ser> SerializeTuple for Header<'ser> {
+    type Ok = HeaderOwnedSeqRef<'ser>;
     type Error = Error;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
@@ -222,9 +224,8 @@ impl SerializeTuple for Header {
                 Ok(())
             }
             HeaderState::SerializingValue(name) => {
-                match value.serialize(Entity(ValueEntity::new(&name))) {
-                    Ok(headers) => {
-                        self.headers.extend(headers);
+                match value.serialize(Entity(ValueEntity::new(self.headers, &name))) {
+                    Ok(_) => {
                         self.state = HeaderState::Serialized;
                         Ok(())
                     }
