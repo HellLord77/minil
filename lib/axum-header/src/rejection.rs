@@ -3,12 +3,12 @@ use axum_core::__define_rejection as define_rejection;
 
 define_rejection! {
     #[status = BAD_REQUEST]
-    #[body = "Failed to deserialize header string"]
-    pub struct FailedToDeserializeHeaderString(Error);
+    #[body = "Failed to deserialize header"]
+    pub struct FailedToDeserializeHeader(Error);
 }
 
 composite_rejection! {
     pub enum HeaderRejection {
-        FailedToDeserializeHeaderString,
+        FailedToDeserializeHeader,
     }
 }

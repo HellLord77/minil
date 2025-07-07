@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 
 use crate::HeaderError;
 use crate::HeaderRejection;
-use crate::rejection::FailedToDeserializeHeaderString;
+use crate::rejection::FailedToDeserializeHeader;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Header<T>(pub T);
@@ -25,7 +25,7 @@ where
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let deserializer = serde_header::Deserializer::from_header_map(&parts.headers);
         let value = serde_path_to_error::deserialize(deserializer)
-            .map_err(FailedToDeserializeHeaderString::from_err)?;
+            .map_err(FailedToDeserializeHeader::from_err)?;
 
         Ok(Header(value))
     }

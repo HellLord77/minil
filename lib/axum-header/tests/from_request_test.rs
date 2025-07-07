@@ -89,7 +89,7 @@ async fn correct_rejection_status_code() {
     assert_eq!(res.status_code(), StatusCode::BAD_REQUEST);
     assert_eq!(
         res.text(),
-        "Failed to deserialize header string: n: invalid digit found in string"
+        "Failed to deserialize header: n: invalid digit found in string"
     );
 }
 
