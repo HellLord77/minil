@@ -9,8 +9,9 @@ use serde::ser;
 
 #[derive(Debug, PartialEq, Display, From, Error)]
 pub enum Error {
-    #[display("{}", _0)]
+    #[display("{_0}")]
     Custom(#[error(not(source))] String),
+
     Utf8(Utf8Error),
 }
 

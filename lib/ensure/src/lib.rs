@@ -6,7 +6,7 @@ macro_rules! debug {
         ::std::eprintln!("[{}:{}:{}]", ::std::file!(), ::std::line!(), ::std::column!())
     };
     ($($arg:tt)*) => {
-        match ::std::format_args!($($arg)*) {
+        match ::std::format!($($arg)*) {
             tmp => {
                 ::std::eprintln!("[{}:{}:{}] {}",
                     ::std::file!(), ::std::line!(), ::std::column!(), tmp);
@@ -32,7 +32,7 @@ macro_rules! fixme {
         $crate::debug!("not yet implemented")
     };
     ($($arg:tt)+) => {
-        match ::std::format_args!($($arg)*) {
+        match ::std::format!($($arg)*) {
             tmp => {
                 $crate::debug!("not yet implemented: {}", tmp);
                 tmp

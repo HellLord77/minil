@@ -69,26 +69,27 @@ where
 }
 
 #[cfg(feature = "httparse")]
-pub fn to_headers<'ser, T>(value: T) -> Result<httparse::Header<'ser>, Error>
+fn _to_headers<'ser, T>(_input: T) -> Result<httparse::Header<'ser>, Error>
 where
     T: Serialize,
 {
-    let _ = to_header_seq(value)?;
     todo!()
 }
 
 #[cfg(feature = "http")]
-pub fn to_header_map<T>(value: T) -> Result<http::HeaderMap, Error>
+pub fn to_header_map<T>(input: T) -> Result<http::HeaderMap, Error>
 where
     T: Serialize,
 {
-    let headers = to_header_seq(value)?;
+    let headers = to_header_seq(input)?;
     let mut map = http::HeaderMap::with_capacity(headers.len());
 
     for (name, value) in headers {
-        let name = http::HeaderName::try_from(name)
+        let name = name
+            .parse::<http::HeaderName>()
             .map_err(|err| Error::Custom(format!("could not convert to header name: {err}")))?;
-        let value = http::HeaderValue::try_from(value)
+        let value = value
+            .try_into()
             .map_err(|err| Error::Custom(format!("could not convert to header value: {err}")))?;
         map.append(name, value);
     }
