@@ -43,9 +43,10 @@ use axum_s3::operation::ListObjectsV2Input;
 use axum_s3::operation::ListObjectsV2Output;
 use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
-use axum_s3::utils::GetBucketLocationCheck;
-use axum_s3::utils::GetBucketVersioningCheck;
-use axum_s3::utils::ListObjectsV2Check;
+use axum_s3::operation::check::GetBucketLocationCheck;
+use axum_s3::operation::check::GetBucketVersioningCheck;
+use axum_s3::operation::check::ListObjectsV2Check;
+use axum_s3::utils::ErrorParts;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use digest::Digest;
@@ -197,12 +198,17 @@ async fn shutdown_signal() {
 async fn set_process_time(request: Request, next: Next) -> Response {
     let start_time = Instant::now();
     let mut response = next.run(request).await;
+    let elapsed = start_time.elapsed();
 
-    if !response.headers().contains_key(PROCESS_TIME) {
-        let process_time = start_time.elapsed().as_secs_f64().to_string();
-        response.headers_mut().insert(
+    let headers = response.headers_mut();
+    if !headers.contains_key(PROCESS_TIME) {
+        headers.insert(
             PROCESS_TIME,
-            process_time.parse().expect("invalid process time"),
+            elapsed
+                .as_secs_f64()
+                .to_string()
+                .parse()
+                .expect("invalid process time"),
         );
     }
 
@@ -211,11 +217,12 @@ async fn set_process_time(request: Request, next: Next) -> Response {
 
 async fn handle_app_error(request: Request, next: Next) -> Response {
     let (parts, body) = request.into_parts();
-    let request = Request::from_parts(parts.clone(), body);
+    let err_parts = ErrorParts::from(&parts);
+    let request = Request::from_parts(parts, body);
     let mut response = next.run(request).await;
 
     if let Some(err) = response.extensions_mut().remove::<AppErrorDiscriminants>() {
-        response = err.into_response(&parts);
+        response = err.into_response(err_parts);
     }
 
     response

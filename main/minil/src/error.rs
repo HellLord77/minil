@@ -1,6 +1,5 @@
 use axum::Extension;
 use axum::http::StatusCode;
-use axum::http::request::Parts;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum_s3::error::AccessDeniedOutput;
@@ -18,6 +17,7 @@ use axum_s3::error::NoSuchUploadOutput;
 use axum_s3::error::NotImplementedOutput;
 use axum_s3::error::PreconditionFailedOutput;
 use axum_s3::error::TooManyPartsOutput;
+use axum_s3::utils::ErrorParts;
 use derive_more::Display;
 use derive_more::Error;
 use derive_more::From;
@@ -71,7 +71,7 @@ impl IntoResponse for AppError {
 
 impl AppErrorDiscriminants {
     #[inline]
-    pub(crate) fn into_response(self, parts: &Parts) -> Response {
+    pub(crate) fn into_response(self, parts: ErrorParts) -> Response {
         match self {
             Self::AccessDenied => app_err_output!(AccessDeniedOutput::from(parts)),
             Self::BadDigest => app_err_output!(BadDigestOutput::from(parts)),
