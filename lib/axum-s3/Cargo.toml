@@ -1,6 +1,6 @@
 [package]
 name = "axum-s3"
-version = "0.3.8"
+version = "0.4.0"
 edition.workspace = true
 
 [dependencies]

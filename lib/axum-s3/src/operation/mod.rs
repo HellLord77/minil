@@ -8,6 +8,8 @@ mod list_objects;
 mod list_objects_v2;
 mod put_object;
 
+pub mod check;
+
 pub use create_bucket::CreateBucketInput;
 pub use create_bucket::CreateBucketOutput;
 pub use delete_bucket::DeleteBucketInput;
