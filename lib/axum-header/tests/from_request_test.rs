@@ -15,17 +15,17 @@ use http::StatusCode;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
-async fn check<T>(header: HeaderMap, value: T)
-where
-    T: DeserializeOwned + PartialEq + Debug,
-{
-    let mut req = Request::builder().body(Body::empty()).unwrap();
-    req.headers_mut().extend(header);
-    assert_eq!(Header::<T>::from_request(req, &()).await.unwrap().0, value);
-}
-
 #[tokio::test]
 async fn test_header() {
+    async fn check<T>(header: HeaderMap, value: T)
+    where
+        T: DeserializeOwned + PartialEq + Debug,
+    {
+        let mut req = Request::builder().body(Body::empty()).unwrap();
+        req.headers_mut().extend(header);
+        assert_eq!(Header::<T>::from_request(req, &()).await.unwrap().0, value);
+    }
+
     #[derive(Debug, PartialEq, Deserialize)]
     struct Pagination {
         size: Option<u64>,
