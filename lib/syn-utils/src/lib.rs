@@ -2,6 +2,8 @@ mod attr;
 mod attrs;
 mod ty;
 
+use std::env;
+
 use quote::ToTokens;
 use quote::quote;
 use syn::__private::TokenStream;
@@ -74,7 +76,7 @@ where
     match res {
         Ok(tokens) => {
             let tokens = quote! { #tokens }.into();
-            if std::env::var_os("SYN_UTILS_DEBUG").is_some() {
+            if env::var_os("SYN_UTILS_DEBUG").is_some() {
                 eprintln!("{tokens}");
             }
             tokens

@@ -2,12 +2,12 @@ use std::iter;
 use std::mem;
 use std::vec;
 
-use de::Visitor;
+use serde::de;
 use serde::de::Deserializer;
 use serde::de::IntoDeserializer;
+use serde::de::Visitor;
 use serde::de::value::Error;
 use serde::de::value::SeqDeserializer;
-use serde::de::{self};
 
 use crate::de::value;
 

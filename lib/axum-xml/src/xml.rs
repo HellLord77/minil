@@ -7,9 +7,11 @@ use bytes::BufMut;
 use bytes::Bytes;
 use bytes::BytesMut;
 use http::StatusCode;
+use http::header;
 use http::header::HeaderMap;
 use http::header::HeaderValue;
-use http::header::{self};
+use quick_xml::SeError;
+use quick_xml::se::WriteResult;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -75,10 +77,8 @@ fn xml_content_type(headers: &HeaderMap) -> bool {
         return false;
     };
 
-    let is_xml_content_type = mime.type_() == "application"
-        && (mime.subtype() == "xml" || mime.suffix().is_some_and(|name| name == "xml"));
-
-    is_xml_content_type
+    mime.type_() == "application"
+        && (mime.subtype() == "xml" || mime.suffix().is_some_and(|name| name == "xml"))
 }
 
 axum_core::__impl_deref!(Xml);
@@ -122,10 +122,7 @@ where
     T: Serialize,
 {
     fn into_response(self) -> Response {
-        fn make_response(
-            buf: BytesMut,
-            ser_result: Result<quick_xml::se::WriteResult, quick_xml::SeError>,
-        ) -> Response {
+        fn make_response(buf: BytesMut, ser_result: Result<WriteResult, SeError>) -> Response {
             match ser_result {
                 Ok(_) => (
                     [(
