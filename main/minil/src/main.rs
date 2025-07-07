@@ -19,7 +19,6 @@ use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::http::header;
 use axum::middleware::Next;
-use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::routing::delete;
 use axum::routing::get;
@@ -50,8 +49,6 @@ use axum_s3::utils::ListObjectsV2Check;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use digest::Digest;
-use ensure::ensure_eq;
-use ensure::ensure_matches;
 use ensure::fixme;
 use minil_migration::Migrator;
 use minil_migration::MigratorTrait;
@@ -89,6 +86,9 @@ use tracing_subscriber::util::SubscriberInitExt;
 use crate::error::AppError;
 use crate::error::AppErrorDiscriminants;
 use crate::error::AppResult;
+use crate::macros::app_ensure_eq;
+use crate::macros::app_ensure_matches;
+use crate::macros::app_output;
 use crate::make_request_id::AppMakeRequestId;
 use crate::service_builder_ext::AppServiceBuilderExt;
 use crate::state::AppState;
@@ -127,10 +127,9 @@ async fn main() {
 
     let middleware = ServiceBuilder::new()
         .trace_for_http()
-        .middleware_fn(set_process_time)
         .decompression()
+        .compression()
         .set_request_id(REQUEST_ID_HEADER, AppMakeRequestId)
-        .middleware_fn(handle_app_error)
         .propagate_request_id(REQUEST_ID_HEADER)
         .override_response_header(
             NODE_ID_HEADER,
@@ -142,7 +141,8 @@ async fn main() {
                 .parse::<HeaderValue>()
                 .expect("invalid server header"),
         )
-        .compression();
+        .middleware_fn(set_process_time)
+        .middleware_fn(handle_app_error);
 
     let router = Router::new()
         .route(vpath!("/"), get(list_buckets))
@@ -214,7 +214,7 @@ async fn handle_app_error(request: Request, next: Next) -> Response {
     let request = Request::from_parts(parts.clone(), body);
     let mut response = next.run(request).await;
 
-    if let Some(err) = response.extensions().get::<AppErrorDiscriminants>() {
+    if let Some(err) = response.extensions_mut().remove::<AppErrorDiscriminants>() {
         response = err.into_response(&parts);
     }
 
@@ -228,44 +228,31 @@ async fn create_bucket(
     let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
 
     dbg!(&input);
-    ensure_matches!(input.header.acl, None, AppError::NotImplemented);
-    ensure_matches!(
-        input.header.bucket_object_lock_enabled,
-        None | Some(false),
-        AppError::NotImplemented
-    );
-    ensure_eq!(
-        input.header.grant_full_control,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_eq!(input.header.grant_read, None, AppError::NotImplemented);
-    ensure_eq!(input.header.grant_read_acp, None, AppError::NotImplemented);
-    ensure_eq!(input.header.grant_write, None, AppError::NotImplemented);
-    ensure_eq!(input.header.grant_write_acp, None, AppError::NotImplemented);
-    ensure_matches!(
-        input.header.object_ownership,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(input.body, None, AppError::NotImplemented);
+    app_ensure_matches!(input.header.acl, None);
+    app_ensure_matches!(input.header.bucket_object_lock_enabled, None | Some(false));
+    app_ensure_eq!(input.header.grant_full_control, None);
+    app_ensure_eq!(input.header.grant_read, None);
+    app_ensure_eq!(input.header.grant_read_acp, None);
+    app_ensure_eq!(input.header.grant_write, None);
+    app_ensure_eq!(input.header.grant_write_acp, None);
+    app_ensure_matches!(input.header.object_ownership, None);
+    app_ensure_matches!(input.body, None);
 
     let region = serde_plain::to_string(&BucketLocationConstraint::UsEast1)
         .unwrap_or_else(|_| unreachable!());
-    let bucket = BucketMutation::create(&db, owner.id, &input.path.bucket, region.as_str())
+    let bucket = BucketMutation::create(&db, owner.id, &input.path.bucket, &region)
         .await?
         .ok_or(AppError::BucketAlreadyOwnedByYou)?;
 
-    let output = CreateBucketOutput::builder()
-        .header(
-            CreateBucketOutputHeader::builder()
-                .location(format!("/{}", bucket.name))
-                .build(),
-        )
-        .build();
-
-    dbg!(&output);
-    Ok(output)
+    app_output!(
+        CreateBucketOutput::builder()
+            .header(
+                CreateBucketOutputHeader::builder()
+                    .location(format!("/{}", bucket.name))
+                    .build(),
+            )
+            .build()
+    )
 }
 
 async fn delete_bucket(
@@ -278,17 +265,14 @@ async fn delete_bucket(
 
     if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
         if expected_bucket_owner != owner.name {
-            Err(AppError::Forbidden)?
+            Err(AppError::AccessDenied)?
         }
     }
     BucketMutation::delete_by_unique_id(&db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
-    let output = DeleteBucketOutput::builder().build();
-
-    dbg!(&output);
-    Ok(output)
+    app_output!(DeleteBucketOutput::builder().build())
 }
 
 async fn head_bucket(
@@ -301,23 +285,22 @@ async fn head_bucket(
 
     if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
         if expected_bucket_owner != owner.name {
-            Err(AppError::Forbidden)?
+            Err(AppError::AccessDenied)?
         }
     }
     let bucket = BucketQuery::find_by_unique_id(&db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
-    let output = HeadBucketOutput::builder()
-        .header(
-            HeadBucketOutputHeader::builder()
-                .bucket_region(bucket.region)
-                .build(),
-        )
-        .build();
-
-    dbg!(&output);
-    Ok(output)
+    app_output!(
+        HeadBucketOutput::builder()
+            .header(
+                HeadBucketOutputHeader::builder()
+                    .bucket_region(bucket.region)
+                    .build(),
+            )
+            .build()
+    )
 }
 
 async fn list_buckets(
@@ -343,155 +326,81 @@ async fn list_buckets(
         None
     };
 
-    let output = ListBucketsOutput::builder()
-        .body(
-            ListBucketsOutputBody::builder()
-                .buckets(
-                    buckets
-                        .into_iter()
-                        .map(|bucket| {
-                            Bucket::builder()
-                                .name(bucket.name)
-                                .bucket_region(bucket.region)
-                                .creation_date(bucket.created_at)
-                                .build()
-                        })
-                        .collect::<Vec<_>>(),
-                )
-                .owner(
-                    Owner::builder()
-                        .display_name(owner.name)
-                        .id(owner.id)
-                        .build(),
-                )
-                .maybe_continuation_token(continuation_token)
-                .maybe_prefix(input.query.prefix)
-                .build(),
-        )
-        .build();
-
-    dbg!(&output);
-    Ok(output)
+    app_output!(
+        ListBucketsOutput::builder()
+            .body(
+                ListBucketsOutputBody::builder()
+                    .buckets(
+                        buckets
+                            .into_iter()
+                            .map(|bucket| {
+                                Bucket::builder()
+                                    .name(bucket.name)
+                                    .bucket_region(bucket.region)
+                                    .creation_date(bucket.created_at)
+                                    .build()
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                    .owner(
+                        Owner::builder()
+                            .display_name(owner.name)
+                            .id(owner.id)
+                            .build(),
+                    )
+                    .maybe_continuation_token(continuation_token)
+                    .maybe_prefix(input.query.prefix)
+                    .build(),
+            )
+            .build()
+    )
 }
 
 async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResult<PutObjectOutput> {
     let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
 
     dbg!(&input);
-    ensure_matches!(input.header.cache_control, None, AppError::NotImplemented);
-    ensure_matches!(
-        input.header.content_disposition,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.content_encoding,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.content_language,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
+    app_ensure_matches!(input.header.cache_control, None);
+    app_ensure_matches!(input.header.content_disposition, None);
+    app_ensure_matches!(input.header.content_encoding, None);
+    app_ensure_matches!(input.header.content_language, None);
+    app_ensure_matches!(
         input.header.content_type.as_deref(),
-        None | Some("application/octet-stream"),
-        AppError::NotImplemented
+        None | Some("application/octet-stream")
     );
-    ensure_matches!(input.header.expires, None, AppError::NotImplemented);
-    ensure_matches!(input.header.if_match, None, AppError::NotImplemented);
-    ensure_matches!(input.header.if_none_match, None, AppError::NotImplemented);
-    ensure_matches!(input.header.acl, None, AppError::NotImplemented);
-    ensure_matches!(input.header.checksum_crc32, None, AppError::NotImplemented);
-    ensure_matches!(input.header.checksum_crc32c, None, AppError::NotImplemented);
-    ensure_matches!(
-        input.header.checksum_crc64nvme,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(input.header.checksum_sha1, None, AppError::NotImplemented);
-    ensure_matches!(input.header.checksum_sha256, None, AppError::NotImplemented);
-    ensure_matches!(
-        input.header.grant_full_control,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(input.header.grant_read, None, AppError::NotImplemented);
-    ensure_matches!(input.header.grant_read_acp, None, AppError::NotImplemented);
-    ensure_matches!(input.header.grant_write_acp, None, AppError::NotImplemented);
-    ensure_matches!(
-        input.header.object_lock_legal_hold,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.object_lock_mode,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.object_lock_retain_until_date,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(input.header.request_payer, None, AppError::NotImplemented);
-    ensure_matches!(
-        input.header.sdk_checksum_algorithm,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.server_side_encryption,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.server_side_encryption_aws_kms_key_id,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.server_side_encryption_bucket_key_enabled,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.server_side_encryption_context,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.server_side_encryption_customer_algorithm,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.server_side_encryption_customer_key,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.server_side_encryption_customer_key_md5,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(input.header.storage_class, None, AppError::NotImplemented);
-    ensure_matches!(input.header.tagging, None, AppError::NotImplemented);
-    ensure_matches!(
-        input.header.website_redirect_location,
-        None,
-        AppError::NotImplemented
-    );
-    ensure_matches!(
-        input.header.write_offset_bytes,
-        None | Some(0),
-        AppError::NotImplemented
-    );
+    app_ensure_matches!(input.header.expires, None);
+    app_ensure_matches!(input.header.if_match, None);
+    app_ensure_matches!(input.header.if_none_match, None);
+    app_ensure_matches!(input.header.acl, None);
+    app_ensure_matches!(input.header.checksum_crc32, None);
+    app_ensure_matches!(input.header.checksum_crc32c, None);
+    app_ensure_matches!(input.header.checksum_crc64nvme, None);
+    app_ensure_matches!(input.header.checksum_sha1, None);
+    app_ensure_matches!(input.header.checksum_sha256, None);
+    app_ensure_matches!(input.header.grant_full_control, None);
+    app_ensure_matches!(input.header.grant_read, None);
+    app_ensure_matches!(input.header.grant_read_acp, None);
+    app_ensure_matches!(input.header.grant_write_acp, None);
+    app_ensure_matches!(input.header.object_lock_legal_hold, None);
+    app_ensure_matches!(input.header.object_lock_mode, None);
+    app_ensure_matches!(input.header.object_lock_retain_until_date, None);
+    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
+    app_ensure_matches!(input.header.server_side_encryption, None);
+    app_ensure_matches!(input.header.server_side_encryption_aws_kms_key_id, None);
+    app_ensure_matches!(input.header.server_side_encryption_bucket_key_enabled, None);
+    app_ensure_matches!(input.header.server_side_encryption_context, None);
+    app_ensure_matches!(input.header.server_side_encryption_customer_algorithm, None);
+    app_ensure_matches!(input.header.server_side_encryption_customer_key, None);
+    app_ensure_matches!(input.header.server_side_encryption_customer_key_md5, None);
+    app_ensure_matches!(input.header.storage_class, None);
+    app_ensure_matches!(input.header.tagging, None);
+    app_ensure_matches!(input.header.website_redirect_location, None);
+    app_ensure_matches!(input.header.write_offset_bytes, None | Some(0));
 
     if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
         if expected_bucket_owner != owner.name {
-            Err(AppError::Forbidden)?
+            Err(AppError::AccessDenied)?
         }
     }
     let bucket = BucketQuery::find_by_unique_id(&db, owner.id, &input.path.bucket)
@@ -516,16 +425,15 @@ async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResul
         }
     }
 
-    let output = PutObjectOutput::builder()
-        .header(
-            PutObjectOutputHeader::builder()
-                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
-                .build(),
-        )
-        .build();
-
-    dbg!(&output);
-    Ok(output)
+    app_output!(
+        PutObjectOutput::builder()
+            .header(
+                PutObjectOutputHeader::builder()
+                    .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                    .build(),
+            )
+            .build()
+    )
 }
 
 async fn get_bucket_handler(
@@ -556,16 +464,15 @@ async fn get_bucket_versioning(
 
     if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
         if expected_bucket_owner != owner.name {
-            Err(AppError::Forbidden)?
+            Err(AppError::AccessDenied)?
         }
     }
 
-    let output = GetBucketVersioningOutput::builder()
-        .body(GetBucketVersioningOutputBody::builder().build())
-        .build();
-
-    dbg!(&output);
-    Ok(output)
+    app_output!(
+        GetBucketVersioningOutput::builder()
+            .body(GetBucketVersioningOutputBody::builder().build())
+            .build()
+    )
 }
 
 async fn get_bucket_location(
@@ -578,7 +485,7 @@ async fn get_bucket_location(
 
     if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
         if expected_bucket_owner != owner.name {
-            Err(AppError::Forbidden)?
+            Err(AppError::AccessDenied)?
         }
     }
     let bucket = BucketQuery::find_by_unique_id(&db, owner.id, &input.path.bucket)
@@ -587,63 +494,63 @@ async fn get_bucket_location(
     let content = serde_plain::from_str::<BucketLocationConstraint>(&bucket.region)
         .unwrap_or_else(|_err| unreachable!());
 
-    let output = GetBucketLocationOutput::builder()
-        .body(
-            GetBucketLocationOutputBody::builder()
-                .content(content)
-                .build(),
-        )
-        .build();
-
-    dbg!(&output);
-    Ok(output)
+    app_output!(
+        GetBucketLocationOutput::builder()
+            .body(
+                GetBucketLocationOutputBody::builder()
+                    .content(content)
+                    .build(),
+            )
+            .build()
+    )
 }
 
-async fn list_objects(State(_db): State<DbConn>, input: ListObjectsInput) -> impl IntoResponse {
+async fn list_objects(
+    State(_db): State<DbConn>,
+    input: ListObjectsInput,
+) -> AppResult<ListObjectsOutput> {
     dbg!(&input);
     fixme!();
 
-    let output = ListObjectsOutput::builder()
-        .header(ListObjectsOutputHeader::builder().build())
-        .body(
-            ListObjectsOutputBody::builder()
-                .common_prefixes(vec![])
-                .contents(vec![])
-                .is_truncated(false)
-                .marker("".to_owned())
-                .max_keys(0)
-                .name("".to_owned())
-                .prefix("".to_owned())
-                .build(),
-        )
-        .build();
-
-    dbg!(&output);
-    output
+    app_output!(
+        ListObjectsOutput::builder()
+            .header(ListObjectsOutputHeader::builder().build())
+            .body(
+                ListObjectsOutputBody::builder()
+                    .common_prefixes(vec![])
+                    .contents(vec![])
+                    .is_truncated(false)
+                    .marker("".to_owned())
+                    .max_keys(0)
+                    .name("".to_owned())
+                    .prefix("".to_owned())
+                    .build(),
+            )
+            .build()
+    )
 }
 
 async fn list_objects_v2(
     State(_db): State<DbConn>,
     input: ListObjectsV2Input,
-) -> impl IntoResponse {
+) -> AppResult<ListObjectsV2Output> {
     dbg!(&input);
     fixme!();
 
-    let output = ListObjectsV2Output::builder()
-        .header(ListObjectsV2OutputHeader::builder().build())
-        .body(
-            ListObjectsV2OutputBody::builder()
-                .common_prefixes(vec![])
-                .contents(vec![])
-                .is_truncated(false)
-                .key_count(0)
-                .max_keys(0)
-                .name("".to_owned())
-                .prefix("".to_owned())
-                .build(),
-        )
-        .build();
-
-    dbg!(&output);
-    output
+    app_output!(
+        ListObjectsV2Output::builder()
+            .header(ListObjectsV2OutputHeader::builder().build())
+            .body(
+                ListObjectsV2OutputBody::builder()
+                    .common_prefixes(vec![])
+                    .contents(vec![])
+                    .is_truncated(false)
+                    .key_count(0)
+                    .max_keys(0)
+                    .name("".to_owned())
+                    .prefix("".to_owned())
+                    .build(),
+            )
+            .build()
+    )
 }

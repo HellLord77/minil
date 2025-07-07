@@ -25,10 +25,12 @@ use sea_orm::DbErr;
 use strum::EnumDiscriminants;
 
 use crate::macros::app_err_output;
+use crate::macros::app_log_err;
 
 pub(crate) type AppResult<T> = Result<T, AppError>;
 
 #[derive(Debug, Display, From, Error, EnumDiscriminants)]
+#[strum_discriminants(derive(Display))]
 pub(crate) enum AppError {
     #[allow(dead_code)]
     AccessDenied,
@@ -56,25 +58,14 @@ pub(crate) enum AppError {
     #[allow(dead_code)]
     TooManyParts,
 
-    Forbidden,
-
     AxumError(axum::Error),
     DatabaseError(DbErr),
 }
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        match &self {
-            Self::AxumError(err) => {
-                tracing::error!(%err, "AxumError");
-            }
-            Self::DatabaseError(err) => {
-                tracing::error!(%err, "DatabaseError");
-            }
-            _ => {}
-        };
-
-        Extension(AppErrorDiscriminants::from(self)).into_response()
+        app_log_err!(&self => AxumError, DatabaseError);
+        Extension(AppErrorDiscriminants::from(&self)).into_response()
     }
 }
 
@@ -103,8 +94,6 @@ impl AppErrorDiscriminants {
             Self::NotImplemented => app_err_output!(NotImplementedOutput::from(parts)),
             Self::PreconditionFailed => app_err_output!(PreconditionFailedOutput::from(parts)),
             Self::TooManyParts => app_err_output!(TooManyPartsOutput::from(parts)),
-
-            Self::Forbidden => app_err_output!(StatusCode::FORBIDDEN),
 
             Self::AxumError => app_err_output!(StatusCode::INTERNAL_SERVER_ERROR),
             Self::DatabaseError => app_err_output!(StatusCode::INTERNAL_SERVER_ERROR),
