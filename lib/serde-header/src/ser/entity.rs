@@ -42,7 +42,7 @@ where
     type SerializeStructVariant = Impossible<Self::Ok, Self::Error>;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
-        self.0.serialize_str(&v.to_string())
+        self.0.serialize_str(if v { "true" } else { "false" })
     }
 
     fn serialize_i8(self, v: i8) -> Result<Self::Ok, Self::Error> {

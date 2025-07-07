@@ -23,6 +23,15 @@ impl<'ser> ValueEntity<'ser> {
             ..Self::default()
         }
     }
+
+    #[inline]
+    pub fn new_nested(name: HeaderNameRef<'ser>) -> Self {
+        Self {
+            name,
+            nested: true,
+            ..Self::default()
+        }
+    }
 }
 
 impl<'ser> EntitySerializer for ValueEntity<'ser> {
@@ -71,9 +80,7 @@ impl<'ser> SerializeSeq for ValueEntity<'ser> {
     where
         T: ?Sized + Serialize,
     {
-        let mut serializer = Self::new(self.name);
-        serializer.nested = true;
-        let headers = value.serialize(Entity(serializer))?;
+        let headers = value.serialize(Entity(Self::new_nested(self.name)))?;
         self.headers.extend(headers);
         Ok(())
     }

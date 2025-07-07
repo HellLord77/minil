@@ -31,20 +31,20 @@ impl Error {
         Err(Self::Custom(format!("{unexp} is not supported value")))
     }
 
-    pub fn header_done() -> Self {
-        Self::Custom("header has already been serialized".to_owned())
-    }
-
-    pub fn header_not_done() -> Self {
-        Self::Custom("header has not yet been serialized".to_owned())
-    }
-
     pub fn map_no_name() -> Self {
         Self::Custom("map name has not yet been serialized".to_owned())
     }
 
     pub fn map_no_value() -> Self {
         Self::Custom("map value has not yet been serialized".to_owned())
+    }
+
+    pub fn header_done() -> Self {
+        Self::Custom("header has already been serialized".to_owned())
+    }
+
+    pub fn header_not_done() -> Self {
+        Self::Custom("header has not yet been serialized".to_owned())
     }
 }
 
