@@ -13,9 +13,7 @@ pub struct BucketAlreadyExists {
     #[builder(default = "The requested bucket name is not available.")]
     pub message: &'static str,
 
-    #[builder(into)]
     pub resource: Option<String>,
 
-    #[builder(into)]
     pub request_id: Option<String>,
 }

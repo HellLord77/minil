@@ -13,9 +13,7 @@ pub struct NoSuchKey {
     #[builder(default = "The specified key does not exist.")]
     pub message: &'static str,
 
-    #[builder(into)]
     pub resource: Option<String>,
 
-    #[builder(into)]
     pub request_id: Option<String>,
 }

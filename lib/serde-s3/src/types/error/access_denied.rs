@@ -13,9 +13,7 @@ pub struct AccessDenied {
     #[builder(default = "Access Denied")]
     pub message: &'static str,
 
-    #[builder(into)]
     pub resource: Option<String>,
 
-    #[builder(into)]
     pub request_id: Option<String>,
 }

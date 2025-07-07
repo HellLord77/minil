@@ -13,9 +13,7 @@ pub struct PreconditionFailed {
     #[builder(default = "At least one of the preconditions that you specified did not hold.")]
     pub message: &'static str,
 
-    #[builder(into)]
     pub resource: Option<String>,
 
-    #[builder(into)]
     pub request_id: Option<String>,
 }

@@ -13,9 +13,7 @@ pub struct InvalidDigest {
     #[builder(default = "The Content-MD5 or checksum value that you specified is not valid.")]
     pub message: &'static str,
 
-    #[builder(into)]
     pub resource: Option<String>,
 
-    #[builder(into)]
     pub request_id: Option<String>,
 }

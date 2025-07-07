@@ -1,5 +1,3 @@
-pub mod error;
-
 mod bucket;
 mod bucket_canned_acl;
 mod bucket_data_redundancy;
@@ -32,6 +30,8 @@ mod restore_status;
 mod server_side_encryption;
 mod storage_class;
 mod versioning_configuration;
+
+pub mod error;
 
 pub use bucket::Bucket;
 pub use bucket_canned_acl::BucketCannedAcl;

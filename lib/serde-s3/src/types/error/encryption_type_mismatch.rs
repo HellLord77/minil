@@ -13,9 +13,7 @@ pub struct EncryptionTypeMismatch {
     #[builder(default = "The existing object was created with a different encryption type.")]
     pub message: &'static str,
 
-    #[builder(into)]
     pub resource: Option<String>,
 
-    #[builder(into)]
     pub request_id: Option<String>,
 }

@@ -13,9 +13,7 @@ pub struct ConditionalRequestConflict {
     #[builder(default = "A conflicting operation occurred.")]
     pub message: &'static str,
 
-    #[builder(into)]
     pub resource: Option<String>,
 
-    #[builder(into)]
     pub request_id: Option<String>,
 }

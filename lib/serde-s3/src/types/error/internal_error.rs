@@ -13,9 +13,7 @@ pub struct InternalError {
     #[builder(default = "An internal error occurred.")]
     pub message: &'static str,
 
-    #[builder(into)]
     pub resource: Option<String>,
 
-    #[builder(into)]
     pub request_id: Option<String>,
 }

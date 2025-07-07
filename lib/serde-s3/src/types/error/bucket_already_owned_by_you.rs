@@ -13,9 +13,7 @@ pub struct BucketAlreadyOwnedByYou {
     #[builder(default = "The bucket that you tried to create already exists, and you own it.")]
     pub message: &'static str,
 
-    #[builder(into)]
     pub resource: Option<String>,
 
-    #[builder(into)]
     pub request_id: Option<String>,
 }
