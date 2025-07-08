@@ -31,11 +31,11 @@ composite_rejection! {
 define_rejection! {
     #[status = UNPROCESSABLE_ENTITY]
     #[body = "Failed to process entity"]
-    pub struct BodyNotEmpty;
+    pub struct LimitedBodyError(Error);
 }
 
 composite_rejection! {
     pub enum EmptyRejection {
-        BodyNotEmpty,
+        LimitedBodyError,
     }
 }

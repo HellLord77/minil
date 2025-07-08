@@ -13,7 +13,7 @@ async fn test_empty() {
 
 #[tokio::test]
 async fn test_empty_rejection() {
-    let req = Request::builder().body(Body::from("foo")).unwrap();
+    let req = Request::builder().body(Body::from("'")).unwrap();
 
     let empty = Empty::from_request(req, &()).await;
     assert!(empty.is_err());

@@ -3,8 +3,8 @@ use axum_core::extract::Request;
 use http_body_util::BodyExt;
 use http_body_util::Limited;
 
-use crate::rejection::BodyNotEmpty;
 use crate::rejection::EmptyRejection;
+use crate::rejection::LimitedBodyError;
 
 #[derive(Debug)]
 #[must_use]
@@ -21,7 +21,7 @@ where
         Limited::new(body, 0)
             .collect()
             .await
-            .map_err(|_err| BodyNotEmpty)?;
+            .map_err(LimitedBodyError::from_err)?;
 
         Ok(Empty)
     }
