@@ -37,9 +37,9 @@ where
 
 #[derive(Debug)]
 #[must_use]
-pub struct EmptyOr<T>(pub Option<T>);
+pub struct OptionalEmpty<T>(pub Option<T>);
 
-impl<T, S> FromRequest<S> for EmptyOr<T>
+impl<T, S> FromRequest<S> for OptionalEmpty<T>
 where
     T: Send + Sync + FromRequest<S>,
     S: Send + Sync,

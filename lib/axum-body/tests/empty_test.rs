@@ -1,5 +1,5 @@
 use axum_body::Empty;
-use axum_body::EmptyOr;
+use axum_body::OptionalEmpty;
 use axum_core::body::Body;
 use axum_core::extract::FromRequest;
 use axum_core::extract::Request;
@@ -24,18 +24,21 @@ async fn test_empty_rejection() {
 }
 
 #[tokio::test]
-async fn test_empty_or_none() {
+async fn test_optional_empty_none() {
     let req = Request::builder().body(Body::empty()).unwrap();
 
-    let bytes = EmptyOr::<Bytes>::from_request(req, &()).await.unwrap().0;
+    let bytes = OptionalEmpty::<Bytes>::from_request(req, &())
+        .await
+        .unwrap()
+        .0;
     assert_eq!(&bytes, &None);
 }
 
 #[tokio::test]
-async fn test_empty_or_some() {
+async fn test_optional_empty_some() {
     let req = Request::builder().body(Body::from("'")).unwrap();
 
-    let bytes = EmptyOr::<Bytes>::from_request(req, &())
+    let bytes = OptionalEmpty::<Bytes>::from_request(req, &())
         .await
         .unwrap()
         .0
@@ -44,10 +47,12 @@ async fn test_empty_or_some() {
 }
 
 #[tokio::test]
-async fn test_empty_or_rejection() {
+async fn test_optional_empty_rejection() {
     let req = Request::builder().body(Body::from(vec![0x80])).unwrap();
 
-    let rejection = EmptyOr::<String>::from_request(req, &()).await.unwrap_err();
+    let rejection = OptionalEmpty::<String>::from_request(req, &())
+        .await
+        .unwrap_err();
     assert_eq!(&rejection.status(), &StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(
         &rejection.to_string(),
