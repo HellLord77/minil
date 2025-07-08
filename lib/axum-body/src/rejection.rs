@@ -29,13 +29,27 @@ composite_rejection! {
 }
 
 define_rejection! {
+    #[status = BAD_REQUEST]
+    #[body = "Failed to buffer the request body"]
+    pub struct UnknownBodyError(Error);
+}
+
+define_rejection! {
     #[status = UNPROCESSABLE_ENTITY]
-    #[body = "Failed to process entity"]
-    pub struct LimitedBodyError(Error);
+    #[body = "Failed to process non empty entity"]
+    pub struct NonEmptyRejectionError(Error);
+}
+
+define_rejection! {
+    #[status = BAD_REQUEST]
+    #[body = "Expected request with empty body"]
+    pub struct NotEmptyRejection;
 }
 
 composite_rejection! {
     pub enum EmptyRejection {
-        LimitedBodyError,
+        UnknownBodyError,
+        NonEmptyRejectionError,
+        NotEmptyRejection,
     }
 }
