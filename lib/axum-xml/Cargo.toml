@@ -4,12 +4,12 @@ version = "0.1.1"
 edition.workspace = true
 
 [dependencies]
-mime = "0.3.17"
 quick-xml = { version = "0.38.0", features = ["serialize"] }
 
 axum-core.workspace = true
 bytes.workspace = true
 http.workspace = true
+mime.workspace = true
 serde.workspace = true
 serde_path_to_error.workspace = true
 

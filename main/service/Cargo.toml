@@ -4,10 +4,9 @@ version = "0.1.4"
 edition.workspace = true
 
 [dependencies]
-tokio-stream = { version = "0.1.17", features = ["full"] }
-
 axum.workspace = true
 sea-orm.workspace = true
+tokio-stream.workspace = true
 uuid.workspace = true
 
 crc-fast.workspace = true

@@ -22,7 +22,7 @@ fn deserialize_str() {
 
 #[test]
 fn deserialize_reader() {
-    let input = b"first: 23\nlast: 42\n\n" as &[_];
+    let input = b"first: 23\nlast: 42\n\n".as_ref();
     let result = vec![("first".to_owned(), 23), ("last".to_owned(), 42)];
 
     assert_eq!(from_reader(input), Ok(result));

@@ -21,7 +21,7 @@ use crate::rejection::XmlDataError;
 use crate::rejection::XmlRejection;
 use crate::rejection::XmlSyntaxError;
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug)]
 #[must_use]
 pub struct Xml<T>(pub T);
 

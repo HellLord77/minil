@@ -53,7 +53,7 @@ where
     T: Serialize,
 {
     String::from_utf8(to_bytes(input)?)
-        .map_err(|err| Error::Custom(format!("could not convert to string: {err}")))
+        .map_err(|err| format!("could not convert to string: {err}").into())
 }
 
 pub fn to_writer<W, T>(mut writer: W, input: &T) -> Result<W, Error>
@@ -64,7 +64,7 @@ where
     let headers = to_bytes(input)?;
     writer
         .write_all(&headers)
-        .map_err(|err| Error::Custom(format!("could not write headers: {err}")))?;
+        .map_err(|err| format!("could not write headers: {err}"))?;
     Ok(writer)
 }
 
@@ -87,10 +87,10 @@ where
     for (name, value) in headers {
         let name = name
             .parse::<http::HeaderName>()
-            .map_err(|err| Error::Custom(format!("could not convert to header name: {err}")))?;
+            .map_err(|err| format!("could not convert to header name: {err}"))?;
         let value = value
             .try_into()
-            .map_err(|err| Error::Custom(format!("could not convert to header value: {err}")))?;
+            .map_err(|err| format!("could not convert to header value: {err}"))?;
         map.append(name, value);
     }
 
