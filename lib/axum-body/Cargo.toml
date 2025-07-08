@@ -1,9 +1,11 @@
 [package]
 name = "axum-body"
-version = "0.1.0"
+version = "0.1.1"
 edition.workspace = true
 
 [dependencies]
+http-body-util = "0.1.3"
+
 axum-core.workspace = true
 bytes.workspace = true
 derive_more.workspace = true

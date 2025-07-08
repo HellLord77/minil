@@ -13,8 +13,9 @@ where
 {
     let (parts, body) = req.into_parts();
     let (parts1, parts2) = (parts.clone(), parts.clone());
+    let req = Request::from_parts(parts, body);
 
-    let bytes = Bytes::from_request(Request::from_parts(parts, body), state).await?;
+    let bytes = Bytes::from_request(req, state).await?;
     let req1 = Request::from_parts(parts1, Body::from(bytes.clone()));
     let req2 = Request::from_parts(parts2, Body::from(bytes));
 

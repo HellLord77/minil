@@ -25,6 +25,7 @@ where
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         let (req1, req2) = cloned2(req, state).await?;
+
         Ok(Both(
             L::from_request(req1, state).await.map_err(|rej| {
                 BothRejectionError::from_err(RejectionError::LeftRejection::<_, R::Rejection>(rej))

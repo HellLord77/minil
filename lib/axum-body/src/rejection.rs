@@ -27,3 +27,15 @@ composite_rejection! {
         BytesRejection,
     }
 }
+
+define_rejection! {
+    #[status = UNPROCESSABLE_ENTITY]
+    #[body = "Failed to process entity"]
+    pub struct BodyNotEmpty;
+}
+
+composite_rejection! {
+    pub enum EmptyRejection {
+        BodyNotEmpty,
+    }
+}
