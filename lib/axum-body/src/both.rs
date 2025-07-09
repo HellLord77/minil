@@ -4,7 +4,7 @@ use std::fmt::Display;
 use axum_core::extract::FromRequest;
 use axum_core::extract::Request;
 
-use crate::RejectionError;
+use crate::error::RejectionError;
 use crate::rejection::BothRejection;
 use crate::rejection::BothRejectionError;
 use crate::utils::cloned2;
@@ -27,12 +27,12 @@ where
         let (req1, req2) = cloned2(req, state).await?;
 
         Ok(Both(
-            L::from_request(req1, state).await.map_err(|rej| {
-                BothRejectionError::from_err(RejectionError::LeftRejection::<_, R::Rejection>(rej))
-            })?,
-            R::from_request(req2, state).await.map_err(|rej| {
-                BothRejectionError::from_err(RejectionError::RightRejection::<L::Rejection, _>(rej))
-            })?,
+            L::from_request(req1, state)
+                .await
+                .map_err(|rej| BothRejectionError::from_err(RejectionError::left(rej)))?,
+            R::from_request(req2, state)
+                .await
+                .map_err(|rej| BothRejectionError::from_err(RejectionError::right(rej)))?,
         ))
     }
 }

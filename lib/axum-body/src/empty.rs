@@ -4,7 +4,7 @@ use std::fmt::Display;
 use axum_core::extract::FromRequest;
 use axum_core::extract::Request;
 
-use crate::RejectionError;
+use crate::error::RejectionError;
 use crate::rejection::EmptyRejection;
 use crate::rejection::NonEmptyRejectionError;
 use crate::rejection::NotEmptyRejection;
@@ -58,9 +58,7 @@ where
                 let req = Request::from_parts(parts, body);
                 match T::from_request(req, state).await {
                     Ok(data) => Ok(Self(Some(data))),
-                    Err(rej) => Err(NonEmptyRejectionError::from_err(
-                        RejectionError::RightRejection::<T::Rejection, _>(rej),
-                    ))?,
+                    Err(rej) => Err(NonEmptyRejectionError::from_err(RejectionError::right(rej)))?,
                 }
             }
             (false, _) => Ok(Self(None)),

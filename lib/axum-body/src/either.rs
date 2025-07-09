@@ -42,7 +42,6 @@ where
     R: Send + Sync + FromRequest<S>,
     S: Send + Sync,
     L::Rejection: 'static + Debug + Display + Send + Sync,
-    R::Rejection: 'static + Debug + Display + Send + Sync,
 {
     type Rejection = EitherRejection;
 
@@ -53,9 +52,7 @@ where
             Ok(data) => Ok(Either::Left(data)),
             Err(rej) => match R::from_request(req2, state).await {
                 Ok(data) => Ok(Either::Right(data)),
-                Err(_) => Err(EitherRejectionError::from_err(
-                    RejectionError::LeftRejection::<_, R::Rejection>(rej),
-                ))?,
+                Err(_) => Err(EitherRejectionError::from_err(RejectionError::left(rej)))?,
             },
         }
     }
