@@ -44,7 +44,6 @@ axum-into-response = { path = "lib/axum-into-response" }
 axum-optional-from-request = { path = "lib/axum-optional-from-request" }
 axum-s3 = { path = "lib/axum-s3" }
 axum-s3-macros = { path = "lib/axum-s3-macros" }
-axum-xml = { path = "lib/axum-xml" } # https://crates.io/crates/axum-xml
 ensure = { path = "lib/ensure" }
 serde-header = { path = "lib/serde-header", features = ["full"] }
 serde-rename-chain = { path = "lib/serde-rename-chain", features = ["full"] }
