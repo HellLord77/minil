@@ -1,3 +1,5 @@
+#![deprecated = "use `axum-derive-macros` insted"]
+
 use proc_macro::TokenStream;
 use syn_utils::expand_with;
 
