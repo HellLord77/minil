@@ -14,7 +14,6 @@ use axum::Router;
 use axum::ServiceExt;
 use axum::extract::Request;
 use axum::extract::State;
-use axum::handler::Handler;
 use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::http::header;
@@ -43,9 +42,6 @@ use axum_s3::operation::ListObjectsV2Input;
 use axum_s3::operation::ListObjectsV2Output;
 use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
-use axum_s3::operation::check::GetBucketLocationCheck;
-use axum_s3::operation::check::GetBucketVersioningCheck;
-use axum_s3::operation::check::ListObjectsV2Check;
 use axum_s3::utils::ErrorParts;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
@@ -87,6 +83,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use crate::error::AppError;
 use crate::error::AppErrorDiscriminants;
 use crate::error::AppResult;
+use crate::macros::app_define_handler;
 use crate::macros::app_ensure_eq;
 use crate::macros::app_ensure_matches;
 use crate::macros::app_output;
@@ -443,23 +440,12 @@ async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResul
     )
 }
 
-async fn get_bucket_handler(
-    maybe_get_bucket_versioning: Option<GetBucketVersioningCheck>,
-    maybe_get_bucket_location: Option<GetBucketLocationCheck>,
-    maybe_list_objects_v2: Option<ListObjectsV2Check>,
-    State(state): State<AppState>,
-    request: Request,
-) -> Response {
-    if maybe_get_bucket_versioning.is_some() {
-        get_bucket_versioning.call(request, state).await
-    } else if maybe_get_bucket_location.is_some() {
-        get_bucket_location.call(request, state).await
-    } else if maybe_list_objects_v2.is_some() {
-        list_objects_v2.call(request, state).await
-    } else {
-        list_objects.call(request, state).await
-    }
-}
+app_define_handler!(get_bucket_handler(
+    GetBucketVersioningCheck => get_bucket_versioning,
+    GetBucketLocationCheck => get_bucket_location,
+    ListObjectsV2Check => list_objects_v2,
+    _ => list_objects
+));
 
 async fn get_bucket_versioning(
     State(db): State<DbConn>,
