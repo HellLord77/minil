@@ -10,6 +10,7 @@ edition = "2024"
 axum = { version = "0.8.4", features = ["macros"] }
 axum-core = "0.5.2"
 axum-extra = { version = "0.10.1", features = ["query"] }
+axum-serde = { version = "0.9.0", features = ["full"] }
 axum-test = "17.3.0"
 bon = "3.6.4"
 bytes = "1.10.1"
@@ -43,7 +44,7 @@ axum-into-response = { path = "lib/axum-into-response" }
 axum-optional-from-request = { path = "lib/axum-optional-from-request" }
 axum-s3 = { path = "lib/axum-s3" }
 axum-s3-macros = { path = "lib/axum-s3-macros" }
-axum-xml = { path = "lib/axum-xml" }
+axum-xml = { path = "lib/axum-xml" } # https://crates.io/crates/axum-xml
 ensure = { path = "lib/ensure" }
 serde-header = { path = "lib/serde-header", features = ["full"] }
 serde-rename-chain = { path = "lib/serde-rename-chain", features = ["full"] }

@@ -2,7 +2,7 @@ use axum::extract::FromRequest;
 use axum::extract::Path;
 use axum_header::Header;
 use axum_into_response::IntoResponse;
-use axum_xml::Xml;
+use axum_serde::Xml;
 use bon::Builder;
 use serde_s3::operation::GetBucketVersioningInputHeader;
 use serde_s3::operation::GetBucketVersioningInputPath;

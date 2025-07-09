@@ -1,7 +1,7 @@
 use axum::extract::FromRequest;
 use axum_extra::extract::Query;
 use axum_into_response::IntoResponse;
-use axum_xml::Xml;
+use axum_serde::Xml;
 use bon::Builder;
 use serde_s3::operation::ListBucketsInputQuery;
 use serde_s3::operation::ListBucketsOutputBody;

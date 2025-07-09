@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use axum_into_response::IntoResponse;
 use axum_s3_macros::ErrorFromParts;
-use axum_xml::Xml;
+use axum_serde::Xml;
 use bon::Builder;
 use serde_s3::types::error::TooManyParts;
 

@@ -3,7 +3,7 @@ use axum::extract::Path;
 use axum_extra::extract::Query;
 use axum_header::Header;
 use axum_into_response::IntoResponse;
-use axum_xml::Xml;
+use axum_serde::Xml;
 use bon::Builder;
 use serde_s3::operation::ListObjectsInputHeader;
 use serde_s3::operation::ListObjectsInputPath;
