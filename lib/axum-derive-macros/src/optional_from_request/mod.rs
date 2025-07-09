@@ -27,7 +27,7 @@ pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
                                 state: &S,
                             ) -> ::std::result::Result<::std::option::Option<Self>, Self::Rejection> {
                                 ::std::result::Result::Ok(
-                                    <Self as ::axum::extract::FromRequest<_, _>>>::from_request(req, state)
+                                    <Self as ::axum::extract::FromRequest<_, _>>::from_request(req, state)
                                         .await
                                         .ok(),
                                 )
