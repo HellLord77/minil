@@ -5,13 +5,12 @@ edition.workspace = true
 
 [dependencies]
 axum.workspace = true
+axum-derive-macros.workspace = true
 axum-extra.workspace = true
 axum-serde.workspace = true
 bon.workspace = true
 
 axum-header.workspace = true
-axum-into-response.workspace = true
-axum-optional-from-request.workspace = true
 serde-s3.workspace = true
 
 axum-s3-macros.workspace = true

@@ -1,8 +1,8 @@
 use axum::extract::FromRequest;
 use axum::extract::Path;
 use axum::http::StatusCode;
+use axum_derive_macros::IntoResponse;
 use axum_header::Header;
-use axum_into_response::IntoResponse;
 use bon::Builder;
 use serde_s3::operation::DeleteBucketInputHeader;
 use serde_s3::operation::DeleteBucketInputPath;

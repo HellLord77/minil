@@ -1,8 +1,8 @@
 use axum::body::Body;
 use axum::extract::FromRequest;
 use axum::extract::Path;
+use axum_derive_macros::IntoResponse;
 use axum_header::Header;
-use axum_into_response::IntoResponse;
 use bon::Builder;
 use serde_s3::operation::PutObjectInputHeader;
 use serde_s3::operation::PutObjectInputPath;
