@@ -28,7 +28,7 @@ macro_rules! bail {
         return ::std::result::Result::Err(::syn::Error::new($span, $message));
     };
     ($span:expr, $fmt:expr, $($arg:tt)*) => {
-        return ::std::result::Result::Err(::syn::Error::new($span, format!($fmt, $($arg)*)));
+        return ::std::result::Result::Err(::syn::Error::new($span, ::std::format!($fmt, $($arg)*)));
     };
 }
 
@@ -41,7 +41,7 @@ macro_rules! bail_spanned {
         return ::std::result::Result::Err(::syn::Error::new_spanned($tokens, $message));
     };
     ($tokens:expr, $fmt:expr, $($arg:tt)*) => {
-        return ::std::result::Result::Err(::syn::Error::new_spanned($tokens, format!($fmt, $($arg)*)));
+        return ::std::result::Result::Err(::syn::Error::new_spanned($tokens, ::std::format!($fmt, $($arg)*)));
     };
 }
 

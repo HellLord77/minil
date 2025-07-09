@@ -68,14 +68,6 @@ where
     Ok(writer)
 }
 
-#[cfg(feature = "httparse")]
-fn _to_headers<'ser, T>(_input: T) -> Result<httparse::Header<'ser>, Error>
-where
-    T: Serialize,
-{
-    todo!()
-}
-
 #[cfg(feature = "http")]
 pub fn to_header_map<T>(input: T) -> Result<http::HeaderMap, Error>
 where
