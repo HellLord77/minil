@@ -135,36 +135,36 @@ impl TryFrom<(String, String)> for Renamer {
     type Error = TryNewError;
 
     #[inline]
-    fn try_from(value: (String, String)) -> Result<Self, Self::Error> {
-        Ok(match RenamerDiscriminants::try_new(value.0)? {
-            RenamerDiscriminants::AddPrefix => Self::AddPrefix(value.1),
-            RenamerDiscriminants::AddSuffix => Self::AddSuffix(value.1),
-            RenamerDiscriminants::StripPrefix => Self::StripPrefix(value.1),
-            RenamerDiscriminants::StripSuffix => Self::StripSuffix(value.1),
-            RenamerDiscriminants::TrimStart => Self::TrimStart(value.1),
-            RenamerDiscriminants::TrimEnd => Self::TrimEnd(value.1),
-            RenamerDiscriminants::Str => Self::Str(Str::try_new(value.1)?),
+    fn try_from((name, value): (String, String)) -> Result<Self, Self::Error> {
+        Ok(match RenamerDiscriminants::try_new(name)? {
+            RenamerDiscriminants::AddPrefix => Self::AddPrefix(value),
+            RenamerDiscriminants::AddSuffix => Self::AddSuffix(value),
+            RenamerDiscriminants::StripPrefix => Self::StripPrefix(value),
+            RenamerDiscriminants::StripSuffix => Self::StripSuffix(value),
+            RenamerDiscriminants::TrimStart => Self::TrimStart(value),
+            RenamerDiscriminants::TrimEnd => Self::TrimEnd(value),
+            RenamerDiscriminants::Str => Self::Str(Str::try_new(value)?),
 
             #[cfg(feature = "ident_case")]
-            RenamerDiscriminants::IdentCase => Self::IdentCase(IdentCase::try_new(value.1)?),
+            RenamerDiscriminants::IdentCase => Self::IdentCase(IdentCase::try_new(value)?),
 
             #[cfg(feature = "convert_case")]
-            RenamerDiscriminants::ConvertCase => Self::ConvertCase(ConvertCase::try_new(value.1)?),
+            RenamerDiscriminants::ConvertCase => Self::ConvertCase(ConvertCase::try_new(value)?),
 
             #[cfg(feature = "heck")]
-            RenamerDiscriminants::Heck => Self::Heck(Heck::try_new(value.1)?),
+            RenamerDiscriminants::Heck => Self::Heck(Heck::try_new(value)?),
 
             #[cfg(feature = "inflector")]
-            RenamerDiscriminants::Inflector => Self::Inflector(Inflector::try_new(value.1)?),
+            RenamerDiscriminants::Inflector => Self::Inflector(Inflector::try_new(value)?),
 
             #[cfg(feature = "strfmt")]
-            RenamerDiscriminants::StrFmt => Self::StrFmt(value.1),
+            RenamerDiscriminants::StrFmt => Self::StrFmt(value),
 
             #[cfg(feature = "dynfmt_python")]
-            RenamerDiscriminants::DynFmtPython => Self::DynFmtPython(value.1),
+            RenamerDiscriminants::DynFmtPython => Self::DynFmtPython(value),
 
             #[cfg(feature = "dynfmt_curly")]
-            RenamerDiscriminants::DynFmtCurly => Self::DynFmtCurly(value.1),
+            RenamerDiscriminants::DynFmtCurly => Self::DynFmtCurly(value),
         })
     }
 }

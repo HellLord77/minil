@@ -14,14 +14,28 @@ use syn_utils::parse_attrs;
 use crate::attr::SerdeRenameChainAttrs;
 use crate::renamer::Renamer;
 
-fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn::Result<()> {
+fn process(renamers: &mut Vec<Renamer>, attrs: &mut Vec<Attribute>) -> syn::Result<()> {
+    if has_attribute(attrs, "serde", "rename_all") {
+        renamers.clear();
+    } else {
+        let args = parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)?;
+        renamers.extend(args.renamers);
+    }
+
+    let derive_attr = parse_quote!(#[derive(::serde_rename_chain::_SerdeRenameChain)]);
+    attrs.push(derive_attr);
+
+    Ok(())
+}
+
+fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn::Result<bool> {
     if has_attribute(attrs, "serde_rename_chain", "skip")
         || has_attribute(attrs, "serde", "skip")
         || (has_attribute(attrs, "serde", "skip_serializing")
             && has_attribute(attrs, "serde", "skip_deserializing"))
         || has_attribute(attrs, "serde", "rename")
     {
-        return Ok(());
+        return Ok(false);
     }
 
     let args = parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)?;
@@ -31,7 +45,7 @@ fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn
         &args.renamers
     };
     if renamers.is_empty() {
-        return Ok(());
+        return Ok(false);
     }
 
     let rename = renamers
@@ -39,7 +53,8 @@ fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn
         .fold(ident.to_string(), |acc, renamer| renamer.apply(&acc));
     let rename_attr = parse_quote!(#[serde(rename = #rename)]);
     attrs.push(rename_attr);
-    Ok(())
+
+    Ok(true)
 }
 
 pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<TokenStream> {
@@ -52,15 +67,7 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
                 ref mut fields,
                 ..
             } = item;
-
-            parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)
-                .map(|args| renamers.extend(args.renamers))?;
-            if has_attribute(attrs, "serde", "rename_all") {
-                renamers.clear();
-            }
-
-            let derive_attr = parse_quote!(#[derive(::serde_rename_chain::_SerdeRenameChain)]);
-            attrs.push(derive_attr);
+            process(&mut renamers, attrs)?;
 
             match fields {
                 Fields::Named(fields) => {
@@ -70,6 +77,7 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
                             field.ident.as_ref().unwrap_or_else(|| unreachable!()),
                             &mut field.attrs,
                         )
+                        .map(|_| ())
                     })?;
 
                     Ok(quote! { #item })
@@ -83,19 +91,11 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
                 ref mut variants,
                 ..
             } = item;
+            process(&mut renamers, attrs)?;
 
-            parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)
-                .map(|args| renamers.extend(args.renamers))?;
-            if has_attribute(attrs, "serde", "rename_all") {
-                renamers.clear();
-            }
-
-            let derive_attr = parse_quote!(#[derive(::serde_rename_chain::_SerdeRenameChain)]);
-            attrs.push(derive_attr);
-
-            variants
-                .iter_mut()
-                .try_for_each(|variant| apply(&renamers, &variant.ident, &mut variant.attrs))?;
+            variants.iter_mut().try_for_each(|variant| {
+                apply(&renamers, &variant.ident, &mut variant.attrs).map(|_| ())
+            })?;
 
             Ok(quote! { #item })
         }
