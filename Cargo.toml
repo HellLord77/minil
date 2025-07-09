@@ -41,7 +41,6 @@ sha2 = "0.10.9"
 axum-body = { path = "lib/axum-body" }
 axum-derive-macros = { path = "lib/axum-derive-macros" }
 axum-header = { path = "lib/axum-header" }
-axum-optional-from-request = { path = "lib/axum-optional-from-request" }
 axum-s3 = { path = "lib/axum-s3" }
 axum-s3-macros = { path = "lib/axum-s3-macros" }
 ensure = { path = "lib/ensure" }
