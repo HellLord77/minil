@@ -1,3 +1,5 @@
+#![deprecated = "use `axum-serde` insted"]
+
 mod category;
 mod rejection;
 mod xml;
