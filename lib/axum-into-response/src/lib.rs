@@ -1,3 +1,5 @@
+#![deprecated = "use `axum-derive-macros` insted"]
+
 mod attr;
 mod into_response;
 
