@@ -645,6 +645,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-derive-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+ "syn-utils",
+]
+
+[[package]]
 name = "axum-extra"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -687,7 +697,7 @@ dependencies = [
 
 [[package]]
 name = "axum-into-response"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -708,7 +718,7 @@ dependencies = [
 
 [[package]]
 name = "axum-optional-from-request"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -721,10 +731,9 @@ name = "axum-s3"
 version = "0.4.1"
 dependencies = [
  "axum",
+ "axum-derive-macros",
  "axum-extra",
  "axum-header",
- "axum-into-response",
- "axum-optional-from-request",
  "axum-s3-macros",
  "axum-serde",
  "bon",

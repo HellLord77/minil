@@ -83,6 +83,6 @@ async fn test_either_rejection() {
     assert_eq!(&rejection.status(), &StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(
         &rejection.body_text(),
-        "Failed to process both entities: Failed to deserialize form: missing field `hello`"
+        "Failed to process both entities: Left rejection: Failed to deserialize form: missing field `hello`"
     );
 }

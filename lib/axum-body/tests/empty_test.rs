@@ -56,6 +56,6 @@ async fn test_optional_empty_rejection() {
     assert_eq!(&rejection.status(), &StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(
         &rejection.to_string(),
-        "Failed to process non empty entity: Request body didn't contain valid UTF-8: invalid utf-8 sequence of 1 bytes from index 0"
+        "Failed to process non empty entity: Right rejection: Request body didn't contain valid UTF-8: invalid utf-8 sequence of 1 bytes from index 0"
     );
 }
