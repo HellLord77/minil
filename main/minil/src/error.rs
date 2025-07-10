@@ -56,7 +56,7 @@ impl IntoResponse for AppError {
 impl AppErrorDiscriminants {
     #[inline]
     pub(crate) fn into_response(self, parts: ErrorParts) -> Response {
-        app_response_err!(self, parts: [
+        app_response_err!((self, parts) {
             AccessDenied => AccessDeniedOutput,
             BadDigest => BadDigestOutput,
             BucketAlreadyExists => BucketAlreadyExistsOutput,
@@ -71,10 +71,10 @@ impl AppErrorDiscriminants {
             NoSuchUpload => NoSuchUploadOutput,
             NotImplemented => NotImplementedOutput,
             PreconditionFailed => PreconditionFailedOutput,
-            TooManyParts => TooManyPartsOutput;
-
+            TooManyParts => TooManyPartsOutput,
+            _ => !
             AxumError => INTERNAL_SERVER_ERROR,
             DatabaseError => INTERNAL_SERVER_ERROR,
-        ])
+        })
     }
 }

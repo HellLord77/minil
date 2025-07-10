@@ -1,8 +1,16 @@
+macro_rules! app_define_routes {
+    ($router:ident {
+        $($path:expr => $method:ident($handler:expr)),* $(,)?
+    }) => {
+        $router$(.route(::axum_extra::vpath!($path), ::axum::routing::$method($handler)))*
+    };
+}
+
 macro_rules! app_define_handler {
-    ($handler_fn:ident(
+    ($handler_fn:ident {
         $($ck_ty:ident => $handler:ident,)*
         _ => $def_handler:ident
-    )) => {
+    }) => {
         #[allow(non_snake_case)]
         async fn $handler_fn(
             $($ck_ty: ::std::option::Option<::axum_s3::operation::check::$ck_ty>,)*
@@ -64,10 +72,11 @@ macro_rules! app_output_err {
 }
 
 macro_rules! app_response_err {
-    ($err:expr, $parts:ident: [
-        $($var:ident => $out_ty:ident),*;
+    (($err:expr, $parts:expr) {
+        $($var:ident => $out_ty:ident),* $(,)?
+        _ => !
         $($var_err:ident => $status:ident),* $(,)?
-    ]) => {
+    }) => {
         match $err {
             $(Self::$var => {
                 $crate::macros::app_output_err!(::axum_s3::error::$out_ty::from($parts))
@@ -78,6 +87,7 @@ macro_rules! app_response_err {
 }
 
 pub(crate) use app_define_handler;
+pub(crate) use app_define_routes;
 pub(crate) use app_ensure_eq;
 pub(crate) use app_ensure_matches;
 pub(crate) use app_log_err;

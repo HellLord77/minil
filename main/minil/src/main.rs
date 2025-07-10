@@ -19,11 +19,6 @@ use axum::http::HeaderValue;
 use axum::http::header;
 use axum::middleware::Next;
 use axum::response::Response;
-use axum::routing::delete;
-use axum::routing::get;
-use axum::routing::head;
-use axum::routing::put;
-use axum_extra::vpath;
 use axum_s3::operation::CreateBucketInput;
 use axum_s3::operation::CreateBucketOutput;
 use axum_s3::operation::DeleteBucketInput;
@@ -84,6 +79,7 @@ use crate::error::AppError;
 use crate::error::AppErrorDiscriminants;
 use crate::error::AppResult;
 use crate::macros::app_define_handler;
+use crate::macros::app_define_routes;
 use crate::macros::app_ensure_eq;
 use crate::macros::app_ensure_matches;
 use crate::macros::app_output;
@@ -142,18 +138,18 @@ async fn main() {
         .middleware_fn(set_process_time)
         .middleware_fn(handle_app_error);
 
-    let router = Router::new()
-        .route(vpath!("/"), get(list_buckets))
-        .route(vpath!("/{Bucket}"), delete(delete_bucket))
-        .route(vpath!("/{Bucket}"), get(get_bucket_handler))
-        .route(vpath!("/{Bucket}"), head(head_bucket))
-        .route(vpath!("/{Bucket}"), put(create_bucket))
-        .route(vpath!("/{Bucket}/versioning"), get(get_bucket_versioning))
-        .route(vpath!("/{Bucket}/{*Key}"), put(put_object))
-        .with_state(state)
-        .layer(middleware);
-
-    let app = ServiceExt::<Request>::into_make_service(
+    let router = Router::new();
+    let router = app_define_routes!(router {
+        "/" => get(list_buckets),
+        "/{Bucket}" => delete(delete_bucket),
+        "/{Bucket}" => get(get_bucket_handler),
+        "/{Bucket}" => head(head_bucket),
+        "/{Bucket}" => put(create_bucket),
+        "/{Bucket}/versioning" => get(get_bucket_versioning),
+        "/{Bucket}/{*Key}" => put(put_object),
+    });
+    let router = router.with_state(state).layer(middleware);
+    let router = ServiceExt::<Request>::into_make_service(
         NormalizePathLayer::trim_trailing_slash().layer(router),
     );
 
@@ -162,7 +158,7 @@ async fn main() {
         .await
         .expect("failed to bind address");
     tracing::info!("listening on {}", addr);
-    axum::serve(listener, app)
+    axum::serve(listener, router)
         .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
@@ -440,12 +436,12 @@ async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResul
     )
 }
 
-app_define_handler!(get_bucket_handler(
+app_define_handler!(get_bucket_handler {
     GetBucketVersioningCheck => get_bucket_versioning,
     GetBucketLocationCheck => get_bucket_location,
     ListObjectsV2Check => list_objects_v2,
     _ => list_objects
-));
+});
 
 async fn get_bucket_versioning(
     State(db): State<DbConn>,
