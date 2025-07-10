@@ -10,6 +10,7 @@ axum-extra.workspace = true
 axum-serde.workspace = true
 bon.workspace = true
 
+axum-body.workspace = true
 axum-header.workspace = true
 serde-s3.workspace = true
 
