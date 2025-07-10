@@ -1,4 +1,5 @@
 mod from_request;
+mod from_request_optional;
 mod into_response;
 mod optional_from_request;
 
@@ -30,6 +31,34 @@ pub fn derive_optional_from_request(input: TokenStream) -> TokenStream {
 pub fn derive_optional_from_request_parts(input: TokenStream) -> TokenStream {
     expand_with(input, |item| {
         optional_from_request::expand(item, optional_from_request::Trait::OptionalFromRequestParts)
+    })
+}
+
+#[proc_macro_attribute]
+pub fn from_request_optional(_attr: TokenStream, input: TokenStream) -> TokenStream {
+    expand_with(input, |item| {
+        from_request_optional::modify(item, from_request_optional::Trait::FromRequestOptional)
+    })
+}
+
+#[proc_macro_attribute]
+pub fn from_request_parts_optional(_attr: TokenStream, input: TokenStream) -> TokenStream {
+    expand_with(input, |item| {
+        from_request_optional::modify(item, from_request_optional::Trait::FromRequestPartsOptional)
+    })
+}
+
+#[proc_macro_derive(_FromRequestOptional, attributes(from_request_optional))]
+pub fn _derive_from_request_optional(input: TokenStream) -> TokenStream {
+    expand_with(input, |item| {
+        from_request_optional::expand(item, from_request_optional::Trait::FromRequestOptional)
+    })
+}
+
+#[proc_macro_derive(_FromRequestPartsOptional, attributes(from_request_optional))]
+pub fn _derive_from_request_parts_optional(input: TokenStream) -> TokenStream {
+    expand_with(input, |item| {
+        from_request_optional::expand(item, from_request_optional::Trait::FromRequestPartsOptional)
     })
 }
 
