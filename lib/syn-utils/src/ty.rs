@@ -1,7 +1,9 @@
+use syn::GenericArgument;
+use syn::PathArguments;
 use syn::Type;
 
 pub fn peel_option(ty: &Type) -> Option<&Type> {
-    let type_path = if let syn::Type::Path(type_path) = ty {
+    let type_path = if let Type::Path(type_path) = ty {
         type_path
     } else {
         return None;
@@ -14,8 +16,8 @@ pub fn peel_option(ty: &Type) -> Option<&Type> {
     }
 
     let args = match &segment.arguments {
-        syn::PathArguments::AngleBracketed(args) => args,
-        syn::PathArguments::Parenthesized(_) | syn::PathArguments::None => return None,
+        PathArguments::AngleBracketed(args) => args,
+        PathArguments::Parenthesized(_) | PathArguments::None => return None,
     };
 
     let ty = if args.args.len() == 1 {
@@ -24,7 +26,7 @@ pub fn peel_option(ty: &Type) -> Option<&Type> {
         return None;
     };
 
-    if let syn::GenericArgument::Type(ty) = ty {
+    if let GenericArgument::Type(ty) = ty {
         Some(ty)
     } else {
         None
@@ -45,8 +47,8 @@ pub fn peel_result_ok(ty: &Type) -> Option<&Type> {
     }
 
     let args = match &segment.arguments {
-        syn::PathArguments::AngleBracketed(args) => args,
-        syn::PathArguments::Parenthesized(_) | syn::PathArguments::None => return None,
+        PathArguments::AngleBracketed(args) => args,
+        PathArguments::Parenthesized(_) | PathArguments::None => return None,
     };
 
     let ty = if args.args.len() == 2 {
@@ -55,7 +57,7 @@ pub fn peel_result_ok(ty: &Type) -> Option<&Type> {
         return None;
     };
 
-    if let syn::GenericArgument::Type(ty) = ty {
+    if let GenericArgument::Type(ty) = ty {
         Some(ty)
     } else {
         None
