@@ -37,10 +37,10 @@ where
 {
     let mut bytes = vec![];
 
-    for header in to_header_seq(input)? {
-        bytes.extend(header.0.as_bytes());
+    for (name, value) in to_header_seq(input)? {
+        bytes.extend(name.as_bytes());
         bytes.extend(b": ");
-        bytes.extend(header.1);
+        bytes.extend(value);
         bytes.extend(b"\r\n");
     }
     bytes.extend(b"\r\n");

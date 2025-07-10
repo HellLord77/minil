@@ -646,7 +646,7 @@ dependencies = [
 
 [[package]]
 name = "axum-derive-macros"
-version = "0.1.0"
+version = "0.1.4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -696,16 +696,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "axum-into-response"
-version = "0.2.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.104",
- "syn-utils",
-]
-
-[[package]]
 name = "axum-macros"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -717,20 +707,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "axum-optional-from-request"
-version = "0.2.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.104",
- "syn-utils",
-]
-
-[[package]]
 name = "axum-s3"
 version = "0.4.1"
 dependencies = [
  "axum",
+ "axum-body",
  "axum-derive-macros",
  "axum-extra",
  "axum-header",
@@ -3820,7 +3801,7 @@ dependencies = [
 
 [[package]]
 name = "serde-rename-chain"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "Inflector",
  "convert_case 0.8.0",
@@ -4463,7 +4444,7 @@ dependencies = [
 
 [[package]]
 name = "syn-utils"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "quote",
  "syn 2.0.104",

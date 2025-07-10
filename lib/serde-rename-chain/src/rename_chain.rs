@@ -14,49 +14,6 @@ use syn_utils::parse_attrs;
 use crate::attr::SerdeRenameChainAttrs;
 use crate::renamer::Renamer;
 
-fn process(renamers: &mut Vec<Renamer>, attrs: &mut Vec<Attribute>) -> syn::Result<()> {
-    if has_attribute(attrs, "serde", "rename_all") {
-        renamers.clear();
-    } else {
-        let args = parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)?;
-        renamers.extend(args.renamers);
-    }
-
-    let derive_attr = parse_quote!(#[derive(::serde_rename_chain::_SerdeRenameChain)]);
-    attrs.push(derive_attr);
-
-    Ok(())
-}
-
-fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn::Result<bool> {
-    if has_attribute(attrs, "serde_rename_chain", "skip")
-        || has_attribute(attrs, "serde", "skip")
-        || (has_attribute(attrs, "serde", "skip_serializing")
-            && has_attribute(attrs, "serde", "skip_deserializing"))
-        || has_attribute(attrs, "serde", "rename")
-    {
-        return Ok(false);
-    }
-
-    let args = parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)?;
-    let renamers = if args.renamers.is_empty() {
-        renamers
-    } else {
-        &args.renamers
-    };
-    if renamers.is_empty() {
-        return Ok(false);
-    }
-
-    let rename = renamers
-        .iter()
-        .fold(ident.to_string(), |acc, renamer| renamer.apply(&acc));
-    let rename_attr = parse_quote!(#[serde(rename = #rename)]);
-    attrs.push(rename_attr);
-
-    Ok(true)
-}
-
 pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<TokenStream> {
     let SerdeRenameChainAttrs { mut renamers } = args;
 
@@ -101,4 +58,47 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
         }
         _ => bail_spanned!(item, "expected struct or enum"),
     }
+}
+
+fn process(renamers: &mut Vec<Renamer>, attrs: &mut Vec<Attribute>) -> syn::Result<()> {
+    if has_attribute(attrs, "serde", "rename_all") {
+        renamers.clear();
+    } else {
+        let args = parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)?;
+        renamers.extend(args.renamers);
+    }
+
+    let derive_attr = parse_quote!(#[derive(::serde_rename_chain::_SerdeRenameChain)]);
+    attrs.push(derive_attr);
+
+    Ok(())
+}
+
+fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn::Result<bool> {
+    if has_attribute(attrs, "serde_rename_chain", "skip")
+        || has_attribute(attrs, "serde", "skip")
+        || (has_attribute(attrs, "serde", "skip_serializing")
+            && has_attribute(attrs, "serde", "skip_deserializing"))
+        || has_attribute(attrs, "serde", "rename")
+    {
+        return Ok(false);
+    }
+
+    let args = parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)?;
+    let renamers = if args.renamers.is_empty() {
+        renamers
+    } else {
+        &args.renamers
+    };
+    if renamers.is_empty() {
+        return Ok(false);
+    }
+
+    let rename = renamers
+        .iter()
+        .fold(ident.to_string(), |acc, renamer| renamer.apply(&acc));
+    let rename_attr = parse_quote!(#[serde(rename = #rename)]);
+    attrs.push(rename_attr);
+
+    Ok(true)
 }
