@@ -13,11 +13,11 @@ pub(super) mod kw {
 }
 
 #[derive(Default)]
-pub(super) struct IntoResponseAttrs {
+pub(super) struct Attrs {
     pub(super) via: Option<(kw::via, Path)>,
 }
 
-impl Parse for IntoResponseAttrs {
+impl Parse for Attrs {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let mut via = None;
 
@@ -36,7 +36,7 @@ impl Parse for IntoResponseAttrs {
     }
 }
 
-impl Combine for IntoResponseAttrs {
+impl Combine for Attrs {
     fn combine(mut self, other: Self) -> syn::Result<Self> {
         let Self { via } = other;
         combine_attribute(&mut self.via, via)?;

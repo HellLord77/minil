@@ -1,8 +1,3 @@
-mod attr;
-mod tr;
-
-use attr::IntoResponseAttrs;
-use attr::kw;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -17,24 +12,18 @@ use syn::Path;
 use syn::spanned::Spanned;
 use syn_utils::bail_spanned;
 use syn_utils::parse_attrs;
-pub(super) use tr::Trait;
 
-pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
+use crate::attr::Attrs;
+use crate::attr::kw;
+
+pub(super) fn expand(item: Item, parts: bool) -> syn::Result<TokenStream> {
     match item {
         Item::Struct(item) => {
             let ItemStruct { ident, fields, .. } = item;
-            let extract_fields = extract_fields(&fields, &tr)?;
+            let extract_fields = extract_fields(&fields, &parts)?;
 
-            Ok(match tr {
-                Trait::IntoResponse => quote! {
-                    #[automatically_derived]
-                    impl ::axum::response::IntoResponse for #ident {
-                        fn into_response(self) -> ::axum::response::Response {
-                            ::axum::response::IntoResponse::into_response((#(#extract_fields)*))
-                        }
-                    }
-                },
-                Trait::IntoResponseParts => quote! {
+            Ok(if parts {
+                quote! {
                     #[automatically_derived]
                     impl ::axum::response::IntoResponseParts for #ident {
                         type Error = ::axum::response::Response;
@@ -46,7 +35,16 @@ pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
                             #(#extract_fields)*
                         }
                     }
-                },
+                }
+            } else {
+                quote! {
+                    #[automatically_derived]
+                    impl ::axum::response::IntoResponse for #ident {
+                        fn into_response(self) -> ::axum::response::Response {
+                            ::axum::response::IntoResponse::into_response((#(#extract_fields)*))
+                        }
+                    }
+                }
             })
         }
         Item::Enum(_item) => unimplemented!(),
@@ -54,7 +52,7 @@ pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
     }
 }
 
-fn extract_fields(fields: &Fields, tr: &Trait) -> syn::Result<Vec<TokenStream>> {
+fn extract_fields(fields: &Fields, parts: &bool) -> syn::Result<Vec<TokenStream>> {
     fn member(field: &Field, index: usize) -> TokenStream {
         match &field.ident {
             Some(ident) => quote! { #ident },
@@ -91,40 +89,42 @@ fn extract_fields(fields: &Fields, tr: &Trait) -> syn::Result<Vec<TokenStream>> 
     let mut extract_fields = fields_iter
         .enumerate()
         .map(|(index, field)| {
-            let IntoResponseAttrs { via } = parse_attrs("into_response", &field.attrs)?;
+            let Attrs { via } = parse_attrs("into_response", &field.attrs)?;
 
             let member = member(field, index);
             let ty_span = field.ty.span();
             let into_inner = into_inner(&via, member, ty_span);
 
-            let tokens = match tr {
-                Trait::IntoResponse => quote_spanned! {ty_span=>
-                            #into_inner,
-                        },
-                Trait::IntoResponseParts => quote_spanned! {ty_span=>
-                            let res = ::axum::response::IntoResponseParts::into_response_parts(#into_inner, res)
-                                .map_err(::axum::response::IntoResponse::into_response)?;
-                        }
+            let tokens = if *parts {
+                quote_spanned! {ty_span=>
+                    let res = ::axum::response::IntoResponseParts::into_response_parts(#into_inner, res)
+                        .map_err(::axum::response::IntoResponse::into_response)?;
+                }
+            } else {
+                quote_spanned! {ty_span=>
+                    #into_inner,
+                }
             };
             Ok(tokens)
         })
         .collect::<syn::Result<Vec<_>>>()?;
 
     if let Some(field) = last {
-        let IntoResponseAttrs { via } = parse_attrs("into_response", &field.attrs)?;
+        let Attrs { via } = parse_attrs("into_response", &field.attrs)?;
 
         let member = member(field, fields.len() - 1);
         let ty_span = field.ty.span();
         let into_inner = into_inner(&via, member, ty_span);
 
-        let tokens = match tr {
-            Trait::IntoResponse => quote_spanned! {ty_span=>
-                #into_inner
-            },
-            Trait::IntoResponseParts => quote_spanned! {ty_span=>
+        let tokens = if *parts {
+            quote_spanned! {ty_span=>
                 ::axum::response::IntoResponseParts::into_response_parts(#into_inner, res)
-                .map_err(::axum::response::IntoResponse::into_response)
-            },
+                    .map_err(::axum::response::IntoResponse::into_response)
+            }
+        } else {
+            quote_spanned! {ty_span=>
+                #into_inner
+            }
         };
         extract_fields.push(tokens);
     };

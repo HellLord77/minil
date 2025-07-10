@@ -1,7 +1,3 @@
-mod attr;
-mod tr;
-
-use attr::FromRequestOptionalAttrs;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::format_ident;
@@ -24,11 +20,11 @@ use syn_utils::parse_attrs;
 use syn_utils::peel_option;
 use syn_utils::remove_attribute;
 use syn_utils::remove_derive_attribute;
-pub(super) use tr::Trait;
 
-use crate::from_request_optional::attr::kw;
+use crate::attr::Attrs;
+use crate::attr::kw;
 
-pub(super) fn modify(item: Item, tr: Trait) -> syn::Result<TokenStream> {
+pub(super) fn modify(item: Item, parts: bool) -> syn::Result<TokenStream> {
     match item {
         Item::Struct(mut item) => {
             let ItemStruct {
@@ -37,19 +33,16 @@ pub(super) fn modify(item: Item, tr: Trait) -> syn::Result<TokenStream> {
                 ..
             } = item;
 
-            let derive_attrs = match tr {
-                Trait::FromRequestOptional => {
-                    parse_quote!(#[derive(
-                        ::axum_derive_macros::FromRequest,
-                        ::axum_derive_macros::_FromRequestOptional
-                    )])
-                }
-                Trait::FromRequestPartsOptional => {
-                    parse_quote!(#[derive(
-                        ::axum_derive_macros::FromRequestParts,
-                        ::axum_derive_macros::_FromRequestPartsOptional
-                    )])
-                }
+            let derive_attrs = if parts {
+                parse_quote!(#[derive(
+                    ::axum_derive_macros::FromRequestParts,
+                    ::axum_derive_macros::_FromRequestPartsOptional
+                )])
+            } else {
+                parse_quote!(#[derive(
+                    ::axum_derive_macros::FromRequest,
+                    ::axum_derive_macros::_FromRequestOptional
+                )])
             };
             attrs.push(derive_attrs);
 
@@ -64,7 +57,7 @@ pub(super) fn modify(item: Item, tr: Trait) -> syn::Result<TokenStream> {
     }
 }
 
-pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
+pub(super) fn expand(item: Item, parts: bool) -> syn::Result<TokenStream> {
     match item {
         Item::Struct(mut item) => {
             let ItemStruct {
@@ -77,32 +70,23 @@ pub(super) fn expand(item: Item, tr: Trait) -> syn::Result<TokenStream> {
             *vis = Visibility::Inherited;
             item.ident = format_ident!("_FromRequestOptional{ident}");
 
-            let remove_attrs = match tr {
-                Trait::FromRequestOptional => [
-                    "::axum_derive_macros::FromRequest",
-                    "::axum_derive_macros::_FromRequestOptional",
-                ],
-                Trait::FromRequestPartsOptional => [
-                    "::axum_derive_macros::FromRequestParts",
-                    "::axum_derive_macros::_FromRequestPartsOptional",
-                ],
-            };
-            for attr in remove_attrs {
-                remove_derive_attribute(attrs, attr);
+            if parts {
+                remove_derive_attribute(attrs, "::axum_derive_macros::FromRequestParts");
+                remove_derive_attribute(attrs, "::axum_derive_macros::_FromRequestPartsOptional");
+            } else {
+                remove_derive_attribute(attrs, "::axum_derive_macros::FromRequest");
+                remove_derive_attribute(attrs, "::axum_derive_macros::_FromRequestOptional");
             }
             remove_attribute(attrs, "from_request");
 
-            let derive_attr = match tr {
-                Trait::FromRequestOptional => {
-                    parse_quote!(
-                        #[derive(::axum::extract::FromRequest)]
-                    )
-                }
-                Trait::FromRequestPartsOptional => {
-                    parse_quote!(
-                        #[derive(::axum::extract::FromRequestParts)]
-                    )
-                }
+            let derive_attr = if parts {
+                parse_quote!(
+                    #[derive(::axum::extract::FromRequestParts)]
+                )
+            } else {
+                parse_quote!(
+                    #[derive(::axum::extract::FromRequest)]
+                )
             };
             attrs.push(derive_attr);
 
@@ -145,8 +129,8 @@ fn extract_fields(fields: &mut Fields) -> syn::Result<Vec<TokenStream>> {
     }
 
     fn into_inner(
-        optional_via: &Option<(attr::kw::via, Path)>,
-        via: &Option<(attr::kw::via, Path)>,
+        optional_via: &Option<(kw::via, Path)>,
+        via: &Option<(kw::via, Path)>,
         ty_span: Span,
     ) -> TokenStream {
         if let Some((_, optional_path)) = optional_via {
@@ -198,12 +182,11 @@ fn extract_fields(fields: &mut Fields) -> syn::Result<Vec<TokenStream>> {
             let Field { attrs, ty, .. } = field;
             let ty_span = ty.span();
 
-            let optional_via =
-                parse_attrs::<FromRequestOptionalAttrs>("from_request_optional", attrs)?.via;
+            let optional_via = parse_attrs::<Attrs>("from_request_optional", attrs)?.via;
             remove_attribute(attrs, "from_request_optional");
 
             let via = if optional_via.is_some() {
-                let via = parse_attrs::<FromRequestOptionalAttrs>("from_request", attrs)?.via;
+                let via = parse_attrs::<Attrs>("from_request", attrs)?.via;
                 remove_attribute(attrs, "from_request");
 
                 let inner_ty = peel_option(ty)
