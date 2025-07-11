@@ -154,7 +154,10 @@ async fn main() {
         "/{Bucket}/versioning" => get(get_bucket_versioning),
         "/{Bucket}/{*Key}" => put(put_object),
     });
-    let router = router.with_state(state).layer(middleware);
+    let router = router
+        .method_not_allowed_fallback(async || AppError::MethodNotAllowed)
+        .with_state(state)
+        .layer(middleware);
     let router = ServiceExt::<Request>::into_make_service(
         NormalizePathLayer::trim_trailing_slash().layer(router),
     );

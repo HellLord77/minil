@@ -31,6 +31,7 @@ pub(crate) enum AppError {
     InvalidDigest,
     #[allow(dead_code)]
     InvalidWriteOffset,
+    MethodNotAllowed,
     NoSuchBucket,
     #[allow(dead_code)]
     NoSuchKey,
@@ -71,6 +72,7 @@ impl AppErrorDiscriminants {
             InternalError => InternalErrorOutput,
             InvalidDigest => InvalidDigestOutput,
             InvalidWriteOffset => InvalidWriteOffsetOutput,
+            MethodNotAllowed => MethodNotAllowedOutput,
             NoSuchBucket => NoSuchBucketOutput,
             NoSuchKey => NoSuchKeyOutput,
             NoSuchUpload => NoSuchUploadOutput,
