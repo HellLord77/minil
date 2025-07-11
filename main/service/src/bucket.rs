@@ -1,13 +1,18 @@
+use std::marker::PhantomData;
+
 use minil_entity::bucket;
 use minil_entity::prelude::*;
 use sea_orm::*;
 use uuid::Uuid;
 
-pub struct BucketQuery;
+pub struct BucketQuery<C>(PhantomData<C>);
 
-impl BucketQuery {
+impl<C> BucketQuery<C>
+where
+    C: ConnectionTrait,
+{
     pub async fn find_by_unique_id(
-        db: &DbConn,
+        db: &C,
         owner_id: Uuid,
         name: &str,
     ) -> Result<Option<bucket::Model>, DbErr> {
@@ -19,7 +24,7 @@ impl BucketQuery {
     }
 
     pub async fn find_all_by_owner_id(
-        db: &DbConn,
+        db: &C,
         owner_id: Uuid,
         starts_with: Option<&str>,
         start_after: Option<&str>,
@@ -40,13 +45,13 @@ impl BucketQuery {
     }
 }
 
-pub struct BucketMutation;
+pub struct BucketMutation<C>(PhantomData<C>);
 
-impl BucketMutation {
-    async fn insert(
-        db: &DbConn,
-        bucket: bucket::ActiveModel,
-    ) -> Result<Option<bucket::Model>, DbErr> {
+impl<C> BucketMutation<C>
+where
+    C: ConnectionTrait,
+{
+    async fn insert(db: &C, bucket: bucket::ActiveModel) -> Result<Option<bucket::Model>, DbErr> {
         TryInsert::one(bucket)
             .on_conflict(
                 sea_query::OnConflict::columns([bucket::Column::OwnerId, bucket::Column::Name])
@@ -67,7 +72,7 @@ impl BucketMutation {
     }
 
     pub async fn create(
-        db: &DbConn,
+        db: &C,
         owner_id: Uuid,
         name: &str,
         region: &str,
@@ -82,12 +87,12 @@ impl BucketMutation {
         BucketMutation::insert(db, bucket).await
     }
 
-    async fn delete(db: &DbConn, bucket: bucket::Model) -> Result<Option<bucket::Model>, DbErr> {
+    async fn delete(db: &C, bucket: bucket::Model) -> Result<Option<bucket::Model>, DbErr> {
         Delete::one(bucket).exec_with_returning(db).await
     }
 
     pub async fn delete_by_unique_id(
-        db: &DbConn,
+        db: &C,
         owner_id: Uuid,
         name: &str,
     ) -> Result<Option<bucket::Model>, DbErr> {

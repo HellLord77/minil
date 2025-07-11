@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use axum::body::BodyDataStream;
 use crc_fast::CrcAlgorithm;
 use digest::Digest;
@@ -10,11 +12,14 @@ use sha2::Sha256;
 use tokio_stream::StreamExt;
 use uuid::Uuid;
 
-pub struct ObjectQuery;
+pub struct ObjectQuery<C>(PhantomData<C>);
 
-impl ObjectQuery {
+impl<C> ObjectQuery<C>
+where
+    C: ConnectionTrait,
+{
     pub async fn find_by_unique_id(
-        db: &DbConn,
+        db: &C,
         bucket_id: Uuid,
         key: &str,
     ) -> Result<Option<object::Model>, DbErr> {
@@ -26,10 +31,13 @@ impl ObjectQuery {
     }
 }
 
-pub struct ObjectMutation;
+pub struct ObjectMutation<C>(PhantomData<C>);
 
-impl ObjectMutation {
-    async fn insert(db: &DbConn, object: object::ActiveModel) -> Result<object::Model, DbErr> {
+impl<C> ObjectMutation<C>
+where
+    C: ConnectionTrait,
+{
+    async fn insert(db: &C, object: object::ActiveModel) -> Result<object::Model, DbErr> {
         TryInsert::one(object)
             .on_conflict(
                 sea_query::OnConflict::columns([object::Column::BucketId, object::Column::Key])
@@ -57,7 +65,7 @@ impl ObjectMutation {
     }
 
     pub async fn create(
-        db: &DbConn,
+        db: &C,
         bucket_id: Uuid,
         key: &str,
         mut stream: BodyDataStream,
@@ -118,12 +126,12 @@ impl ObjectMutation {
         Ok(ObjectMutation::insert(db, object).await)
     }
 
-    async fn delete(db: &DbConn, object: object::Model) -> Result<Option<object::Model>, DbErr> {
+    async fn delete(db: &C, object: object::Model) -> Result<Option<object::Model>, DbErr> {
         Delete::one(object).exec_with_returning(db).await
     }
 
     pub async fn delete_by_unique_id(
-        db: &DbConn,
+        db: &C,
         bucket_id: Uuid,
         key: &str,
     ) -> Result<Option<object::Model>, DbErr> {

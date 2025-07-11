@@ -1,11 +1,16 @@
+use std::marker::PhantomData;
+
 use minil_entity::owner;
 use minil_entity::prelude::*;
 use sea_orm::*;
 
-pub struct OwnerQuery;
+pub struct OwnerQuery<C>(PhantomData<C>);
 
-impl OwnerQuery {
-    pub async fn find_by_unique_id(db: &DbConn, name: &str) -> Result<Option<owner::Model>, DbErr> {
+impl<C> OwnerQuery<C>
+where
+    C: ConnectionTrait,
+{
+    pub async fn find_by_unique_id(db: &C, name: &str) -> Result<Option<owner::Model>, DbErr> {
         Owner::find()
             .filter(owner::Column::Name.eq(name))
             .one(db)
@@ -13,6 +18,6 @@ impl OwnerQuery {
     }
 }
 
-pub struct OwnerMutation;
+pub struct OwnerMutation<C>(PhantomData<C>);
 
-impl OwnerMutation {}
+impl<C> OwnerMutation<C> where C: ConnectionTrait {}
