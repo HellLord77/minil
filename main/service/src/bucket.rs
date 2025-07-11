@@ -5,6 +5,8 @@ use minil_entity::prelude::*;
 use sea_orm::*;
 use uuid::Uuid;
 
+use crate::error::DbRes;
+
 pub struct BucketQuery<C>(PhantomData<C>);
 
 impl<C> BucketQuery<C>
@@ -15,7 +17,7 @@ where
         db: &C,
         owner_id: Uuid,
         name: &str,
-    ) -> Result<Option<bucket::Model>, DbErr> {
+    ) -> DbRes<Option<bucket::Model>> {
         Bucket::find()
             .filter(bucket::Column::OwnerId.eq(owner_id))
             .filter(bucket::Column::Name.eq(name))
@@ -29,7 +31,7 @@ where
         starts_with: Option<&str>,
         start_after: Option<&str>,
         limit: u16,
-    ) -> Result<Vec<bucket::Model>, DbErr> {
+    ) -> DbRes<Vec<bucket::Model>> {
         let mut query = Bucket::find().filter(bucket::Column::OwnerId.eq(owner_id));
         if let Some(starts_with) = starts_with {
             query = query.filter(bucket::Column::Name.starts_with(starts_with));
@@ -51,7 +53,7 @@ impl<C> BucketMutation<C>
 where
     C: ConnectionTrait,
 {
-    async fn insert(db: &C, bucket: bucket::ActiveModel) -> Result<Option<bucket::Model>, DbErr> {
+    async fn insert(db: &C, bucket: bucket::ActiveModel) -> DbRes<Option<bucket::Model>> {
         TryInsert::one(bucket)
             .on_conflict(
                 sea_query::OnConflict::columns([bucket::Column::OwnerId, bucket::Column::Name])
@@ -76,7 +78,7 @@ where
         owner_id: Uuid,
         name: &str,
         region: &str,
-    ) -> Result<Option<bucket::Model>, DbErr> {
+    ) -> DbRes<Option<bucket::Model>> {
         let bucket = bucket::ActiveModel {
             id: Set(Uuid::new_v4()),
             owner_id: Set(owner_id),
@@ -87,7 +89,7 @@ where
         BucketMutation::insert(db, bucket).await
     }
 
-    async fn delete(db: &C, bucket: bucket::Model) -> Result<Option<bucket::Model>, DbErr> {
+    async fn delete(db: &C, bucket: bucket::Model) -> DbRes<Option<bucket::Model>> {
         Delete::one(bucket).exec_with_returning(db).await
     }
 
@@ -95,7 +97,7 @@ where
         db: &C,
         owner_id: Uuid,
         name: &str,
-    ) -> Result<Option<bucket::Model>, DbErr> {
+    ) -> DbRes<Option<bucket::Model>> {
         let bucket = BucketQuery::find_by_unique_id(db, owner_id, name).await?;
         match bucket {
             Some(bucket) => BucketMutation::delete(db, bucket).await,

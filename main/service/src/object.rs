@@ -12,6 +12,8 @@ use sha2::Sha256;
 use tokio_stream::StreamExt;
 use uuid::Uuid;
 
+use crate::error::DbRes;
+
 pub struct ObjectQuery<C>(PhantomData<C>);
 
 impl<C> ObjectQuery<C>
@@ -22,7 +24,7 @@ where
         db: &C,
         bucket_id: Uuid,
         key: &str,
-    ) -> Result<Option<object::Model>, DbErr> {
+    ) -> DbRes<Option<object::Model>> {
         Object::find()
             .filter(object::Column::BucketId.eq(bucket_id))
             .filter(object::Column::Key.eq(key))
@@ -37,7 +39,7 @@ impl<C> ObjectMutation<C>
 where
     C: ConnectionTrait,
 {
-    async fn insert(db: &C, object: object::ActiveModel) -> Result<object::Model, DbErr> {
+    async fn insert(db: &C, object: object::ActiveModel) -> DbRes<object::Model> {
         TryInsert::one(object)
             .on_conflict(
                 sea_query::OnConflict::columns([object::Column::BucketId, object::Column::Key])
@@ -69,7 +71,7 @@ where
         bucket_id: Uuid,
         key: &str,
         mut stream: BodyDataStream,
-    ) -> Result<Result<object::Model, DbErr>, axum::Error> {
+    ) -> Result<DbRes<object::Model>, axum::Error> {
         let mut size = 0u64;
         let mut crc32;
         let mut crc32c;
@@ -126,7 +128,7 @@ where
         Ok(ObjectMutation::insert(db, object).await)
     }
 
-    async fn delete(db: &C, object: object::Model) -> Result<Option<object::Model>, DbErr> {
+    async fn delete(db: &C, object: object::Model) -> DbRes<Option<object::Model>> {
         Delete::one(object).exec_with_returning(db).await
     }
 
@@ -134,7 +136,7 @@ where
         db: &C,
         bucket_id: Uuid,
         key: &str,
-    ) -> Result<Option<object::Model>, DbErr> {
+    ) -> DbRes<Option<object::Model>> {
         let object = ObjectQuery::find_by_unique_id(db, bucket_id, key).await?;
         match object {
             Some(object) => ObjectMutation::delete(db, object).await,

@@ -1,4 +1,5 @@
 mod bucket;
+mod error;
 mod object;
 mod owner;
 
