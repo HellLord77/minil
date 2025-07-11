@@ -49,7 +49,12 @@ pub(crate) enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         app_log_err!(&self => [AxumError, DatabaseError]);
-        Extension(AppErrorDiscriminants::from(&self)).into_response()
+
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Extension(AppErrorDiscriminants::from(&self)),
+        )
+            .into_response()
     }
 }
 
@@ -72,9 +77,7 @@ impl AppErrorDiscriminants {
             NotImplemented => NotImplementedOutput,
             PreconditionFailed => PreconditionFailedOutput,
             TooManyParts => TooManyPartsOutput,
-            _ => !
-            AxumError => INTERNAL_SERVER_ERROR,
-            DatabaseError => INTERNAL_SERVER_ERROR,
+            _ => [AxumError, DatabaseError],
         })
     }
 }

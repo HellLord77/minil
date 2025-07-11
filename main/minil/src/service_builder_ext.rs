@@ -6,7 +6,6 @@ use tower::layer::util::Stack;
 pub(crate) trait AppServiceBuilderExt<L> {
     fn middleware_fn<F, T>(self, f: F) -> ServiceBuilder<Stack<FromFnLayer<F, (), T>, L>>;
 
-    #[allow(dead_code)]
     fn middleware_fn_with_state<F, S, T>(
         self,
         state: S,

@@ -9,7 +9,7 @@ macro_rules! app_define_routes {
 macro_rules! app_define_handler {
     ($handler_fn:ident {
         $($ck_ty:ident => $handler:ident,)*
-        _ => $def_handler:ident
+        _ => $def_handler:ident $(,)?
     }) => {
         #[allow(non_snake_case)]
         async fn $handler_fn(
@@ -73,15 +73,16 @@ macro_rules! app_output_err {
 
 macro_rules! app_response_err {
     (($err:expr, $parts:expr) {
-        $($var:ident => $out_ty:ident),* $(,)?
-        _ => !
-        $($var_err:ident => $status:ident),* $(,)?
+        $($var:ident => $out_ty:ident,)*
+        _ => [$($var_err:ident),* $(,)?] $(,)?
     }) => {
         match $err {
             $(Self::$var => {
                 $crate::macros::app_output_err!(::axum_s3::error::$out_ty::from($parts))
             },)*
-            $(Self::$var_err => $crate::macros::app_output_err!(StatusCode::$status),)*
+            $(Self::$var_err => {
+                $crate::macros::app_output_err!(::axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+            },)*
         }
     };
 }

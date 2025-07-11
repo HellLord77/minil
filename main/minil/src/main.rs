@@ -1,3 +1,4 @@
+mod database_transaction;
 mod error;
 mod macros;
 mod make_request_id;
@@ -8,8 +9,10 @@ use std::env;
 use std::future;
 use std::net::Ipv4Addr;
 use std::net::SocketAddrV4;
+use std::sync::Arc;
 use std::time::Instant;
 
+use axum::Extension;
 use axum::Router;
 use axum::ServiceExt;
 use axum::extract::Request;
@@ -51,6 +54,7 @@ use minil_service::OwnerQuery;
 use sea_orm::ConnectOptions;
 use sea_orm::Database;
 use sea_orm::DbConn;
+use sea_orm::TransactionTrait;
 use serde_s3::operation::CreateBucketOutputHeader;
 use serde_s3::operation::GetBucketLocationOutputBody;
 use serde_s3::operation::GetBucketVersioningOutputBody;
@@ -75,6 +79,7 @@ use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+use crate::database_transaction::DbTxn;
 use crate::error::AppError;
 use crate::error::AppErrorDiscriminants;
 use crate::error::AppResult;
@@ -136,7 +141,8 @@ async fn main() {
                 .expect("invalid server header"),
         )
         .middleware_fn(set_process_time)
-        .middleware_fn(handle_app_error);
+        .middleware_fn(handle_app_err)
+        .middleware_fn_with_state(state.clone(), manage_db_txn);
 
     let router = Router::new();
     let router = app_define_routes!(router {
@@ -208,24 +214,46 @@ async fn set_process_time(request: Request, next: Next) -> Response {
     response
 }
 
-async fn handle_app_error(request: Request, next: Next) -> Response {
+async fn handle_app_err(request: Request, next: Next) -> Response {
     let (parts, body) = request.into_parts();
     let err_parts = ErrorParts::from(&parts);
     let request = Request::from_parts(parts, body);
     let mut response = next.run(request).await;
 
-    if let Some(err) = response.extensions_mut().remove::<AppErrorDiscriminants>() {
-        response = err.into_response(err_parts);
+    let err = response.extensions_mut().remove::<AppErrorDiscriminants>();
+    if let Some(err) = err {
+        err.into_response(err_parts)
+    } else {
+        response
+    }
+}
+
+async fn manage_db_txn(
+    State(db_conn): State<DbConn>,
+    mut request: Request,
+    next: Next,
+) -> AppResult<Response> {
+    let db_txn = Arc::new(db_conn.begin().await?);
+    request.extensions_mut().insert(Arc::clone(&db_txn));
+    let response = next.run(request).await;
+
+    let db_txn = Arc::into_inner(db_txn).expect("failed to take transaction");
+    if response.status().is_success() {
+        db_txn.commit().await?;
+    } else {
+        db_txn.rollback().await?;
     }
 
-    response
+    Ok(response)
 }
 
 async fn create_bucket(
-    State(db): State<DbConn>,
+    Extension(db): Extension<DbTxn>,
     input: CreateBucketInput,
 ) -> AppResult<CreateBucketOutput> {
-    let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
+    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
+        .await?
+        .unwrap();
 
     dbg!(&input);
     app_ensure_matches!(input.header.acl, None);
@@ -240,7 +268,7 @@ async fn create_bucket(
 
     let region = serde_plain::to_string(&BucketLocationConstraint::UsEast1)
         .unwrap_or_else(|_| unreachable!());
-    let bucket = BucketMutation::create(&db, owner.id, &input.path.bucket, &region)
+    let bucket = BucketMutation::create(db.as_ref(), owner.id, &input.path.bucket, &region)
         .await?
         .ok_or(AppError::BucketAlreadyOwnedByYou)?;
 
@@ -256,10 +284,12 @@ async fn create_bucket(
 }
 
 async fn delete_bucket(
-    State(db): State<DbConn>,
+    Extension(db): Extension<DbTxn>,
     input: DeleteBucketInput,
 ) -> AppResult<DeleteBucketOutput> {
-    let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
+    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
+        .await?
+        .unwrap();
 
     dbg!(&input);
 
@@ -268,7 +298,7 @@ async fn delete_bucket(
             Err(AppError::AccessDenied)?
         }
     }
-    BucketMutation::delete_by_unique_id(&db, owner.id, &input.path.bucket)
+    BucketMutation::delete_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
@@ -276,10 +306,12 @@ async fn delete_bucket(
 }
 
 async fn head_bucket(
-    State(db): State<DbConn>,
+    Extension(db): Extension<DbTxn>,
     input: HeadBucketInput,
 ) -> AppResult<HeadBucketOutput> {
-    let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
+    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
+        .await?
+        .unwrap();
 
     dbg!(&input);
 
@@ -288,7 +320,7 @@ async fn head_bucket(
             Err(AppError::AccessDenied)?
         }
     }
-    let bucket = BucketQuery::find_by_unique_id(&db, owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
@@ -304,16 +336,18 @@ async fn head_bucket(
 }
 
 async fn list_buckets(
-    State(db): State<DbConn>,
+    Extension(db): Extension<DbTxn>,
     input: ListBucketsInput,
 ) -> AppResult<ListBucketsOutput> {
-    let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
+    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
+        .await?
+        .unwrap();
 
     dbg!(&input);
 
     let limit = input.query.max_buckets + 1;
     let mut buckets = BucketQuery::find_all_by_owner_id(
-        &db,
+        db.as_ref(),
         owner.id,
         input.query.prefix.as_deref(),
         input.query.continuation_token.as_deref(),
@@ -356,8 +390,13 @@ async fn list_buckets(
     )
 }
 
-async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResult<PutObjectOutput> {
-    let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
+async fn put_object(
+    Extension(db): Extension<DbTxn>,
+    input: PutObjectInput,
+) -> AppResult<PutObjectOutput> {
+    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
+        .await?
+        .unwrap();
 
     dbg!(&input);
     app_ensure_matches!(input.header.cache_control, None);
@@ -403,11 +442,11 @@ async fn put_object(State(db): State<DbConn>, input: PutObjectInput) -> AppResul
             Err(AppError::AccessDenied)?
         }
     }
-    let bucket = BucketQuery::find_by_unique_id(&db, owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let object = ObjectMutation::create(
-        &db,
+        db.as_ref(),
         bucket.id,
         &input.path.key,
         input.body.into_data_stream(),
@@ -440,14 +479,16 @@ app_define_handler!(get_bucket_handler {
     GetBucketVersioningCheck => get_bucket_versioning,
     GetBucketLocationCheck => get_bucket_location,
     ListObjectsV2Check => list_objects_v2,
-    _ => list_objects
+    _ => list_objects,
 });
 
 async fn get_bucket_versioning(
-    State(db): State<DbConn>,
+    Extension(db): Extension<DbTxn>,
     input: GetBucketVersioningInput,
 ) -> AppResult<GetBucketVersioningOutput> {
-    let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
+    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
+        .await?
+        .unwrap();
 
     dbg!(&input);
 
@@ -465,10 +506,12 @@ async fn get_bucket_versioning(
 }
 
 async fn get_bucket_location(
-    State(db): State<DbConn>,
+    Extension(db): Extension<DbTxn>,
     input: GetBucketLocationInput,
 ) -> AppResult<GetBucketLocationOutput> {
-    let owner = OwnerQuery::find_by_unique_id(&db, "minil").await?.unwrap();
+    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
+        .await?
+        .unwrap();
 
     dbg!(&input);
 
@@ -477,7 +520,7 @@ async fn get_bucket_location(
             Err(AppError::AccessDenied)?
         }
     }
-    let bucket = BucketQuery::find_by_unique_id(&db, owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let content = serde_plain::from_str::<BucketLocationConstraint>(&bucket.region)
