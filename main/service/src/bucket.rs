@@ -54,7 +54,7 @@ where
     C: ConnectionTrait,
 {
     async fn insert(db: &C, bucket: bucket::ActiveModel) -> DbRes<Option<bucket::Model>> {
-        TryInsert::one(bucket)
+        Insert::one(bucket)
             .on_conflict(
                 sea_query::OnConflict::columns([bucket::Column::OwnerId, bucket::Column::Name])
                     .do_nothing()
@@ -62,14 +62,10 @@ where
             )
             .exec_with_returning(db)
             .await
+            .map(Some)
             .or_else(|err| match err {
-                DbErr::RecordNotFound(_) => Ok(TryInsertResult::Conflicted),
+                DbErr::RecordNotFound(_) => Ok(None),
                 _ => Err(err),
-            })
-            .map(|res| match res {
-                TryInsertResult::Empty => unreachable!(),
-                TryInsertResult::Conflicted => None,
-                TryInsertResult::Inserted(bucket) => Some(bucket),
             })
     }
 

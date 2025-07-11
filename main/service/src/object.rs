@@ -40,7 +40,7 @@ where
     C: ConnectionTrait,
 {
     async fn insert(db: &C, object: object::ActiveModel) -> DbRes<object::Model> {
-        TryInsert::one(object)
+        Insert::one(object)
             .on_conflict(
                 sea_query::OnConflict::columns([object::Column::BucketId, object::Column::Key])
                     .update_columns([
@@ -60,10 +60,6 @@ where
             )
             .exec_with_returning(db)
             .await
-            .map(|res| match res {
-                TryInsertResult::Inserted(bucket) => bucket,
-                _ => unreachable!(),
-            })
     }
 
     pub async fn create(
