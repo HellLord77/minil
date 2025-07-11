@@ -10,7 +10,6 @@ use http::HeaderMap;
 use http::HeaderName;
 use http::HeaderValue;
 use http::StatusCode;
-use itertools::Itertools;
 use serde::Serialize;
 
 #[tokio::test]
@@ -116,6 +115,7 @@ async fn header_supports_multiple_values() {
             .get_all("value")
             .iter()
             .map(|v| v.to_str().unwrap())
+            .collect::<Vec<_>>()
             .join(","),
         "one,two"
     );

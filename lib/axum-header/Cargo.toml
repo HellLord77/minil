@@ -13,8 +13,6 @@ serde_path_to_error.workspace = true
 serde-header.workspace = true
 
 [dev-dependencies]
-itertools = "0.14.0" # https://github.com/rust-lang/rust/issues/79524
-
 axum.workspace = true
 axum-test.workspace = true
 tokio.workspace = true
