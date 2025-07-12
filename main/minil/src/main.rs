@@ -15,6 +15,7 @@ use std::time::Instant;
 use axum::Extension;
 use axum::Router;
 use axum::ServiceExt;
+use axum::debug_handler;
 use axum::extract::Request;
 use axum::extract::State;
 use axum::http::HeaderName;
@@ -42,9 +43,9 @@ use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::ErrorParts;
 use base64::Engine;
-use base64::prelude::BASE64_STANDARD;
 use digest::Digest;
 use ensure::fixme;
+use futures::TryStreamExt;
 use minil_migration::Migrator;
 use minil_migration::MigratorTrait;
 use minil_service::BucketMutation;
@@ -88,6 +89,8 @@ use crate::macros::app_define_routes;
 use crate::macros::app_ensure_eq;
 use crate::macros::app_ensure_matches;
 use crate::macros::app_output;
+use crate::macros::app_validate_digest;
+use crate::macros::app_validate_owner;
 use crate::make_request_id::AppMakeRequestId;
 use crate::service_builder_ext::AppServiceBuilderExt;
 use crate::state::AppState;
@@ -107,7 +110,7 @@ async fn main() {
         )
         .with(tracing_subscriber::fmt::layer())
         .try_init()
-        .expect("unable to install global subscriber");
+        .expect("failed to set global default subscriber");
 
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".to_owned());
     tracing::info!("connecting to {}", db_url);
@@ -242,8 +245,10 @@ async fn manage_db_txn(
 
     let db_txn = Arc::into_inner(db_txn).expect("failed to take transaction");
     if response.status().is_success() {
+        tracing::debug!("committing transaction");
         db_txn.commit().await?;
     } else {
+        tracing::debug!("rolling back transaction");
         db_txn.rollback().await?;
     }
 
@@ -296,11 +301,7 @@ async fn delete_bucket(
 
     dbg!(&input);
 
-    if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
-        if expected_bucket_owner != owner.name {
-            Err(AppError::AccessDenied)?
-        }
-    }
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     BucketMutation::delete_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
@@ -318,11 +319,7 @@ async fn head_bucket(
 
     dbg!(&input);
 
-    if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
-        if expected_bucket_owner != owner.name {
-            Err(AppError::AccessDenied)?
-        }
-    }
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
@@ -356,6 +353,8 @@ async fn list_buckets(
         input.query.continuation_token.as_deref(),
         limit,
     )
+    .await?
+    .try_collect::<Vec<_>>()
     .await?;
     let continuation_token = if buckets.len() == limit as usize {
         Some(buckets.pop().unwrap_or_else(|| unreachable!()).name)
@@ -406,19 +405,10 @@ async fn put_object(
     app_ensure_matches!(input.header.content_disposition, None);
     app_ensure_matches!(input.header.content_encoding, None);
     app_ensure_matches!(input.header.content_language, None);
-    app_ensure_matches!(
-        input.header.content_type.as_deref(),
-        None | Some("application/octet-stream")
-    );
     app_ensure_matches!(input.header.expires, None);
     app_ensure_matches!(input.header.if_match, None);
     app_ensure_matches!(input.header.if_none_match, None);
     app_ensure_matches!(input.header.acl, None);
-    app_ensure_matches!(input.header.checksum_crc32, None);
-    app_ensure_matches!(input.header.checksum_crc32c, None);
-    app_ensure_matches!(input.header.checksum_crc64nvme, None);
-    app_ensure_matches!(input.header.checksum_sha1, None);
-    app_ensure_matches!(input.header.checksum_sha256, None);
     app_ensure_matches!(input.header.grant_full_control, None);
     app_ensure_matches!(input.header.grant_read, None);
     app_ensure_matches!(input.header.grant_read_acp, None);
@@ -440,11 +430,7 @@ async fn put_object(
     app_ensure_matches!(input.header.website_redirect_location, None);
     app_ensure_matches!(input.header.write_offset_bytes, None | Some(0));
 
-    if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
-        if expected_bucket_owner != owner.name {
-            Err(AppError::AccessDenied)?
-        }
-    }
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
@@ -452,26 +438,22 @@ async fn put_object(
         db.as_ref(),
         bucket.id,
         &input.path.key,
+        input.header.content_type.as_deref(),
         input.body.into_data_stream(),
     )
     .await??;
-    if let Some(content_md5) = input.header.content_md5 {
-        let content_md5 = BASE64_STANDARD
-            .decode(content_md5)
-            .map_err(|_err| AppError::InvalidDigest)?;
-        if content_md5.len() != 16 {
-            Err(AppError::InvalidDigest)?
-        }
-        if content_md5 != object.md5 {
-            Err(AppError::BadDigest)?
-        }
-    }
+    app_validate_digest!(input.header.content_md5, object.md5);
+    app_validate_digest!(input.header.checksum_crc32, object.crc32);
+    app_validate_digest!(input.header.checksum_crc32c, object.crc32c);
+    app_validate_digest!(input.header.checksum_crc64nvme, object.crc64nvme);
+    app_validate_digest!(input.header.checksum_sha1, object.sha1);
+    app_validate_digest!(input.header.checksum_sha256, object.sha256);
 
     app_output!(
         PutObjectOutput::builder()
             .header(
                 PutObjectOutputHeader::builder()
-                    .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                    .e_tag(format!("\"{}\"", object.e_tag))
                     .build(),
             )
             .build()
@@ -495,11 +477,7 @@ async fn get_bucket_versioning(
 
     dbg!(&input);
 
-    if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
-        if expected_bucket_owner != owner.name {
-            Err(AppError::AccessDenied)?
-        }
-    }
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
 
     app_output!(
         GetBucketVersioningOutput::builder()
@@ -518,11 +496,7 @@ async fn get_bucket_location(
 
     dbg!(&input);
 
-    if let Some(expected_bucket_owner) = input.header.expected_bucket_owner {
-        if expected_bucket_owner != owner.name {
-            Err(AppError::AccessDenied)?
-        }
-    }
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;

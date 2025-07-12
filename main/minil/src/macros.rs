@@ -1,8 +1,7 @@
-macro_rules! app_define_routes {
-    ($router:ident {
-        $($path:expr => $method:ident($handler:expr)),* $(,)?
-    }) => {
-        $router$(.route(::axum_extra::vpath!($path), ::axum::routing::$method($handler)))*
+#[allow(unused_macros)]
+macro_rules! app_db_ref {
+    ($db:ident) => {
+        let $db = ::std::convert::AsRef::as_ref(&$db);
     };
 }
 
@@ -11,18 +10,25 @@ macro_rules! app_define_handler {
         $($ck_ty:ident => $handler:ident,)*
         _ => $def_handler:ident $(,)?
     }) => {
-        #[allow(non_snake_case)]
         async fn $handler_fn(
-            $($ck_ty: ::std::option::Option<::axum_s3::operation::check::$ck_ty>,)*
+            $(::paste::paste!([<$ck_ty:snake>]): ::core::option::Option<::axum_s3::operation::check::$ck_ty>,)*
             ::axum::extract::State(state): ::axum::extract::State<$crate::state::AppState>,
             request: ::axum::extract::Request,
         ) -> ::axum::response::Response {
-            $(if $ck_ty.is_some() {
+            $(if ::paste::paste!([<$ck_ty:snake>]).is_some() {
                 ::axum::handler::Handler::call($handler, request, state).await
             } else )* {
                 ::axum::handler::Handler::call($def_handler, request, state).await
             }
         }
+    };
+}
+
+macro_rules! app_define_routes {
+    ($router:ident {
+        $($path:expr => $method:ident($handler:expr)),* $(,)?
+    }) => {
+        $router$(.route(::axum_extra::vpath!($path), ::axum::routing::$method($handler)))*
     };
 }
 
@@ -42,7 +48,7 @@ macro_rules! app_log_err {
     ($err:expr => [$($var:ident),* $(,)?]) => {
         match $err {
             $(Self::$var(err) => {
-                ::tracing::error!(%err, "{}", ::std::stringify!($var));
+                ::tracing::error!(%err, "{}", ::core::stringify!($var));
             })*
             _ => {}
         }
@@ -54,7 +60,7 @@ macro_rules! app_output {
         match $expr {
             output => {
                 ::std::dbg!(&output);
-                ::std::result::Result::Ok(output)
+                ::core::result::Result::Ok(output)
             }
         }
     };
@@ -87,6 +93,32 @@ macro_rules! app_response_err {
     };
 }
 
+macro_rules! app_validate_digest {
+    ($left:expr, $right:expr) => {
+        if let (::core::option::Option::Some(left), right) = ($left, $right) {
+            let left = ::base64::prelude::BASE64_STANDARD
+                .decode(left)
+                .map_err(|_err| $crate::error::AppError::InvalidDigest)?;
+            if left.len() != right.len() {
+                ::core::result::Result::Err($crate::error::AppError::InvalidDigest)?
+            }
+            if left != right {
+                ::core::result::Result::Err($crate::error::AppError::BadDigest)?
+            }
+        }
+    };
+}
+
+macro_rules! app_validate_owner {
+    ($left:expr, $right:expr) => {
+        if let ::core::option::Option::Some(left) = $left {
+            if left != $right {
+                Err($crate::error::AppError::AccessDenied)?
+            }
+        }
+    };
+}
+
 pub(crate) use app_define_handler;
 pub(crate) use app_define_routes;
 pub(crate) use app_ensure_eq;
@@ -95,3 +127,5 @@ pub(crate) use app_log_err;
 pub(crate) use app_output;
 pub(crate) use app_output_err;
 pub(crate) use app_response_err;
+pub(crate) use app_validate_digest;
+pub(crate) use app_validate_owner;
