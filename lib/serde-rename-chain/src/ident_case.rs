@@ -18,8 +18,8 @@ pub(crate) enum IdentCase {
 }
 
 impl IdentCase {
-    pub(crate) fn apply(&self, s: &str) -> String {
-        let ident_case = match self {
+    fn get_rename_rule(&self) -> RenameRule {
+        match self {
             Self::None => RenameRule::None,
             Self::Lower => RenameRule::LowerCase,
             Self::Pascal => RenameRule::PascalCase,
@@ -27,9 +27,19 @@ impl IdentCase {
             Self::Snake => RenameRule::SnakeCase,
             Self::ScreamingSnake => RenameRule::ScreamingSnakeCase,
             Self::Kebab => RenameRule::KebabCase,
-        };
+        }
+    }
+
+    pub(crate) fn apply_enum(&self, s: &str) -> String {
+        let ident_case = self.get_rename_rule();
 
         ident_case.apply_to_variant(s)
+    }
+
+    pub(crate) fn apply_struct(&self, s: &str) -> String {
+        let ident_case = self.get_rename_rule();
+
+        ident_case.apply_to_field(s)
     }
 }
 

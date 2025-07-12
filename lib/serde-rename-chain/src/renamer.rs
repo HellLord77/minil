@@ -61,7 +61,10 @@ pub(crate) enum Renamer {
     Str(Str),
 
     #[cfg(feature = "ident_case")]
-    IdentCase(IdentCase),
+    IdentCaseEnum(IdentCase),
+
+    #[cfg(feature = "ident_case")]
+    IdentCaseStruct(IdentCase),
 
     #[cfg(feature = "convert_case")]
     ConvertCase(ConvertCase),
@@ -94,7 +97,10 @@ impl Renamer {
             Self::Str(str) => str.apply(s),
 
             #[cfg(feature = "ident_case")]
-            Self::IdentCase(ident_case) => ident_case.apply(s),
+            Self::IdentCaseEnum(ident_case) => ident_case.apply_enum(s),
+
+            #[cfg(feature = "ident_case")]
+            Self::IdentCaseStruct(ident_case) => ident_case.apply_struct(s),
 
             #[cfg(feature = "convert_case")]
             Self::ConvertCase(convert_case) => convert_case.apply(s),
@@ -146,7 +152,12 @@ impl TryFrom<(String, String)> for Renamer {
             RenamerDiscriminants::Str => Self::Str(Str::try_new(value)?),
 
             #[cfg(feature = "ident_case")]
-            RenamerDiscriminants::IdentCase => Self::IdentCase(IdentCase::try_new(value)?),
+            RenamerDiscriminants::IdentCaseEnum => Self::IdentCaseEnum(IdentCase::try_new(value)?),
+
+            #[cfg(feature = "ident_case")]
+            RenamerDiscriminants::IdentCaseStruct => {
+                Self::IdentCaseStruct(IdentCase::try_new(value)?)
+            }
 
             #[cfg(feature = "convert_case")]
             RenamerDiscriminants::ConvertCase => Self::ConvertCase(ConvertCase::try_new(value)?),
