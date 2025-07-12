@@ -3,11 +3,10 @@ use std::pin::Pin;
 use bytes::BufMut;
 use bytes::Bytes;
 use bytes::BytesMut;
-use futures::Stream;
-use futures::StreamExt;
-use futures::TryStreamExt;
-use futures::stream::once;
 use mime::Mime;
+use tokio_stream::Stream;
+use tokio_stream::StreamExt;
+use tokio_stream::once;
 
 pub(super) async fn peek<'a>(
     mut stream: impl 'a + Unpin + Send + Stream<Item = Result<Bytes, axum::Error>>,
@@ -28,10 +27,7 @@ pub(super) async fn peek<'a>(
     }
 
     let bytes = buf.freeze();
-    Ok((
-        bytes.clone(),
-        Box::pin(once(async { Ok(bytes) }).chain(stream)),
-    ))
+    Ok((bytes.clone(), Box::pin(once(Ok(bytes)).chain(stream))))
 }
 
 pub(super) fn get_mime(path: &str, bytes: &[u8]) -> Mime {

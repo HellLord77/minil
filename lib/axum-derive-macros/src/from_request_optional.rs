@@ -199,7 +199,7 @@ fn extract_fields(fields: &mut Fields) -> syn::Result<Vec<TokenStream>> {
                 None
             };
 
-            let member = member(&field, index);
+            let member = member(field, index);
             let into_inner = into_inner(&optional_via, &via, ty_span);
 
             Ok(quote_spanned! {ty_span=>

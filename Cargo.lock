@@ -2548,7 +2548,6 @@ dependencies = [
  "bytes",
  "crc-fast",
  "digest",
- "futures",
  "hex",
  "infer",
  "md-5",
@@ -2558,6 +2557,7 @@ dependencies = [
  "sea-orm",
  "sha1",
  "sha2",
+ "tokio-stream",
  "uuid",
 ]
 

@@ -1,7 +1,7 @@
-use futures::Stream;
 use minil_entity::bucket;
 use minil_entity::prelude::*;
 use sea_orm::*;
+use tokio_stream::Stream;
 use uuid::Uuid;
 
 use crate::error::DbRes;

@@ -15,7 +15,6 @@ use std::time::Instant;
 use axum::Extension;
 use axum::Router;
 use axum::ServiceExt;
-use axum::debug_handler;
 use axum::extract::Request;
 use axum::extract::State;
 use axum::http::HeaderName;

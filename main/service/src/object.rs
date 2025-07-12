@@ -1,14 +1,14 @@
 use bytes::Bytes;
 use crc_fast::CrcAlgorithm;
 use digest::Digest;
-use futures::Stream;
-use futures::TryStreamExt;
 use md5::Md5;
 use minil_entity::object;
 use minil_entity::prelude::*;
 use sea_orm::*;
 use sha1::Sha1;
 use sha2::Sha256;
+use tokio_stream::Stream;
+use tokio_stream::StreamExt;
 use uuid::Uuid;
 
 use crate::error::DbRes;
@@ -69,7 +69,7 @@ impl ObjectMutation {
         mime: Option<&str>,
         stream: impl Unpin + Send + Stream<Item = Result<Bytes, axum::Error>>,
     ) -> Result<DbRes<object::Model>, axum::Error> {
-        let (chunk, mut stream) = peek(stream, 1024).await?;
+        let (chunk, mut stream) = peek(stream, 4096).await?;
         let mime = mime
             .map(ToOwned::to_owned)
             .unwrap_or_else(|| get_mime(key, &chunk).essence_str().to_owned());
