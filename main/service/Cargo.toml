@@ -1,13 +1,20 @@
 [package]
 name = "minil-service"
-version = "0.1.8"
+version = "0.2.0"
 edition.workspace = true
 
 [dependencies]
+hex = "0.4.3"
+
 axum.workspace = true
+futures.workspace = true
 sea-orm.workspace = true
-tokio-stream.workspace = true
 uuid.workspace = true
+bytes.workspace = true
+
+mime = "0.3.17"
+mime_guess = "2.0.5"
+infer = "0.19.0"
 
 crc-fast.workspace = true
 digest.workspace = true

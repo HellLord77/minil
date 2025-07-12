@@ -1,27 +1,25 @@
-use std::marker::PhantomData;
-
-use axum::body::BodyDataStream;
+use bytes::Bytes;
 use crc_fast::CrcAlgorithm;
 use digest::Digest;
+use futures::Stream;
+use futures::TryStreamExt;
 use md5::Md5;
 use minil_entity::object;
 use minil_entity::prelude::*;
 use sea_orm::*;
 use sha1::Sha1;
 use sha2::Sha256;
-use tokio_stream::StreamExt;
 use uuid::Uuid;
 
 use crate::error::DbRes;
+use crate::stream::get_mime;
+use crate::stream::peek;
 
-pub struct ObjectQuery<C>(PhantomData<C>);
+pub struct ObjectQuery;
 
-impl<C> ObjectQuery<C>
-where
-    C: ConnectionTrait,
-{
+impl ObjectQuery {
     pub async fn find_by_unique_id(
-        db: &C,
+        db: &impl ConnectionTrait,
         bucket_id: Uuid,
         key: &str,
     ) -> DbRes<Option<object::Model>> {
@@ -33,17 +31,18 @@ where
     }
 }
 
-pub struct ObjectMutation<C>(PhantomData<C>);
+pub struct ObjectMutation;
 
-impl<C> ObjectMutation<C>
-where
-    C: ConnectionTrait,
-{
-    async fn insert(db: &C, object: object::ActiveModel) -> DbRes<object::Model> {
+impl ObjectMutation {
+    async fn insert(
+        db: &impl ConnectionTrait,
+        object: object::ActiveModel,
+    ) -> DbRes<object::Model> {
         Insert::one(object)
             .on_conflict(
                 sea_query::OnConflict::columns([object::Column::BucketId, object::Column::Key])
                     .update_columns([
+                        object::Column::Mime,
                         object::Column::Size,
                         object::Column::Crc32,
                         object::Column::Crc32c,
@@ -51,6 +50,7 @@ where
                         object::Column::Sha1,
                         object::Column::Sha256,
                         object::Column::Md5,
+                        object::Column::ETag,
                     ])
                     .value(
                         object::Column::UpdatedAt,
@@ -63,11 +63,17 @@ where
     }
 
     pub async fn create(
-        db: &C,
+        db: &impl ConnectionTrait,
         bucket_id: Uuid,
         key: &str,
-        mut stream: BodyDataStream,
+        mime: Option<&str>,
+        stream: impl Unpin + Send + Stream<Item = Result<Bytes, axum::Error>>,
     ) -> Result<DbRes<object::Model>, axum::Error> {
+        let (chunk, mut stream) = peek(stream, 1024).await?;
+        let mime = mime
+            .map(ToOwned::to_owned)
+            .unwrap_or_else(|| get_mime(key, &chunk).essence_str().to_owned());
+
         let mut size = 0u64;
         let mut crc32;
         let mut crc32c;
@@ -107,29 +113,35 @@ where
                 .finalize_into(&mut crc64nvme_buf)
                 .unwrap_or_else(|_err| unreachable!());
         }
+        let md5 = md5.finalize();
 
         let object = object::ActiveModel {
             id: Set(Uuid::new_v4()),
             bucket_id: Set(bucket_id),
             key: Set(key.to_owned()),
+            mime: Set(mime),
             size: Set(size as i64),
             crc32: Set(crc32_buf.to_vec()),
             crc32c: Set(crc32c_buf.to_vec()),
             crc64nvme: Set(crc64nvme_buf.to_vec()),
             sha1: Set(sha1.finalize().to_vec()),
             sha256: Set(sha256.finalize().to_vec()),
-            md5: Set(md5.finalize().to_vec()),
+            md5: Set(md5.to_vec()),
+            e_tag: Set(hex::encode(md5)),
             ..Default::default()
         };
         Ok(ObjectMutation::insert(db, object).await)
     }
 
-    async fn delete(db: &C, object: object::Model) -> DbRes<Option<object::Model>> {
+    async fn delete(
+        db: &impl ConnectionTrait,
+        object: object::Model,
+    ) -> DbRes<Option<object::Model>> {
         Delete::one(object).exec_with_returning(db).await
     }
 
     pub async fn delete_by_unique_id(
-        db: &C,
+        db: &impl ConnectionTrait,
         bucket_id: Uuid,
         key: &str,
     ) -> DbRes<Option<object::Model>> {

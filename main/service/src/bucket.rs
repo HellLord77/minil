@@ -1,5 +1,4 @@
-use std::marker::PhantomData;
-
+use futures::Stream;
 use minil_entity::bucket;
 use minil_entity::prelude::*;
 use sea_orm::*;
@@ -7,14 +6,11 @@ use uuid::Uuid;
 
 use crate::error::DbRes;
 
-pub struct BucketQuery<C>(PhantomData<C>);
+pub struct BucketQuery;
 
-impl<C> BucketQuery<C>
-where
-    C: ConnectionTrait,
-{
+impl BucketQuery {
     pub async fn find_by_unique_id(
-        db: &C,
+        db: &impl ConnectionTrait,
         owner_id: Uuid,
         name: &str,
     ) -> DbRes<Option<bucket::Model>> {
@@ -26,12 +22,12 @@ where
     }
 
     pub async fn find_all_by_owner_id(
-        db: &C,
+        db: &(impl ConnectionTrait + StreamTrait),
         owner_id: Uuid,
         starts_with: Option<&str>,
         start_after: Option<&str>,
         limit: u16,
-    ) -> DbRes<Vec<bucket::Model>> {
+    ) -> DbRes<impl Stream<Item = DbRes<bucket::Model>>> {
         let mut query = Bucket::find().filter(bucket::Column::OwnerId.eq(owner_id));
         if let Some(starts_with) = starts_with {
             query = query.filter(bucket::Column::Name.starts_with(starts_with));
@@ -42,18 +38,18 @@ where
         query
             .order_by_asc(bucket::Column::Name)
             .limit(Some(limit as u64))
-            .all(db)
+            .stream(db)
             .await
     }
 }
 
-pub struct BucketMutation<C>(PhantomData<C>);
+pub struct BucketMutation;
 
-impl<C> BucketMutation<C>
-where
-    C: ConnectionTrait,
-{
-    async fn insert(db: &C, bucket: bucket::ActiveModel) -> DbRes<Option<bucket::Model>> {
+impl BucketMutation {
+    async fn insert(
+        db: &impl ConnectionTrait,
+        bucket: bucket::ActiveModel,
+    ) -> DbRes<Option<bucket::Model>> {
         Insert::one(bucket)
             .on_conflict(
                 sea_query::OnConflict::columns([bucket::Column::OwnerId, bucket::Column::Name])
@@ -70,7 +66,7 @@ where
     }
 
     pub async fn create(
-        db: &C,
+        db: &impl ConnectionTrait,
         owner_id: Uuid,
         name: &str,
         region: &str,
@@ -85,12 +81,15 @@ where
         BucketMutation::insert(db, bucket).await
     }
 
-    async fn delete(db: &C, bucket: bucket::Model) -> DbRes<Option<bucket::Model>> {
+    async fn delete(
+        db: &impl ConnectionTrait,
+        bucket: bucket::Model,
+    ) -> DbRes<Option<bucket::Model>> {
         Delete::one(bucket).exec_with_returning(db).await
     }
 
     pub async fn delete_by_unique_id(
-        db: &C,
+        db: &impl ConnectionTrait,
         owner_id: Uuid,
         name: &str,
     ) -> DbRes<Option<bucket::Model>> {
