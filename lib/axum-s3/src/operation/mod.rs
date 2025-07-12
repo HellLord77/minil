@@ -1,3 +1,5 @@
+pub mod check;
+
 mod create_bucket;
 mod delete_bucket;
 mod get_bucket_location;
@@ -7,8 +9,6 @@ mod list_buckets;
 mod list_objects;
 mod list_objects_v2;
 mod put_object;
-
-pub mod check;
 
 pub use create_bucket::CreateBucketInput;
 pub use create_bucket::CreateBucketOutput;

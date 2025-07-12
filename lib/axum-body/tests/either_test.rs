@@ -8,7 +8,6 @@ use bytes::Bytes;
 use http::Method;
 use http::StatusCode;
 use http::header;
-use mime::APPLICATION_WWW_FORM_URLENCODED;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -59,10 +58,7 @@ async fn test_either_extract_fallback() {
 async fn test_either_extract_recursive_fallback() {
     let req = Request::builder()
         .method(Method::POST)
-        .header(
-            header::CONTENT_TYPE,
-            APPLICATION_WWW_FORM_URLENCODED.as_ref(),
-        )
+        .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
         .body(Body::from(b"!@$%^&*()".as_ref()))
         .unwrap();
 

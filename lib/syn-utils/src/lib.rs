@@ -24,26 +24,26 @@ pub use crate::ty::peel_result_ok;
 #[macro_export]
 macro_rules! bail {
     ($span:expr, $message:literal $(,)?) => {
-        return ::std::result::Result::Err(syn::Error::new($span, $message));
+        return ::core::result::Result::Err(syn::Error::new($span, $message));
     };
     ($span:expr, $message:expr $(,)?) => {
-        return ::std::result::Result::Err(::syn::Error::new($span, $message));
+        return ::core::result::Result::Err(::syn::Error::new($span, $message));
     };
     ($span:expr, $fmt:expr, $($arg:tt)*) => {
-        return ::std::result::Result::Err(::syn::Error::new($span, ::std::format!($fmt, $($arg)*)));
+        return ::core::result::Result::Err(::syn::Error::new($span, ::std::format!($fmt, $($arg)*)));
     };
 }
 
 #[macro_export]
 macro_rules! bail_spanned {
     ($tokens:expr, $message:literal $(,)?) => {
-        return ::std::result::Result::Err(syn::Error::new_spanned($tokens, $message));
+        return ::core::result::Result::Err(syn::Error::new_spanned($tokens, $message));
     };
     ($tokens:expr, $message:expr $(,)?) => {
-        return ::std::result::Result::Err(::syn::Error::new_spanned($tokens, $message));
+        return ::core::result::Result::Err(::syn::Error::new_spanned($tokens, $message));
     };
     ($tokens:expr, $fmt:expr, $($arg:tt)*) => {
-        return ::std::result::Result::Err(::syn::Error::new_spanned($tokens, ::std::format!($fmt, $($arg)*)));
+        return ::core::result::Result::Err(::syn::Error::new_spanned($tokens, ::std::format!($fmt, $($arg)*)));
     };
 }
 

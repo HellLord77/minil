@@ -21,8 +21,8 @@ pub(super) fn expand(item: Item, parts: bool) -> syn::Result<TokenStream> {
                         async fn from_request_parts(
                             parts: &mut ::axum::http::request::Parts,
                             state: &S,
-                        ) -> ::std::result::Result<::std::option::Option<Self>, Self::Rejection> {
-                            ::std::result::Result::Ok(
+                        ) -> ::core::result::Result<::core::option::Option<Self>, Self::Rejection> {
+                            ::core::result::Result::Ok(
                                 <Self as ::axum::extract::FromRequestParts<_>>::from_request_parts(parts, state)
                                     .await
                                     .ok(),
@@ -42,8 +42,8 @@ pub(super) fn expand(item: Item, parts: bool) -> syn::Result<TokenStream> {
                         async fn from_request(
                             req: ::axum::http::Request<::axum::body::Body>,
                             state: &S,
-                        ) -> ::std::result::Result<::std::option::Option<Self>, Self::Rejection> {
-                            ::std::result::Result::Ok(
+                        ) -> ::core::result::Result<::core::option::Option<Self>, Self::Rejection> {
+                            ::core::result::Result::Ok(
                                 <Self as ::axum::extract::FromRequest<_, _>>::from_request(req, state)
                                     .await
                                     .ok(),

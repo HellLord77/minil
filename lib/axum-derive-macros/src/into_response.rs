@@ -31,7 +31,7 @@ pub(super) fn expand(item: Item, parts: bool) -> syn::Result<TokenStream> {
                         fn into_response_parts(
                             self,
                             res: ::axum::response::ResponseParts
-                        ) -> ::std::result::Result<::axum::response::ResponseParts, Self::Error> {
+                        ) -> ::core::result::Result<::axum::response::ResponseParts, Self::Error> {
                             #(#extract_fields)*
                         }
                     }

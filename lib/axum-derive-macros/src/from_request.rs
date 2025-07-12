@@ -32,7 +32,7 @@ pub(super) fn expand(item: Item, parts: bool) -> syn::Result<TokenStream> {
                         async fn from_request_parts(
                             parts: &mut ::axum::http::request::Parts,
                             state: &S,
-                        ) -> ::std::result::Result<Self, Self::Rejection> {
+                        ) -> ::core::result::Result<Self, Self::Rejection> {
                             <#path as ::axum::extract::FromRequestParts<_>>::from_request_parts(req, state)
                                 .await
                                 .map(<Self as ::std::convert::From<_>>::from)
@@ -52,7 +52,7 @@ pub(super) fn expand(item: Item, parts: bool) -> syn::Result<TokenStream> {
                         async fn from_request(
                             req: ::axum::extract::Request,
                             state: &S,
-                        ) -> ::std::result::Result<Self, Self::Rejection> {
+                        ) -> ::core::result::Result<Self, Self::Rejection> {
                             <#path as ::axum::extract::FromRequest<_, _>>::from_request(req, state)
                                 .await
                                 .map(<Self as ::std::convert::From<_>>::from)

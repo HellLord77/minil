@@ -3,13 +3,13 @@
 #[macro_export]
 macro_rules! debug {
     () => {
-        ::std::eprintln!("[{}:{}:{}]", ::std::file!(), ::std::line!(), ::std::column!())
+        ::std::eprintln!("[{}:{}:{}]", ::core::file!(), ::core::line!(), ::core::column!())
     };
     ($($arg:tt)*) => {
         match ::std::format!($($arg)*) {
             tmp => {
                 ::std::eprintln!("[{}:{}:{}] {}",
-                    ::std::file!(), ::std::line!(), ::std::column!(), tmp);
+                    ::core::file!(), ::core::line!(), ::core::column!(), tmp);
                 tmp
             }
         }
@@ -57,7 +57,7 @@ macro_rules! is_ensure {
         if $cond {
             true
         } else {
-            $crate::debug_debug!(r#"assurance failed: {}"#, ::std::stringify!($cond));
+            $crate::debug_debug!(r#"assurance failed: {}"#, ::core::stringify!($cond));
 
             false
         }
@@ -75,7 +75,7 @@ macro_rules! check_ensure {
 macro_rules! ensure {
     ($cond:expr, $err:expr $(,)?) => {
         if !$crate::is_ensure!($cond) {
-            ::std::result::Result::Err(err)?
+            ::core::result::Result::Err(err)?
         }
     };
 }
@@ -87,7 +87,7 @@ macro_rules! panic_ensure {
     };
     ($cond:expr, $($arg:tt)*) => {
         if !$crate::is_ensure!($cond) {
-            ::std::panic!($($arg)*);
+            ::core::panic!($($arg)*);
         }
     };
 }
@@ -142,7 +142,7 @@ macro_rules! check_ensure_eq {
 macro_rules! ensure_eq {
     ($left:expr, $right:expr, $err:expr $(,)?) => {
         if !$crate::is_ensure_eq!($left, $right) {
-            ::std::result::Result::Err($err)?
+            ::core::result::Result::Err($err)?
         }
     };
 }
@@ -154,7 +154,7 @@ macro_rules! panic_ensure_eq {
     };
     ($left:expr, $right:expr, $($arg:tt)*) => {
         if !$crate::is_ensure_eq!($left, $right) {
-            ::std::panic!($($arg)*);
+            ::core::panic!($($arg)*);
         }
     };
 }
@@ -209,7 +209,7 @@ macro_rules! check_ensure_ne {
 macro_rules! ensure_ne {
     ($left:expr, $right:expr, $err:expr $(,)?) => {
         if !$crate::is_ensure_ne!($left, $right) {
-            ::std::result::Result::Err($err)?
+            ::core::result::Result::Err($err)?
         }
     };
 }
@@ -221,7 +221,7 @@ macro_rules! panic_ensure_ne {
     };
     ($left:expr, $right:expr, $($arg:tt)*) => {
         if !$crate::is_ensure_ne!($left, $right) {
-            ::std::panic!($($arg)*);
+            ::core::panic!($($arg)*);
         }
     };
 }
@@ -256,7 +256,7 @@ macro_rules! is_ensure_matches {
                     r#"assurance `left matches right` failed
   left: {left_val:?}
  right: {}"#,
-                    ::std::stringify!($($pattern)|+ $(if $guard)?)
+                    ::core::stringify!($($pattern)|+ $(if $guard)?)
                 );
 
                 false
@@ -276,7 +276,7 @@ macro_rules! check_ensure_matches {
 macro_rules! ensure_matches {
     ($left:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )?, $err:expr $(,)?) => {
         if !$crate::is_ensure_matches!($left, $($pattern)|+ $(if $guard)?) {
-            ::std::result::Result::Err($err)?
+            ::core::result::Result::Err($err)?
         }
     };
 }
@@ -288,7 +288,7 @@ macro_rules! panic_ensure_matches {
     };
     ($left:expr, $(|)? $( $pattern:pat_param )|+ $( if $guard: expr )?, $($arg:tt)*) => {
         if !$crate::is_ensure_matches!($left, $($pattern)|+ $(if $guard)?) {
-            ::std::panic!($($arg)*);
+            ::core::panic!($($arg)*);
         }
     };
 }
