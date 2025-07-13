@@ -1,0 +1,5 @@
+error[E0425]: cannot find value `tralse` in this scope
+ --> tests/ui/stringify_expr/bad_literal.rs:4:21
+  |
+4 |     stringify_expr!(tralse);
+  |                     ^^^^^^ not found in this scope
