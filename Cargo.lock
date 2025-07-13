@@ -2518,6 +2518,8 @@ dependencies = [
  "sha2",
  "strum 0.27.1",
  "tokio",
+ "tokio-stream",
+ "tokio-util",
  "tower",
  "tower-http",
  "tracing",
@@ -2542,10 +2544,10 @@ dependencies = [
 
 [[package]]
 name = "minil-service"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
- "axum",
  "bytes",
+ "bytesize",
  "crc-fast",
  "digest",
  "hex",
@@ -2557,7 +2559,9 @@ dependencies = [
  "sea-orm",
  "sha1",
  "sha2",
+ "tokio",
  "tokio-stream",
+ "tokio-util",
  "uuid",
 ]
 
@@ -4679,8 +4683,12 @@ checksum = "66a539a9ad6d5d281510d5bd368c973d636c02dbf8a67300bfb6b950696ad7df"
 dependencies = [
  "bytes",
  "futures-core",
+ "futures-io",
  "futures-sink",
+ "futures-util",
+ "hashbrown 0.15.4",
  "pin-project-lite",
+ "slab",
  "tokio",
 ]
 

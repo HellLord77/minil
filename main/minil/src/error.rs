@@ -1,3 +1,5 @@
+use std::io;
+
 use axum::Extension;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -47,11 +49,12 @@ pub(crate) enum AppError {
 
     AxumError(axum::Error),
     DatabaseError(DbErr),
+    IoError(io::Error),
 }
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        app_log_err!(&self => [AxumError, DatabaseError]);
+        app_log_err!(&self => [AxumError, DatabaseError, IoError]);
 
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -82,7 +85,7 @@ impl AppErrorDiscriminants {
             NotImplemented => NotImplementedOutput,
             PreconditionFailed => PreconditionFailedOutput,
             TooManyParts => TooManyPartsOutput,
-            _ => [AxumError, DatabaseError],
+            _ => [AxumError, DatabaseError, IoError],
         })
     }
 }

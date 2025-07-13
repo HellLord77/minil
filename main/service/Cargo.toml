@@ -6,22 +6,20 @@ edition.workspace = true
 [dependencies]
 bytesize = "2.0.1"
 hex = "0.4.3"
-
-bytes.workspace = true
-sea-orm.workspace = true
-tokio.workspace = true
-tokio-stream.workspace = true
-tokio-util.workspace = true
-uuid.workspace = true
-
 infer = "0.19.0"
 mime = "0.3.17"
 mime_guess = "2.0.5"
 
+bytes.workspace = true
 crc-fast.workspace = true
 digest.workspace = true
 md-5.workspace = true
+sea-orm.workspace = true
 sha1.workspace = true
 sha2.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tokio-util.workspace = true
+uuid.workspace = true
 
 minil-entity.workspace = true

@@ -7,6 +7,7 @@ mod state;
 
 use std::env;
 use std::future;
+use std::io;
 use std::net::Ipv4Addr;
 use std::net::SocketAddrV4;
 use std::sync::Arc;
@@ -71,6 +72,8 @@ use serde_s3::types::Owner;
 use sha2::Sha256;
 use tokio::net::TcpListener;
 use tokio::signal;
+use tokio_stream::StreamExt;
+use tokio_util::io::StreamReader;
 use tower::Layer;
 use tower::ServiceBuilder;
 use tower_http::ServiceBuilderExt;
@@ -350,7 +353,7 @@ async fn list_buckets(
         owner.id,
         input.query.prefix.as_deref(),
         input.query.continuation_token.as_deref(),
-        limit,
+        Some(limit as u64),
     )
     .await?
     .try_collect::<Vec<_>>()
@@ -438,7 +441,12 @@ async fn put_object(
         bucket.id,
         &input.path.key,
         input.header.content_type.as_deref(),
-        input.body.into_data_stream(),
+        StreamReader::new(
+            input
+                .body
+                .into_data_stream()
+                .map(|res| res.map_err(|err| io::Error::other(err.into_inner()))),
+        ),
     )
     .await??;
     app_validate_digest!(input.header.content_md5, object.md5);

@@ -4,10 +4,11 @@ version = "0.3.3"
 edition.workspace = true
 
 [features]
-default = ["itoa", "ryu", "caseless", "http"]
+default = ["numeric", "caseless", "http"]
 
 itoa = ["dep:itoa"]
 ryu = ["dep:ryu"]
+numeric = ["itoa", "ryu"]
 
 caseless = []
 
