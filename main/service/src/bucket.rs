@@ -24,20 +24,20 @@ impl BucketQuery {
     pub async fn find_all_by_owner_id(
         db: &(impl ConnectionTrait + StreamTrait),
         owner_id: Uuid,
-        starts_with: Option<&str>,
-        start_after: Option<&str>,
-        limit: u16,
+        name_starts_with: Option<&str>,
+        name_gte: Option<&str>,
+        limit: Option<u64>,
     ) -> DbRes<impl Stream<Item = DbRes<bucket::Model>>> {
         let mut query = Bucket::find().filter(bucket::Column::OwnerId.eq(owner_id));
-        if let Some(starts_with) = starts_with {
+        if let Some(starts_with) = name_starts_with {
             query = query.filter(bucket::Column::Name.starts_with(starts_with));
         }
-        if let Some(start_after) = start_after {
+        if let Some(start_after) = name_gte {
             query = query.filter(bucket::Column::Name.gte(start_after));
         }
         query
             .order_by_asc(bucket::Column::Name)
-            .limit(Some(limit as u64))
+            .limit(limit)
             .stream(db)
             .await
     }

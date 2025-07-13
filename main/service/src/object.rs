@@ -1,4 +1,7 @@
+use std::io;
+
 use bytes::Bytes;
+use bytesize::ByteSize;
 use crc_fast::CrcAlgorithm;
 use digest::Digest;
 use md5::Md5;
@@ -7,13 +10,14 @@ use minil_entity::prelude::*;
 use sea_orm::*;
 use sha1::Sha1;
 use sha2::Sha256;
-use tokio_stream::Stream;
+use tokio::io::AsyncRead;
 use tokio_stream::StreamExt;
+use tokio_util::codec::FramedRead;
 use uuid::Uuid;
 
 use crate::error::DbRes;
-use crate::stream::get_mime;
-use crate::stream::peek;
+use crate::utils::ChunkedDecoder;
+use crate::utils::get_mime;
 
 pub struct ObjectQuery;
 
@@ -67,14 +71,31 @@ impl ObjectMutation {
         bucket_id: Uuid,
         key: &str,
         mime: Option<&str>,
-        stream: impl Unpin + Send + Stream<Item = Result<Bytes, axum::Error>>,
-    ) -> Result<DbRes<object::Model>, axum::Error> {
-        let (chunk, mut stream) = peek(stream, 4096).await?;
-        let mime = mime
-            .map(ToOwned::to_owned)
-            .unwrap_or_else(|| get_mime(key, &chunk).essence_str().to_owned());
+        read: impl Unpin + AsyncRead,
+    ) -> io::Result<DbRes<object::Model>> {
+        let mut stream = FramedRead::new(
+            read,
+            ChunkedDecoder::with_capacity(ByteSize::mib(4).as_u64() as usize),
+        )
+        .peekable();
 
-        let mut size = 0u64;
+        let mime = match mime {
+            Some(mime) => mime.to_owned(),
+            None => {
+                let chunk = match stream.peek().await {
+                    Some(Ok(chunk)) => chunk,
+                    Some(Err(_)) => {
+                        stream.try_next().await?;
+                        unreachable!()
+                    }
+                    None => &Bytes::new(),
+                };
+
+                get_mime(key, chunk).essence_str().to_owned()
+            }
+        };
+
+        let mut size = 0usize;
         let mut crc32;
         let mut crc32c;
         let mut crc64nvme;
@@ -89,7 +110,7 @@ impl ObjectMutation {
         let mut md5 = Md5::new();
 
         while let Some(chunk) = stream.try_next().await? {
-            size += chunk.len() as u64;
+            size += chunk.len();
             crc32.update(&chunk);
             crc32c.update(&chunk);
             crc64nvme.update(&chunk);

@@ -2,7 +2,7 @@ mod bucket;
 mod error;
 mod object;
 mod owner;
-mod stream;
+mod utils;
 
 pub use bucket::BucketMutation;
 pub use bucket::BucketQuery;

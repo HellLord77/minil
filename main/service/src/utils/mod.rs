@@ -1,34 +1,8 @@
-use std::pin::Pin;
-
-use bytes::BufMut;
-use bytes::Bytes;
-use bytes::BytesMut;
 use mime::Mime;
-use tokio_stream::Stream;
-use tokio_stream::StreamExt;
-use tokio_stream::once;
 
-pub(super) async fn peek<'a>(
-    mut stream: impl 'a + Unpin + Send + Stream<Item = Result<Bytes, axum::Error>>,
-    len: usize,
-) -> Result<
-    (
-        Bytes,
-        Pin<Box<impl 'a + Send + Stream<Item = Result<Bytes, axum::Error>>>>,
-    ),
-    axum::Error,
-> {
-    let mut buf = BytesMut::new();
-    while let Some(chunk) = stream.try_next().await? {
-        buf.put(chunk);
-        if buf.len() >= len {
-            break;
-        }
-    }
+mod chunked_decoder;
 
-    let bytes = buf.freeze();
-    Ok((bytes.clone(), Box::pin(once(Ok(bytes)).chain(stream))))
-}
+pub(super) use chunked_decoder::ChunkedDecoder;
 
 pub(super) fn get_mime(path: &str, bytes: &[u8]) -> Mime {
     let mimes_ext = mime_guess::from_path(path);
