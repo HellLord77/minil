@@ -1,3 +1,5 @@
+pub mod error;
+
 mod bucket;
 mod bucket_canned_acl;
 mod bucket_data_redundancy;
@@ -6,6 +8,7 @@ mod bucket_location_constraint;
 mod bucket_type;
 mod bucket_versioning_status;
 mod checksum_algorithm;
+mod checksum_mode;
 mod checksum_type;
 mod common_prefix;
 mod create_bucket_configuration;
@@ -31,8 +34,6 @@ mod server_side_encryption;
 mod storage_class;
 mod versioning_configuration;
 
-pub mod error;
-
 pub use bucket::Bucket;
 pub use bucket_canned_acl::BucketCannedAcl;
 pub use bucket_data_redundancy::BucketDataRedundancy;
@@ -41,6 +42,7 @@ pub use bucket_location_constraint::BucketLocationConstraint;
 pub use bucket_type::BucketType;
 pub use bucket_versioning_status::BucketVersioningStatus;
 pub use checksum_algorithm::ChecksumAlgorithm;
+pub use checksum_mode::ChecksumMode;
 pub use checksum_type::ChecksumType;
 pub use common_prefix::CommonPrefix;
 pub use create_bucket_configuration::CreateBucketConfiguration;

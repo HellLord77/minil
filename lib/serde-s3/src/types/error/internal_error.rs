@@ -1,14 +1,14 @@
 use bon::Builder;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
-use tynm::type_name;
+use stringify_extra::stringify_ty;
 
 #[skip_serializing_none]
 #[derive(Debug, Builder, Serialize)]
 #[serde(rename = "Error", rename_all = "PascalCase")]
 pub struct InternalError {
-    #[builder(default = type_name::<InternalError>())]
-    pub code: String,
+    #[builder(default = stringify_ty!(InternalError))]
+    pub code: &'static str,
 
     #[builder(default = "An internal error occurred.")]
     pub message: &'static str,

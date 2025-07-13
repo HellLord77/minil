@@ -1,22 +1,22 @@
 [package]
 name = "serde-s3"
-version = "0.3.10"
+version = "0.3.11"
 edition.workspace = true
 
 [dependencies]
 chrono = { version = "0.4.41", features = ["serde"] }
-serde-inline-default = "0.2.3"
-serde_with = "3.14.0"
 serdev = "0.2.0" # https://github.com/serde-rs/serde/pull/2891
-tynm = "0.2.0"
 validator = { version = "0.20.0", features = ["derive"] }
 
 bon.workspace = true
 derive_more.workspace = true
 serde.workspace = true
+serde-inline-default.workspace = true
+serde_with.workspace = true
 uuid.workspace = true
 
 serde-rename-chain.workspace = true
+stringify-extra.workspace = true
 
 [dev-dependencies]
 aws-sdk-s3.workspace = true

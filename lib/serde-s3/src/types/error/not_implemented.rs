@@ -1,14 +1,14 @@
 use bon::Builder;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
-use tynm::type_name;
+use stringify_extra::stringify_ty;
 
 #[skip_serializing_none]
 #[derive(Debug, Builder, Serialize)]
 #[serde(rename = "Error", rename_all = "PascalCase")]
 pub struct NotImplemented {
-    #[builder(default = type_name::<NotImplemented>())]
-    pub code: String,
+    #[builder(default = stringify_ty!(NotImplemented))]
+    pub code: &'static str,
 
     #[builder(
         default = "A header that you provided implies functionality that is not implemented."
