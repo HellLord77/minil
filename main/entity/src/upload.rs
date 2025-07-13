@@ -3,18 +3,18 @@ use sea_orm::entity::prelude::*;
 use super::prelude::*;
 
 #[derive(Debug, Clone, DeriveEntityModel)]
-#[sea_orm(table_name = "bucket")]
+#[sea_orm(table_name = "upload")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
     #[sea_orm(unique, indexed)]
-    pub owner_id: Uuid,
+    pub bucket_id: Uuid,
 
     #[sea_orm(unique, indexed)]
-    pub name: String,
+    pub key: String,
 
-    pub region: String,
+    pub mime: Option<String>,
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
@@ -23,34 +23,25 @@ pub struct Model {
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "Owner",
-        from = "Column::OwnerId",
-        to = "super::owner::Column::Id"
+        belongs_to = "Bucket",
+        from = "Column::BucketId",
+        to = "super::bucket::Column::Id"
     )]
-    Owner,
+    Bucket,
 
-    #[sea_orm(has_many = "Object")]
-    Object,
-
-    #[sea_orm(has_many = "Upload")]
-    Upload,
+    #[sea_orm(has_many = "Part")]
+    Part,
 }
 
-impl Related<Owner> for Entity {
+impl Related<Bucket> for Entity {
     fn to() -> RelationDef {
-        Relation::Owner.def()
+        Relation::Bucket.def()
     }
 }
 
-impl Related<Object> for Entity {
+impl Related<Part> for Entity {
     fn to() -> RelationDef {
-        Relation::Object.def()
-    }
-}
-
-impl Related<Upload> for Entity {
-    fn to() -> RelationDef {
-        Relation::Upload.def()
+        Relation::Part.def()
     }
 }
 
