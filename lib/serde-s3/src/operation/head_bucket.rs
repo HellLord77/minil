@@ -11,13 +11,13 @@ pub struct HeadBucketInputPath {
     pub bucket: String,
 }
 
-#[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
+#[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Deserialize)]
 pub struct HeadBucketInputHeader {
     pub expected_bucket_owner: Option<String>,
 }
 
-#[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
+#[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Builder, Serialize)]
 pub struct HeadBucketOutputHeader {
     pub access_point_alias: Option<bool>,

@@ -25,7 +25,7 @@ pub struct PutObjectInputPath {
     pub key: String,
 }
 
-#[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
+#[serde_rename_chain(add_prefix = "x_amz_", ident_case_struct = "kebab")]
 #[derive(Debug, Validate, Deserialize)]
 #[serde(validate = "Validate::validate")]
 pub struct PutObjectInputHeader {
@@ -48,7 +48,7 @@ pub struct PutObjectInputHeader {
     pub content_type: Option<String>,
 
     #[serde_rename_chain(convert_case = "train")]
-    pub expires: Option<String>,
+    pub expires: Option<DateTime<Utc>>,
 
     #[serde_rename_chain(convert_case = "train")]
     pub if_match: Option<String>,
@@ -112,10 +112,10 @@ pub struct PutObjectInputHeader {
     pub write_offset_bytes: Option<u64>,
 }
 
-#[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
+#[serde_rename_chain(add_prefix = "x_amz_", ident_case_struct = "kebab")]
 #[derive(Debug, Builder, Serialize)]
 pub struct PutObjectOutputHeader {
-    #[serde_rename_chain(ident_case = "pascal")]
+    #[serde_rename_chain(convert_case = "pascal")]
     pub e_tag: String,
 
     pub checksum_crc32: Option<String>,

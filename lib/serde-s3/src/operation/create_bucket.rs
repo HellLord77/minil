@@ -13,7 +13,7 @@ pub struct CreateBucketInputPath {
     pub bucket: String,
 }
 
-#[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
+#[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Deserialize)]
 pub struct CreateBucketInputHeader {
     pub acl: Option<BucketCannedAcl>,
@@ -35,7 +35,7 @@ pub struct CreateBucketInputHeader {
 
 pub type CreateBucketInputBody = CreateBucketConfiguration;
 
-#[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
+#[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Builder, Serialize)]
 pub struct CreateBucketOutputHeader {
     #[serde_rename_chain(convert_case = "train")]

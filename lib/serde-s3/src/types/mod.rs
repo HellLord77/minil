@@ -1,5 +1,6 @@
 pub mod error;
 
+mod archive_status;
 mod bucket;
 mod bucket_canned_acl;
 mod bucket_data_redundancy;
@@ -28,12 +29,15 @@ mod object_ownership;
 mod object_storage_class;
 mod optional_object_attributes;
 mod owner;
+mod replication_status;
+mod request_charged;
 mod request_payer;
 mod restore_status;
 mod server_side_encryption;
 mod storage_class;
 mod versioning_configuration;
 
+pub use archive_status::ArchiveStatus;
 pub use bucket::Bucket;
 pub use bucket_canned_acl::BucketCannedAcl;
 pub use bucket_data_redundancy::BucketDataRedundancy;
@@ -62,6 +66,8 @@ pub use object_ownership::ObjectOwnership;
 pub use object_storage_class::ObjectStorageClass;
 pub use optional_object_attributes::OptionalObjectAttributes;
 pub use owner::Owner;
+pub use replication_status::ReplicationStatus;
+pub use request_charged::RequestCharged;
 pub use request_payer::RequestPayer;
 pub use restore_status::RestoreStatus;
 pub use server_side_encryption::ServerSideEncryption;

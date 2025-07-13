@@ -38,7 +38,7 @@ pub struct ListObjectsV2InputQuery {
     pub start_after: Option<String>,
 }
 
-#[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
+#[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Deserialize)]
 pub struct ListObjectsV2InputHeader {
     pub expected_bucket_owner: Option<String>,
@@ -48,7 +48,7 @@ pub struct ListObjectsV2InputHeader {
     pub request_payer: Option<RequestPayer>,
 }
 
-#[serde_rename_chain(add_prefix = "x_amz_", ident_case = "kebab")]
+#[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Builder, Serialize)]
 pub struct ListObjectsV2OutputHeader {
     pub request_charged: Option<RequestPayer>,
