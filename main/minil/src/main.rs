@@ -45,7 +45,6 @@ use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::ErrorParts;
 use base64::Engine;
 use digest::Digest;
-use ensure::fixme;
 use futures::TryStreamExt;
 use indexmap::IndexSet;
 use minil_migration::Migrator;
@@ -574,9 +573,10 @@ async fn list_objects(
             }
         });
     }
-    let encode: fn(String) -> String = if let Some(encoding_type) = &input.query.encoding_type {
+    let delimiter_is_some = input.query.delimiter.is_some();
+    let encode = if let Some(encoding_type) = &input.query.encoding_type {
         match encoding_type {
-            EncodingType::Url => |string| urlencoding::encode(&string).to_string(),
+            EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
         }
     } else {
         identity
@@ -614,18 +614,18 @@ async fn list_objects(
                             })
                             .collect()
                     )
-                    .maybe_delimiter(input.query.delimiter.clone())
+                    .maybe_delimiter(input.query.delimiter.map(encode))
                     .maybe_encoding_type(input.query.encoding_type)
                     .is_truncated(next_marker.is_some())
-                    .marker(input.query.marker.unwrap_or_default())
+                    .marker(input.query.marker.map(encode).unwrap_or_default())
                     .max_keys(input.query.max_keys)
                     .name(bucket.name)
                     .maybe_next_marker(
                         next_marker
-                            .filter(|_next_marker| input.query.delimiter.is_some())
+                            .filter(|_next_marker| delimiter_is_some)
                             .map(encode)
                     )
-                    .prefix(input.query.prefix.unwrap_or_default())
+                    .prefix(input.query.prefix.map(encode).unwrap_or_default())
                     .build(),
             )
             .build()
@@ -633,26 +633,102 @@ async fn list_objects(
 }
 
 async fn list_objects_v2(
-    Extension(_db): Extension<DbTxn>,
+    Extension(db): Extension<DbTxn>,
     input: ListObjectsV2Input,
 ) -> AppResult<ListObjectsV2Output> {
-    dbg!(&input);
-    fixme!();
+    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
+        .await?
+        .unwrap();
 
-    // key_count = len(objects) + len(common_prefixes)
+    dbg!(&input);
+    app_ensure_matches!(input.header.optional_object_attributes, None);
+    app_ensure_matches!(input.header.request_payer, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let limit = input.query.max_keys + 1;
+    let mut objects = ObjectQuery::find_all_by_bucket_id(
+        db.as_ref(),
+        bucket.id,
+        input.query.prefix.as_deref(),
+        input.query.start_after.as_deref(),
+        Some(limit as u64),
+    )
+    .await?
+    .try_collect::<Vec<_>>()
+    .await?;
+    let mut common_prefixes = IndexSet::new();
+    let next_continuation_token = (objects.len() == limit as usize).then(|| {
+        objects.pop();
+        objects.last().unwrap_or_else(|| unreachable!()).key.clone()
+    });
+    if let Some(delimiter) = &input.query.delimiter {
+        let prefix_len = input.query.prefix.as_deref().map_or(0, str::len);
+        let offset = prefix_len + delimiter.len();
+        objects.retain(|object| {
+            if let Some(delimiter_index) = &object.key[prefix_len..].find(delimiter) {
+                common_prefixes.insert(object.key[..offset + delimiter_index].to_owned());
+                false
+            } else {
+                true
+            }
+        });
+    }
+    let key_count = objects.len() + common_prefixes.len();
+    let encode = if let Some(encoding_type) = &input.query.encoding_type {
+        match encoding_type {
+            EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
+        }
+    } else {
+        identity
+    };
 
     app_output!(
         ListObjectsV2Output::builder()
             .header(ListObjectsV2OutputHeader::builder().build())
             .body(
                 ListObjectsV2OutputBody::builder()
-                    .common_prefixes(vec![])
-                    .contents(vec![])
-                    .is_truncated(false)
-                    .key_count(0)
-                    .max_keys(0)
-                    .name("".to_owned())
-                    .prefix("".to_owned())
+                    .common_prefixes(
+                        common_prefixes
+                            .into_iter()
+                            .map(|common_prefix| CommonPrefix::builder()
+                                .prefix(encode(common_prefix))
+                                .build())
+                            .collect()
+                    )
+                    .contents(
+                        objects
+                            .into_iter()
+                            .map(|object| {
+                                Object::builder()
+                                    .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                                    .key(encode(object.key))
+                                    .last_modified(object.updated_at.unwrap_or(object.created_at))
+                                    .maybe_owner(input.query.fetch_owner.unwrap_or_default().then(
+                                        || {
+                                            Owner::builder()
+                                                .display_name(owner.name.clone())
+                                                .id(owner.id)
+                                                .build()
+                                        },
+                                    ))
+                                    .size(object.size as u64)
+                                    .build()
+                            })
+                            .collect()
+                    )
+                    .maybe_continuation_token(input.query.continuation_token)
+                    .maybe_delimiter(input.query.delimiter.map(encode))
+                    .maybe_encoding_type(input.query.encoding_type)
+                    .is_truncated(next_continuation_token.is_some())
+                    .key_count(key_count as u16)
+                    .max_keys(input.query.max_keys)
+                    .name(bucket.name)
+                    .maybe_next_continuation_token(next_continuation_token)
+                    .prefix(input.query.prefix.map(encode).unwrap_or_default())
+                    .maybe_start_after(input.query.start_after.map(encode))
                     .build(),
             )
             .build()

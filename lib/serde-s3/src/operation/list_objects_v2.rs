@@ -5,6 +5,7 @@ use serde_rename_chain::serde_rename_chain;
 use serdev::Deserialize;
 use validator::Validate;
 
+use crate::types::EncodingType;
 use crate::types::ListBucketResultV2;
 use crate::types::OptionalObjectAttributes;
 use crate::types::RequestPayer;
@@ -24,7 +25,7 @@ pub struct ListObjectsV2InputQuery {
 
     pub delimiter: Option<String>,
 
-    pub encoding_type: Option<String>,
+    pub encoding_type: Option<EncodingType>,
 
     pub fetch_owner: Option<bool>,
 
