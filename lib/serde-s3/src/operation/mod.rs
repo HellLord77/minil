@@ -1,3 +1,5 @@
+pub mod check;
+
 mod create_bucket;
 mod delete_bucket;
 mod get_bucket_location;

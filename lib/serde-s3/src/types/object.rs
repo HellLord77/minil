@@ -1,3 +1,4 @@
+use bon::Builder;
 use chrono::DateTime;
 use chrono::Utc;
 use serde::Serialize;
@@ -10,7 +11,7 @@ use crate::types::Owner;
 use crate::types::RestoreStatus;
 
 #[skip_serializing_none]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Builder, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Object {
     pub checksum_algorithm: Option<ChecksumAlgorithm>,
