@@ -1,4 +1,4 @@
-use stringify_extra::stringify_expr;
+use stringify_checked::stringify_expr;
 
 fn main() {
     stringify_expr!(match Some(0) {});

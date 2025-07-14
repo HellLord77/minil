@@ -1,6 +1,6 @@
 [package]
-name = "stringify-extra"
-version = "0.1.0"
+name = "stringify-checked"
+version = "0.2.0"
 edition.workspace = true
 
 [dev-dependencies]

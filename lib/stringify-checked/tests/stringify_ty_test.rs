@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use stringify_extra::stringify_ty;
+use stringify_checked::stringify_ty;
 use trybuild::TestCases;
 
 #[test]

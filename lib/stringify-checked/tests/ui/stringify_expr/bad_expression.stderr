@@ -1,3 +1,17 @@
+warning: use of deprecated macro `stringify_expr`
+ --> tests/ui/stringify_expr/bad_expression.rs:4:5
+  |
+4 |     stringify_expr!(match Some(0) {});
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated macro `stringify_checked::stringify_expr`
+ --> tests/ui/stringify_expr/bad_expression.rs:1:24
+  |
+1 | use stringify_checked::stringify_expr;
+  |                        ^^^^^^^^^^^^^^
+
 warning: unreachable expression
  --> tests/ui/stringify_expr/bad_expression.rs:4:5
   |
