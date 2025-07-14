@@ -1,7 +1,6 @@
 use std::io;
 
 use bytes::Bytes;
-use bytesize::ByteSize;
 use crc_fast::CrcAlgorithm;
 use digest::Digest;
 use md5::Md5;
@@ -11,6 +10,7 @@ use sea_orm::*;
 use sha1::Sha1;
 use sha2::Sha256;
 use tokio::io::AsyncRead;
+use tokio_stream::Stream;
 use tokio_stream::StreamExt;
 use tokio_util::codec::FramedRead;
 use uuid::Uuid;
@@ -31,6 +31,27 @@ impl ObjectQuery {
             .filter(object::Column::BucketId.eq(bucket_id))
             .filter(object::Column::Key.eq(key))
             .one(db)
+            .await
+    }
+
+    pub async fn find_all_by_bucket_id(
+        db: &(impl ConnectionTrait + StreamTrait),
+        bucket_id: Uuid,
+        key_starts_with: Option<&str>,
+        key_gte: Option<&str>,
+        limit: Option<u64>,
+    ) -> DbRes<impl Stream<Item = DbRes<object::Model>>> {
+        let mut query = Object::find().filter(object::Column::BucketId.eq(bucket_id));
+        if let Some(key_starts_with) = key_starts_with {
+            query = query.filter(object::Column::Key.starts_with(key_starts_with));
+        }
+        if let Some(key_gte) = key_gte {
+            query = query.filter(object::Column::Key.gte(key_gte));
+        }
+        query
+            .order_by_asc(object::Column::Key)
+            .limit(limit)
+            .stream(db)
             .await
     }
 }
@@ -54,7 +75,6 @@ impl ObjectMutation {
                         object::Column::Sha1,
                         object::Column::Sha256,
                         object::Column::Md5,
-                        object::Column::ETag,
                     ])
                     .value(
                         object::Column::UpdatedAt,
@@ -75,7 +95,7 @@ impl ObjectMutation {
     ) -> io::Result<DbRes<object::Model>> {
         let mut stream = FramedRead::new(
             read,
-            ChunkedDecoder::with_capacity(ByteSize::mib(4).as_u64() as usize),
+            ChunkedDecoder::with_capacity(bytesize::mib(4u64) as usize),
         )
         .peekable();
 
@@ -134,7 +154,6 @@ impl ObjectMutation {
                 .finalize_into(&mut crc64nvme_buf)
                 .unwrap_or_else(|_err| unreachable!());
         }
-        let md5 = md5.finalize();
 
         let object = object::ActiveModel {
             id: Set(Uuid::new_v4()),
@@ -147,8 +166,7 @@ impl ObjectMutation {
             crc64nvme: Set(crc64nvme_buf.to_vec()),
             sha1: Set(sha1.finalize().to_vec()),
             sha256: Set(sha256.finalize().to_vec()),
-            md5: Set(md5.to_vec()),
-            e_tag: Set(hex::encode(md5)),
+            md5: Set(md5.finalize().to_vec()),
             ..Default::default()
         };
         Ok(ObjectMutation::insert(db, object).await)

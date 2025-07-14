@@ -29,11 +29,11 @@ impl BucketQuery {
         limit: Option<u64>,
     ) -> DbRes<impl Stream<Item = DbRes<bucket::Model>>> {
         let mut query = Bucket::find().filter(bucket::Column::OwnerId.eq(owner_id));
-        if let Some(starts_with) = name_starts_with {
-            query = query.filter(bucket::Column::Name.starts_with(starts_with));
+        if let Some(name_starts_with) = name_starts_with {
+            query = query.filter(bucket::Column::Name.starts_with(name_starts_with));
         }
-        if let Some(start_after) = name_gte {
-            query = query.filter(bucket::Column::Name.gte(start_after));
+        if let Some(name_gte) = name_gte {
+            query = query.filter(bucket::Column::Name.gte(name_gte));
         }
         query
             .order_by_asc(bucket::Column::Name)

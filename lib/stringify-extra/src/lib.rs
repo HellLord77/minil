@@ -6,6 +6,7 @@ macro_rules! stringify_ty {
     }};
 }
 
+#[deprecated]
 #[macro_export]
 macro_rules! stringify_expr {
     ($e:expr) => {{

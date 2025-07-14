@@ -51,6 +51,7 @@ use minil_migration::MigratorTrait;
 use minil_service::BucketMutation;
 use minil_service::BucketQuery;
 use minil_service::ObjectMutation;
+use minil_service::ObjectQuery;
 use minil_service::OwnerQuery;
 use sea_orm::ConnectOptions;
 use sea_orm::Database;
@@ -68,6 +69,7 @@ use serde_s3::operation::ListObjectsV2OutputHeader;
 use serde_s3::operation::PutObjectOutputHeader;
 use serde_s3::types::Bucket;
 use serde_s3::types::BucketLocationConstraint;
+use serde_s3::types::Object;
 use serde_s3::types::Owner;
 use sha2::Sha256;
 use tokio::net::TcpListener;
@@ -449,7 +451,7 @@ async fn put_object(
         ),
     )
     .await??;
-    app_validate_digest!(input.header.content_md5, object.md5);
+    app_validate_digest!(input.header.content_md5, object.md5.clone());
     app_validate_digest!(input.header.checksum_crc32, object.crc32);
     app_validate_digest!(input.header.checksum_crc32c, object.crc32c);
     app_validate_digest!(input.header.checksum_crc64nvme, object.crc64nvme);
@@ -460,7 +462,7 @@ async fn put_object(
         PutObjectOutput::builder()
             .header(
                 PutObjectOutputHeader::builder()
-                    .e_tag(format!("\"{}\"", object.e_tag))
+                    .e_tag(format!("\"{}\"", hex::encode(object.md5)))
                     .build(),
             )
             .build()
@@ -522,11 +524,39 @@ async fn get_bucket_location(
 }
 
 async fn list_objects(
-    State(_db): State<DbConn>,
+    Extension(db): Extension<DbTxn>,
     input: ListObjectsInput,
 ) -> AppResult<ListObjectsOutput> {
+    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
+        .await?
+        .unwrap();
+
     dbg!(&input);
-    fixme!();
+    app_ensure_eq!(input.query.delimiter, None);
+    app_ensure_matches!(input.query.encoding_type, None);
+    app_ensure_matches!(input.header.optional_object_attributes, None);
+    app_ensure_matches!(input.header.request_payer, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let limit = input.query.max_keys + 1;
+    let mut objects = ObjectQuery::find_all_by_bucket_id(
+        db.as_ref(),
+        bucket.id,
+        input.query.prefix.as_deref(),
+        input.query.marker.as_deref(),
+        Some(limit as u64),
+    )
+    .await?
+    .try_collect::<Vec<_>>()
+    .await?;
+    let next_marker = if objects.len() == limit as usize {
+        Some(objects.pop().unwrap_or_else(|| unreachable!()).key)
+    } else {
+        None
+    };
 
     app_output!(
         ListObjectsOutput::builder()
@@ -534,12 +564,31 @@ async fn list_objects(
             .body(
                 ListObjectsOutputBody::builder()
                     .common_prefixes(vec![])
-                    .contents(vec![])
-                    .is_truncated(false)
-                    .marker("".to_owned())
-                    .max_keys(0)
-                    .name("".to_owned())
-                    .prefix("".to_owned())
+                    .contents(
+                        objects
+                            .into_iter()
+                            .map(|object| {
+                                Object::builder()
+                                    .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                                    .key(object.key)
+                                    .maybe_last_modified(object.updated_at)
+                                    .owner(
+                                        Owner::builder()
+                                            .display_name(owner.name.clone())
+                                            .id(owner.id)
+                                            .build(),
+                                    )
+                                    .size(object.size as u64)
+                                    .build()
+                            })
+                            .collect()
+                    )
+                    .is_truncated(next_marker.is_some())
+                    .marker(input.query.marker.unwrap_or_default())
+                    .max_keys(input.query.max_keys)
+                    .name(bucket.name)
+                    .maybe_next_marker(next_marker)
+                    .prefix(input.query.prefix.unwrap_or_default())
                     .build(),
             )
             .build()
@@ -547,7 +596,7 @@ async fn list_objects(
 }
 
 async fn list_objects_v2(
-    State(_db): State<DbConn>,
+    Extension(_db): Extension<DbTxn>,
     input: ListObjectsV2Input,
 ) -> AppResult<ListObjectsV2Output> {
     dbg!(&input);
