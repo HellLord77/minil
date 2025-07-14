@@ -25,7 +25,7 @@ pub struct PutObjectInputPath {
     pub key: String,
 }
 
-#[serde_rename_chain(add_prefix = "x_amz_", ident_case_struct = "kebab")]
+#[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Validate, Deserialize)]
 #[serde(validate = "Validate::validate")]
 pub struct PutObjectInputHeader {
@@ -58,14 +58,19 @@ pub struct PutObjectInputHeader {
 
     pub acl: Option<ObjectCannedAcl>,
 
+    #[serde(rename = "x-amz-checksum-crc32")]
     pub checksum_crc32: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-crc32c")]
     pub checksum_crc32c: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-crc64nvme")]
     pub checksum_crc64nvme: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-sha1")]
     pub checksum_sha1: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-sha256")]
     pub checksum_sha256: Option<String>,
 
     pub expected_bucket_owner: Option<String>,
@@ -112,20 +117,25 @@ pub struct PutObjectInputHeader {
     pub write_offset_bytes: Option<u64>,
 }
 
-#[serde_rename_chain(add_prefix = "x_amz_", ident_case_struct = "kebab")]
+#[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Builder, Serialize)]
 pub struct PutObjectOutputHeader {
     #[serde_rename_chain(convert_case = "pascal")]
     pub e_tag: String,
 
+    #[serde(rename = "x-amz-checksum-crc32")]
     pub checksum_crc32: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-crc32c")]
     pub checksum_crc32c: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-crc64nvme")]
     pub checksum_crc64nvme: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-sha1")]
     pub checksum_sha1: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-sha256")]
     pub checksum_sha256: Option<String>,
 
     pub checksum_type: Option<ChecksumType>,

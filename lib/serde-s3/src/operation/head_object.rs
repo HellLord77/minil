@@ -119,14 +119,19 @@ pub struct HeadObjectOutputHeader {
 
     pub archive_status: Option<ArchiveStatus>,
 
+    #[serde(rename = "x-amz-checksum-crc32")]
     pub checksum_crc32: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-crc32c")]
     pub checksum_crc32c: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-crc64nvme")]
     pub checksum_crc64nvme: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-sha1")]
     pub checksum_sha1: Option<String>,
 
+    #[serde(rename = "x-amz-checksum-sha256")]
     pub checksum_sha256: Option<String>,
 
     pub checksum_type: Option<ChecksumType>,
