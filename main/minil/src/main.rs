@@ -5,6 +5,7 @@ mod make_request_id;
 mod service_builder_ext;
 mod state;
 
+use std::convert::identity;
 use std::env;
 use std::future;
 use std::io;
@@ -46,6 +47,7 @@ use base64::Engine;
 use digest::Digest;
 use ensure::fixme;
 use futures::TryStreamExt;
+use indexmap::IndexSet;
 use minil_migration::Migrator;
 use minil_migration::MigratorTrait;
 use minil_service::BucketMutation;
@@ -69,6 +71,8 @@ use serde_s3::operation::ListObjectsV2OutputHeader;
 use serde_s3::operation::PutObjectOutputHeader;
 use serde_s3::types::Bucket;
 use serde_s3::types::BucketLocationConstraint;
+use serde_s3::types::CommonPrefix;
+use serde_s3::types::EncodingType;
 use serde_s3::types::Object;
 use serde_s3::types::Owner;
 use sha2::Sha256;
@@ -279,7 +283,7 @@ async fn create_bucket(
     app_ensure_matches!(input.body, None);
 
     let region = serde_plain::to_string(&BucketLocationConstraint::UsEast1)
-        .unwrap_or_else(|_| unreachable!());
+        .unwrap_or_else(|_err| unreachable!());
     let bucket = BucketMutation::create(db.as_ref(), owner.id, &input.path.bucket, &region)
         .await?
         .ok_or(AppError::BucketAlreadyOwnedByYou)?;
@@ -360,11 +364,14 @@ async fn list_buckets(
     .await?
     .try_collect::<Vec<_>>()
     .await?;
-    let continuation_token = if buckets.len() == limit as usize {
-        Some(buckets.pop().unwrap_or_else(|| unreachable!()).name)
-    } else {
-        None
-    };
+    let continuation_token = (buckets.len() == limit as usize).then(|| {
+        buckets.pop();
+        buckets
+            .last()
+            .unwrap_or_else(|| unreachable!())
+            .name
+            .clone()
+    });
 
     app_output!(
         ListBucketsOutput::builder()
@@ -532,8 +539,6 @@ async fn list_objects(
         .unwrap();
 
     dbg!(&input);
-    app_ensure_eq!(input.query.delimiter, None);
-    app_ensure_matches!(input.query.encoding_type, None);
     app_ensure_matches!(input.header.optional_object_attributes, None);
     app_ensure_matches!(input.header.request_payer, None);
 
@@ -552,10 +557,29 @@ async fn list_objects(
     .await?
     .try_collect::<Vec<_>>()
     .await?;
-    let next_marker = if objects.len() == limit as usize {
-        Some(objects.pop().unwrap_or_else(|| unreachable!()).key)
+    let mut common_prefixes = IndexSet::new();
+    let next_marker = (objects.len() == limit as usize).then(|| {
+        objects.pop();
+        objects.last().unwrap_or_else(|| unreachable!()).key.clone()
+    });
+    if let Some(delimiter) = &input.query.delimiter {
+        let prefix_len = input.query.prefix.as_deref().map_or(0, str::len);
+        let offset = prefix_len + delimiter.len();
+        objects.retain(|object| {
+            if let Some(delimiter_index) = &object.key[prefix_len..].find(delimiter) {
+                common_prefixes.insert(object.key[..offset + delimiter_index].to_owned());
+                false
+            } else {
+                true
+            }
+        });
+    }
+    let encode: fn(String) -> String = if let Some(encoding_type) = &input.query.encoding_type {
+        match encoding_type {
+            EncodingType::Url => |string| urlencoding::encode(&string).to_string(),
+        }
     } else {
-        None
+        identity
     };
 
     app_output!(
@@ -563,15 +587,22 @@ async fn list_objects(
             .header(ListObjectsOutputHeader::builder().build())
             .body(
                 ListObjectsOutputBody::builder()
-                    .common_prefixes(vec![])
+                    .common_prefixes(
+                        common_prefixes
+                            .into_iter()
+                            .map(|common_prefix| CommonPrefix::builder()
+                                .prefix(encode(common_prefix))
+                                .build())
+                            .collect()
+                    )
                     .contents(
                         objects
                             .into_iter()
                             .map(|object| {
                                 Object::builder()
                                     .e_tag(format!("\"{}\"", hex::encode(object.md5)))
-                                    .key(object.key)
-                                    .maybe_last_modified(object.updated_at)
+                                    .key(encode(object.key))
+                                    .last_modified(object.updated_at.unwrap_or(object.created_at))
                                     .owner(
                                         Owner::builder()
                                             .display_name(owner.name.clone())
@@ -583,11 +614,17 @@ async fn list_objects(
                             })
                             .collect()
                     )
+                    .maybe_delimiter(input.query.delimiter.clone())
+                    .maybe_encoding_type(input.query.encoding_type)
                     .is_truncated(next_marker.is_some())
                     .marker(input.query.marker.unwrap_or_default())
                     .max_keys(input.query.max_keys)
                     .name(bucket.name)
-                    .maybe_next_marker(next_marker)
+                    .maybe_next_marker(
+                        next_marker
+                            .filter(|_next_marker| input.query.delimiter.is_some())
+                            .map(encode)
+                    )
                     .prefix(input.query.prefix.unwrap_or_default())
                     .build(),
             )
@@ -601,6 +638,8 @@ async fn list_objects_v2(
 ) -> AppResult<ListObjectsV2Output> {
     dbg!(&input);
     fixme!();
+
+    // key_count = len(objects) + len(common_prefixes)
 
     app_output!(
         ListObjectsV2Output::builder()

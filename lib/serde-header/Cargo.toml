@@ -21,8 +21,7 @@ full_slim = ["default", "httparse"]
 full = ["full_slim", "unicase"]
 
 [dependencies]
-indexmap = "2.10.0"
-
+indexmap.workspace = true
 derive_more.workspace = true
 serde.workspace = true
 

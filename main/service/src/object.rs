@@ -38,15 +38,15 @@ impl ObjectQuery {
         db: &(impl ConnectionTrait + StreamTrait),
         bucket_id: Uuid,
         key_starts_with: Option<&str>,
-        key_gte: Option<&str>,
+        key_gt: Option<&str>,
         limit: Option<u64>,
     ) -> DbRes<impl Stream<Item = DbRes<object::Model>>> {
         let mut query = Object::find().filter(object::Column::BucketId.eq(bucket_id));
         if let Some(key_starts_with) = key_starts_with {
             query = query.filter(object::Column::Key.starts_with(key_starts_with));
         }
-        if let Some(key_gte) = key_gte {
-            query = query.filter(object::Column::Key.gte(key_gte));
+        if let Some(key_gt) = key_gt {
+            query = query.filter(object::Column::Key.gt(key_gt));
         }
         query
             .order_by_asc(object::Column::Key)

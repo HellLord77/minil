@@ -34,7 +34,7 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
                             field.ident.as_ref().unwrap_or_else(|| unreachable!()),
                             &mut field.attrs,
                         )
-                        .map(|_| ())
+                        .map(drop)
                     })?;
 
                     Ok(quote! { #item })
@@ -51,7 +51,7 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
             process(&mut renamers, attrs)?;
 
             variants.iter_mut().try_for_each(|variant| {
-                apply(&renamers, &variant.ident, &mut variant.attrs).map(|_| ())
+                apply(&renamers, &variant.ident, &mut variant.attrs).map(drop)
             })?;
 
             Ok(quote! { #item })

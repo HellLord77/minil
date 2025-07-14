@@ -25,15 +25,15 @@ impl BucketQuery {
         db: &(impl ConnectionTrait + StreamTrait),
         owner_id: Uuid,
         name_starts_with: Option<&str>,
-        name_gte: Option<&str>,
+        name_gt: Option<&str>,
         limit: Option<u64>,
     ) -> DbRes<impl Stream<Item = DbRes<bucket::Model>>> {
         let mut query = Bucket::find().filter(bucket::Column::OwnerId.eq(owner_id));
         if let Some(name_starts_with) = name_starts_with {
             query = query.filter(bucket::Column::Name.starts_with(name_starts_with));
         }
-        if let Some(name_gte) = name_gte {
-            query = query.filter(bucket::Column::Name.gte(name_gte));
+        if let Some(name_gt) = name_gt {
+            query = query.filter(bucket::Column::Name.gt(name_gt));
         }
         query
             .order_by_asc(bucket::Column::Name)
