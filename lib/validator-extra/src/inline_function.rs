@@ -1,10 +1,10 @@
 use std::mem;
 
 use darling::FromMeta;
+use darling::util::PreservedStrExpr;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
-use syn::Expr;
 use syn::Fields;
 use syn::ItemStruct;
 use syn::parse_quote;
@@ -14,7 +14,7 @@ use syn_utils::peel_option;
 #[derive(Debug, FromMeta)]
 #[darling(derive_syn_parse)]
 struct Args {
-    inline_function: Expr,
+    inline_function: PreservedStrExpr,
     code: Option<String>,
     message: Option<String>,
 }

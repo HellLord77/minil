@@ -1,9 +1,8 @@
 use std::mem;
 
-use darling::FromMeta;
+use darling::util::PreservedStrExpr;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::Expr;
 use syn::Fields;
 use syn::ItemStruct;
 use syn::parse_quote;
@@ -82,7 +81,7 @@ macro_rules! define_args {
         #[derive(::core::fmt::Debug, ::derive_more::Into, ::darling::FromMeta)]
         #[darling(derive_syn_parse)]
         struct $ident {
-            $($inputs: Expr,)*
+            $($inputs: PreservedStrExpr,)*
             invert: Option<bool>,
             code: Option<String>,
             message: Option<String>,

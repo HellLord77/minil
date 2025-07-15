@@ -1,9 +1,9 @@
 use std::mem;
 
 use darling::FromMeta;
+use darling::util::PreservedStrExpr;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::Expr;
 use syn::Fields;
 use syn::ItemStruct;
 use syn::parse_quote;
@@ -12,7 +12,7 @@ use syn_utils::bail_spanned;
 #[derive(Debug, FromMeta)]
 #[darling(derive_syn_parse)]
 struct Args {
-    check: Expr,
+    check: PreservedStrExpr,
     #[darling(default)]
     invert: bool,
     code: Option<String>,

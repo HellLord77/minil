@@ -1,10 +1,10 @@
 use std::mem;
 
 use darling::FromMeta;
+use darling::util::PreservedStrExpr;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
-use syn::Expr;
 use syn::Fields;
 use syn::ItemStruct;
 use syn::parse_quote;
@@ -16,7 +16,7 @@ struct Args {
     ident: String,
     #[darling(multiple)]
     #[darling(rename = "input")]
-    inputs: Vec<Expr>,
+    inputs: Vec<PreservedStrExpr>,
     invert: Option<bool>,
     code: Option<String>,
     message: Option<String>,
