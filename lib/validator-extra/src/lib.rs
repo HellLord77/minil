@@ -1,4 +1,5 @@
 mod check;
+mod check_ass_fn;
 mod check_fn;
 mod inline_function;
 
@@ -18,4 +19,9 @@ pub fn validate_check(_attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn validate_check_fn(_attr: TokenStream, item: TokenStream) -> TokenStream {
     expand_with(item, check_fn::expand)
+}
+
+#[proc_macro_attribute]
+pub fn validate_check_ass_fn(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    expand_with(item, check_ass_fn::expand)
 }

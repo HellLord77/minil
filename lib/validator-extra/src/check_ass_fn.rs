@@ -32,10 +32,11 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
     match fields {
         Fields::Named(fields) => {
             for field in fields.named.iter_mut() {
+                let field_ident = field.ident.as_ref().unwrap_or_else(|| unreachable!());
                 let attrs = mem::take(&mut field.attrs);
 
                 for attr in attrs.into_iter() {
-                    if !attr.path().is_ident("validate_check_fn") {
+                    if !attr.path().is_ident("validate_check_ass_fn") {
                         field.attrs.push(attr);
                         continue;
                     }
@@ -50,7 +51,7 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     let ident = format_ident!("{}", args.ident);
                     let inputs = &args.inputs;
                     field.attrs.push(parse_quote! {
-                        #[validate_check(check = #ident(#(#inputs),*), #code #message)]
+                        #[validate_check(check = #field_ident.#ident(#(#inputs),*), #code #message)]
                     });
                 }
             }
