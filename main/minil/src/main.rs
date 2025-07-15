@@ -653,7 +653,11 @@ async fn list_objects_v2(
         db.as_ref(),
         bucket.id,
         input.query.prefix.as_deref(),
-        input.query.start_after.as_deref(),
+        input
+            .query
+            .continuation_token
+            .as_deref()
+            .or(input.query.start_after.as_deref()),
         Some(limit as u64),
     )
     .await?

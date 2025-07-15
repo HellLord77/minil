@@ -30,9 +30,10 @@ md-5 = "0.10.6"
 sha1 = "0.10.6"
 sha2 = "0.10.9"
 
+darling = "0.21.0"
 proc-macro2 = "1.0.95"
 quote = "1.0.40"
-syn = { version = "2.0.104", features = ["full"] }
+syn = { version = "2.0.104", features = ["extra-traits", "full"] }
 
 sea-orm = { version = "1.1.13", features = ["debug-print", "runtime-tokio", "sqlite-use-returning-for-3_35", "sqlx-sqlite"] }
 sea-orm-migration = { version = "1.1.13", features = ["runtime-tokio", "sqlx-sqlite", "with-uuid"] }
@@ -56,8 +57,9 @@ ensure = { path = "lib/ensure" }
 serde-header = { path = "lib/serde-header", features = ["full"] }
 serde-rename-chain = { path = "lib/serde-rename-chain", features = ["full"] }
 serde-s3 = { path = "lib/serde-s3" }
-stringify-extra = { path = "lib/stringify-extra" }
+stringify-checked = { path = "lib/stringify-checked" }
 syn-utils = { path = "lib/syn-utils" }
+validator-extra = { path = "lib/validator-extra" }
 
 minil-entity = { path = "main/entity" }
 minil-migration = { path = "main/migration" }
