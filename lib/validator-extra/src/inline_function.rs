@@ -20,6 +20,7 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
         Fields::Named(fields) => {
             for field in fields.named.iter_mut() {
                 let field_ident = field.ident.as_ref().unwrap_or_else(|| unreachable!());
+                let field_ty = peel_option(&field.ty).unwrap_or(&field.ty);
 
                 for (attr_index, attr) in field.attrs.iter_mut().enumerate() {
                     if !attr.path().is_ident("validate_inline_function") {
@@ -29,12 +30,13 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     let fn_name_lit =
                         format!("_validate_inline_function_{ident}_{field_ident}_{attr_index}");
                     let fn_name_ident = format_ident!("{fn_name_lit}");
-                    let fn_arg_ty = peel_option(&field.ty).unwrap_or(&field.ty);
                     let fn_body = attr.parse_args::<Expr>()?;
 
                     inline_fns.push(quote! {
                         #[allow(clippy::ptr_arg)]
-                        fn #fn_name_ident(#field_ident: &#fn_arg_ty) -> ::core::result::Result<(), ::validator::ValidationError> {
+                        fn #fn_name_ident(
+                            #field_ident: &#field_ty
+                        ) -> ::core::result::Result<(), ::validator::ValidationError> {
                             #fn_body
                         }
                     });
