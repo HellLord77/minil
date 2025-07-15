@@ -1,3 +1,5 @@
+use std::mem;
+
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
@@ -21,18 +23,27 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
             for field in fields.named.iter_mut() {
                 let field_ident = field.ident.as_ref().unwrap_or_else(|| unreachable!());
                 let field_ty = peel_option(&field.ty).unwrap_or(&field.ty);
+                let attrs = mem::take(&mut field.attrs);
 
-                for (attr_index, attr) in field.attrs.iter_mut().enumerate() {
+                for (attr_index, attr) in attrs.into_iter().enumerate() {
                     if !attr.path().is_ident("validate_inline_function") {
+                        field.attrs.push(attr);
                         continue;
                     }
+
+                    let doc = quote!(#attr).to_string();
+                    field.attrs.push(parse_quote!(#[doc = #doc]));
 
                     let fn_name_lit =
                         format!("_validate_inline_function_{ident}_{field_ident}_{attr_index}");
                     let fn_name_ident = format_ident!("{fn_name_lit}");
-                    let fn_body = attr.parse_args::<Expr>()?;
+                    field
+                        .attrs
+                        .push(parse_quote!(#[validate(custom(function = #fn_name_lit))]));
 
+                    let fn_body = attr.parse_args::<Expr>()?;
                     inline_fns.push(quote! {
+                        #[doc(hidden)]
                         #[allow(clippy::ptr_arg)]
                         fn #fn_name_ident(
                             #field_ident: &#field_ty
@@ -40,8 +51,6 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                             #fn_body
                         }
                     });
-
-                    *attr = parse_quote!(#[validate(custom(function = #fn_name_lit))]);
                 }
             }
 
