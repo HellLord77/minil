@@ -24,7 +24,7 @@ pub struct ListObjectsInputPath {
 #[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
 pub struct ListObjectsInputQuery {
-    #[validate_extra(eq(other = "'/'"))]
+    #[validate_extra(eq(other = "/"))]
     // #[serde_as(as = "NoneAsEmptyString")]
     pub delimiter: Option<String>,
 

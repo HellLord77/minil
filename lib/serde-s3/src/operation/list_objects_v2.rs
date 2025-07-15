@@ -27,7 +27,7 @@ pub struct ListObjectsV2InputQuery {
     // #[serde_as(as = "NoneAsEmptyString")]
     pub continuation_token: Option<String>,
 
-    #[validate_extra(eq(other = "'/'"))]
+    #[validate_extra(eq(other = "/"))]
     // #[serde_as(as = "NoneAsEmptyString")]
     pub delimiter: Option<String>,
 
