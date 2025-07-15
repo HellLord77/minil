@@ -1,5 +1,6 @@
 use std::mem;
 
+use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Expr;
@@ -7,6 +8,14 @@ use syn::Fields;
 use syn::ItemStruct;
 use syn::parse_quote;
 use syn_utils::bail_spanned;
+
+#[derive(Debug, FromMeta)]
+#[darling(derive_syn_parse)]
+pub(super) struct Args {
+    pub(super) check: Expr,
+    pub(super) code: Option<String>,
+    pub(super) message: Option<String>,
+}
 
 pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
     let ItemStruct {
@@ -32,17 +41,21 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     let doc = quote!(#attr).to_string();
                     field.attrs.push(parse_quote!(#[doc = #doc]));
 
-                    let check_body = attr.parse_args::<Expr>()?;
+                    let args = attr.parse_args::<Args>()?;
+                    let code = args.code.map(|code| quote!(, code = #code));
+                    let message = args.message.map(|message| quote!(, message = #message));
+
+                    let check = args.check;
                     field.attrs.push(parse_quote! {
-                        #[validate_inline_function({
-                            if #check_body {
+                        #[validate_inline_function(inline_function = {
+                            if #check {
                                 ::core::result::Result::Ok(())
                             } else {
                                 ::core::result::Result::Err(
                                     ::validator::ValidationError::new(#field_ident_str)
                                 )
                             }
-                        })]
+                        } #code #message)]
                     });
                 }
             }

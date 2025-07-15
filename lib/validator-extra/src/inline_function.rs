@@ -1,5 +1,6 @@
 use std::mem;
 
+use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
@@ -9,6 +10,14 @@ use syn::ItemStruct;
 use syn::parse_quote;
 use syn_utils::bail_spanned;
 use syn_utils::peel_option;
+
+#[derive(Debug, FromMeta)]
+#[darling(derive_syn_parse)]
+pub(super) struct Args {
+    pub(super) inline_function: Expr,
+    pub(super) code: Option<String>,
+    pub(super) message: Option<String>,
+}
 
 pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
     let ItemStruct {
@@ -34,14 +43,18 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     let doc = quote!(#attr).to_string();
                     field.attrs.push(parse_quote!(#[doc = #doc]));
 
+                    let args = attr.parse_args::<Args>()?;
+                    let code = args.code.map(|code| quote!(, code = #code));
+                    let message = args.message.map(|message| quote!(, message = #message));
+
                     let fn_name_lit =
                         format!("_validate_inline_function_{ident}_{field_ident}_{attr_index}");
                     let fn_name_ident = format_ident!("{fn_name_lit}");
-                    field
-                        .attrs
-                        .push(parse_quote!(#[validate(custom(function = #fn_name_lit))]));
+                    field.attrs.push(
+                        parse_quote!(#[validate(custom(function = #fn_name_lit #code #message))]),
+                    );
 
-                    let fn_body = attr.parse_args::<Expr>()?;
+                    let fn_body = args.inline_function;
                     inline_fns.push(quote! {
                         #[doc(hidden)]
                         #[allow(clippy::ptr_arg)]
