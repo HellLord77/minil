@@ -10,6 +10,7 @@ use syn::parse_quote;
 use syn_utils::bail_spanned;
 use syn_utils::has_attribute;
 use syn_utils::parse_attrs;
+use syn_utils::remove_attribute;
 
 use crate::attr::SerdeRenameChainAttrs;
 use crate::renamer::Renamer;
@@ -60,16 +61,13 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
     }
 }
 
-fn process(renamers: &mut Vec<Renamer>, attrs: &mut Vec<Attribute>) -> syn::Result<()> {
+fn process(renamers: &mut Vec<Renamer>, attrs: &mut [Attribute]) -> syn::Result<()> {
     if has_attribute(attrs, "serde", "rename_all") {
         renamers.clear();
     } else {
         let args = parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)?;
         renamers.extend(args.renamers);
     }
-
-    let derive_attr = parse_quote!(#[derive(::serde_rename_chain::_SerdeRenameChain)]);
-    attrs.push(derive_attr);
 
     Ok(())
 }
@@ -85,6 +83,8 @@ fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn
     }
 
     let args = parse_attrs::<SerdeRenameChainAttrs>("serde_rename_chain", attrs)?;
+    remove_attribute(attrs, "serde_rename_chain");
+
     let renamers = if args.renamers.is_empty() {
         renamers
     } else {

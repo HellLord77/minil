@@ -31,8 +31,3 @@ pub fn serde_rename_chain(attr: TokenStream, input: TokenStream) -> TokenStream 
 
     expand_with(input, |item| rename_chain::expand(args, item))
 }
-
-#[proc_macro_derive(_SerdeRenameChain, attributes(serde_rename_chain))]
-pub fn _derive_serde_rename_chain(_input: TokenStream) -> TokenStream {
-    TokenStream::new()
-}
