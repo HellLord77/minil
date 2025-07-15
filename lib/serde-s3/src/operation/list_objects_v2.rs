@@ -4,7 +4,8 @@ use serde_inline_default::serde_inline_default;
 use serde_rename_chain::serde_rename_chain;
 use serdev::Deserialize;
 use validator::Validate;
-use validator_extra::validate_check;
+use validator_extra::validate_extra;
+
 use crate::types::EncodingType;
 use crate::types::ListBucketResultV2;
 use crate::types::OptionalObjectAttributes;
@@ -16,7 +17,7 @@ pub struct ListObjectsV2InputPath {
     pub bucket: String,
 }
 
-#[validate_check]
+#[validate_extra]
 // #[serde_as]
 #[serde_inline_default]
 #[derive(Debug, Validate, Deserialize)]
@@ -26,14 +27,7 @@ pub struct ListObjectsV2InputQuery {
     // #[serde_as(as = "NoneAsEmptyString")]
     pub continuation_token: Option<String>,
 
-    // #[validator_check(equals(value = "/", ...))] => #[validator_check(eq(input = "\"/\"", ...))]
-    // #[validator_check(eq(input = "\"/\"", ...))] => #[validator_check(check_ass_fn(ident = "eq", input = "\"/\"", ...))]
-    // #[validator_check(check_ass_fn(ident = "eq", input = "\"/\"", ...))] => #[validator_check(check(check = "delimiter.eq(\"/\")", ...))]
-    // unescape: \\ => \, \" => "
-    // #[validator_check(check_fn(ident = "name", input = "\"arg\"", input = "delimiter", ...))] => #[validator_check(check(check = "name(\"arg\", delimiter)", ...))]
-    // #[validator_check(check_ass_fn(ident = "name", input = "None", input = "var", ...))] => #[validator_check(check(check = "delimiter.name(None, var)", ...))]
-    // #[validator_check(check(check = "delimiter == \"/\"", code = "delimiter", message = "..."))]
-    #[validate_check(delimiter == "/")]
+    #[validate_extra(eq(other = "'/'"))]
     // #[serde_as(as = "NoneAsEmptyString")]
     pub delimiter: Option<String>,
 

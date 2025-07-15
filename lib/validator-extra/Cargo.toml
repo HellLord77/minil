@@ -7,10 +7,10 @@ edition.workspace = true
 proc-macro = true
 
 [dependencies]
+darling.workspace = true
 derive_more.workspace = true
 proc-macro2.workspace = true
 quote.workspace = true
-darling.workspace = true
 syn.workspace = true
 
 syn-utils.workspace = true
