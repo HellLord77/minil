@@ -1,7 +1,6 @@
 use std::mem;
 
 use darling::FromMeta;
-use derive_more::Into;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Expr;
@@ -10,228 +9,165 @@ use syn::ItemStruct;
 use syn::parse_quote;
 use syn_utils::bail_spanned;
 
-#[derive(Debug, FromMeta)]
-#[darling(derive_syn_parse)]
-struct Args {
-    #[darling(multiple)]
-    is_empty: Vec<IsEmptyArgs>,
-
-    #[darling(multiple)]
-    is_ascii: Vec<IsAsciiArgs>,
-
-    #[darling(multiple)]
-    is_some: Vec<IsSomeArgs>,
-
-    #[darling(multiple)]
-    is_none: Vec<IsNoneArgs>,
-
-    #[darling(multiple)]
-    is_ok: Vec<IsOkArgs>,
-
-    #[darling(multiple)]
-    is_err: Vec<IsErrArgs>,
-
-    #[darling(multiple)]
-    exists: Vec<ExistsArgs>,
-
-    #[darling(multiple)]
-    is_file: Vec<IsFileArgs>,
-
-    #[darling(multiple)]
-    is_dir: Vec<IsDirArgs>,
-
-    #[darling(multiple)]
-    eq: Vec<EqArgs>,
-
-    #[darling(multiple)]
-    ne: Vec<NeArgs>,
-
-    #[darling(multiple)]
-    lt: Vec<LtArgs>,
-
-    #[darling(multiple)]
-    le: Vec<LeArgs>,
-
-    #[darling(multiple)]
-    gt: Vec<GtArgs>,
-
-    #[darling(multiple)]
-    ge: Vec<GeArgs>,
-
-    #[darling(multiple)]
-    starts_with: Vec<StartsWithArgs>,
-
-    #[darling(multiple)]
-    ends_with: Vec<EndsWithArgs>,
-
-    #[darling(multiple)]
-    contains: Vec<ContainsArgs>,
-
-    #[darling(multiple)]
-    contains_key: Vec<ContainsKeyArgs>,
+macro_rules! define_base_args {
+    ($($ident:ident => $args:ident),* $(,)?) => {
+        #[derive(::core::fmt::Debug, ::darling::FromMeta)]
+        #[darling(derive_syn_parse)]
+        struct Args {
+            $(
+                #[darling(multiple)]
+                $ident: ::std::vec::Vec<$args>,
+            )*
+        }
+    };
 }
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct IsEmptyArgs {
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
+define_base_args! {
+    is_positive => IsPositiveArgs,
+    is_negative => IsNegativeArgs,
+    is_power_of_two => IsPowerOfTwoArgs,
+    is_nan => IsNaNArgs,
+    is_infinite => IsInfiniteArgs,
+    is_finite => IsFiniteArgs,
+    is_subnormal => IsSubnormalArgs,
+    is_normal => IsNormalArgs,
+    is_sign_positive => IsSignPositiveArgs,
+    is_sign_negative => IsSignNegativeArgs,
+    is_alphabetic => IsAlphabeticArgs,
+    is_lowercase => IsLowercaseArgs,
+    is_uppercase => IsUppercaseArgs,
+    is_whitespace => IsWhitespaceArgs,
+    is_alphanumeric => IsAlphanumericArgs,
+    is_control => IsControlArgs,
+    is_numeric => IsNumericArgs,
+    is_ascii => IsAsciiArgs,
+    is_ascii_alphabetic => IsAsciiAlphabeticArgs,
+    is_ascii_uppercase => IsAsciiUppercaseArgs,
+    is_ascii_lowercase => IsAsciiLowercaseArgs,
+    is_ascii_alphanumeric => IsAsciiAlphanumericArgs,
+    is_ascii_digit => IsAsciiDigitArgs,
+    is_ascii_octdigit => IsAsciiOctdigitArgs,
+    is_ascii_hexdigit => IsAsciiHexdigitArgs,
+    is_ascii_punctuation => IsAsciiPunctuationArgs,
+    is_ascii_graphic => IsAsciiGraphicArgs,
+    is_ascii_whitespace => IsAsciiWhitespaceArgs,
+    is_ascii_control => IsAsciiControlArgs,
+    is_some => IsSomeArgs,
+    is_none => IsNoneArgs,
+    is_ok => IsOkArgs,
+    is_err => IsErrArgs,
+    is_empty => IsEmptyArgs,
+    exists => ExistsArgs,
+    is_file => IsFileArgs,
+    is_dir => IsDirArgs,
+
+    eq => EqArgs,
+    ne => NeArgs,
+    lt => LtArgs,
+    le => LeArgs,
+    gt => GtArgs,
+    ge => GeArgs,
+    is_multiply_of => IsMultiplyOfArgs,
+    is_digit => IsDigitArgs,
+    eq_ignore_ascii_case => EqIgnoreAsciiCaseArgs,
+    is_char_boundary => IsCharBoundaryArgs,
+    contains => ContainsArgs,
+    starts_with => StartsWithArgs,
+    ends_with => EndsWithArgs,
+    contains_key => ContainsKeyArgs,
 }
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct IsAsciiArgs {
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
+macro_rules! define_args {
+    ($ident:ident, $($inputs:ident),* $(,)?) => {
+        #[derive(::core::fmt::Debug, ::derive_more::Into, ::darling::FromMeta)]
+        #[darling(derive_syn_parse)]
+        struct $ident {
+            $($inputs: Expr,)*
+            invert: Option<bool>,
+            code: Option<String>,
+            message: Option<String>,
+        }
+    };
 }
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct IsSomeArgs {
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// int
+define_args!(IsPositiveArgs,);
+define_args!(IsNegativeArgs,);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct IsNoneArgs {
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// uint
+define_args!(IsPowerOfTwoArgs,);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct IsOkArgs {
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// float
+define_args!(IsNaNArgs,);
+define_args!(IsInfiniteArgs,);
+define_args!(IsFiniteArgs,);
+define_args!(IsSubnormalArgs,);
+define_args!(IsNormalArgs,);
+define_args!(IsSignPositiveArgs,);
+define_args!(IsSignNegativeArgs,);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct IsErrArgs {
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// char
+define_args!(IsAlphabeticArgs,);
+define_args!(IsLowercaseArgs,);
+define_args!(IsUppercaseArgs,);
+define_args!(IsWhitespaceArgs,);
+define_args!(IsAlphanumericArgs,);
+define_args!(IsControlArgs,);
+define_args!(IsNumericArgs,);
+define_args!(IsAsciiArgs,);
+define_args!(IsAsciiAlphabeticArgs,);
+define_args!(IsAsciiUppercaseArgs,);
+define_args!(IsAsciiLowercaseArgs,);
+define_args!(IsAsciiAlphanumericArgs,);
+define_args!(IsAsciiDigitArgs,);
+define_args!(IsAsciiOctdigitArgs,);
+define_args!(IsAsciiHexdigitArgs,);
+define_args!(IsAsciiPunctuationArgs,);
+define_args!(IsAsciiGraphicArgs,);
+define_args!(IsAsciiWhitespaceArgs,);
+define_args!(IsAsciiControlArgs,);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct ExistsArgs {
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// Option
+define_args!(IsSomeArgs,);
+define_args!(IsNoneArgs,);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct IsFileArgs {
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// Result
+define_args!(IsOkArgs,);
+define_args!(IsErrArgs,);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct IsDirArgs {
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// str
+define_args!(IsEmptyArgs,);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct EqArgs {
-    other: Expr,
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// Path
+define_args!(ExistsArgs,);
+define_args!(IsFileArgs,);
+define_args!(IsDirArgs,);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct NeArgs {
-    other: Expr,
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// PartialEq
+define_args!(EqArgs, other);
+define_args!(NeArgs, other);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct LtArgs {
-    other: Expr,
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// PartialOrd
+define_args!(LtArgs, other);
+define_args!(LeArgs, other);
+define_args!(GtArgs, other);
+define_args!(GeArgs, other);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct LeArgs {
-    other: Expr,
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// unsigned
+define_args!(IsMultiplyOfArgs, rhs);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct GtArgs {
-    other: Expr,
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// char
+define_args!(IsDigitArgs, radix);
+define_args!(EqIgnoreAsciiCaseArgs, other);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct GeArgs {
-    other: Expr,
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// str
+define_args!(IsCharBoundaryArgs, index);
+define_args!(ContainsArgs, pattern);
+define_args!(StartsWithArgs, pattern);
+define_args!(EndsWithArgs, pattern);
 
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct ContainsArgs {
-    pattern: Expr,
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
-
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct StartsWithArgs {
-    pattern: Expr,
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
-
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct EndsWithArgs {
-    pattern: Expr,
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
-
-#[derive(Debug, Into, FromMeta)]
-#[darling(derive_syn_parse)]
-struct ContainsKeyArgs {
-    pattern: Expr,
-    invert: Option<bool>,
-    code: Option<String>,
-    message: Option<String>,
-}
+// HashMap
+define_args!(ContainsKeyArgs, pattern);
 
 macro_rules! impl_check_ass_fn {
     ($args:ident, $ident:ident, $($inputs:ident),* $(,)?) => {{
@@ -278,12 +214,70 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     }
                     let args = attr.parse_args::<Args>()?;
 
-                    field.attrs.extend(impl_check_ass_fn!(args, is_empty,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_positive,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_negative,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_power_of_two,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_nan,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_infinite,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_finite,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_subnormal,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_normal,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_sign_positive,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_sign_negative,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_alphabetic,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_lowercase,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_uppercase,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_whitespace,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_alphanumeric,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_control,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_numeric,));
                     field.attrs.extend(impl_check_ass_fn!(args, is_ascii,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_ascii_alphabetic,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_ascii_uppercase,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_ascii_lowercase,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_ascii_alphanumeric,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_ascii_digit,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_ascii_octdigit,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_ascii_hexdigit,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_ascii_punctuation,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_ascii_graphic,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_ascii_whitespace,));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_ascii_control,));
                     field.attrs.extend(impl_check_ass_fn!(args, is_some,));
                     field.attrs.extend(impl_check_ass_fn!(args, is_none,));
                     field.attrs.extend(impl_check_ass_fn!(args, is_ok,));
                     field.attrs.extend(impl_check_ass_fn!(args, is_err,));
+                    field.attrs.extend(impl_check_ass_fn!(args, is_empty,));
                     field.attrs.extend(impl_check_ass_fn!(args, exists,));
                     field.attrs.extend(impl_check_ass_fn!(args, is_file,));
                     field.attrs.extend(impl_check_ass_fn!(args, is_dir,));
@@ -296,13 +290,25 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     field.attrs.extend(impl_check_ass_fn!(args, ge, input0));
                     field
                         .attrs
+                        .extend(impl_check_ass_fn!(args, is_multiply_of, input0));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_digit, input0));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, eq_ignore_ascii_case, input0));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, is_char_boundary, input0));
+                    field
+                        .attrs
+                        .extend(impl_check_ass_fn!(args, contains, input0));
+                    field
+                        .attrs
                         .extend(impl_check_ass_fn!(args, starts_with, input0));
                     field
                         .attrs
                         .extend(impl_check_ass_fn!(args, ends_with, input0));
-                    field
-                        .attrs
-                        .extend(impl_check_ass_fn!(args, contains, input0));
                     field
                         .attrs
                         .extend(impl_check_ass_fn!(args, contains_key, input0));
