@@ -94,11 +94,13 @@ fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn
         return Ok(false);
     }
 
+    let doc = format!("{renamers:?}");
+    attrs.push(parse_quote!(#[doc = #doc]));
+
     let rename = renamers
         .iter()
         .fold(ident.to_string(), |acc, renamer| renamer.apply(&acc));
-    let rename_attr = parse_quote!(#[serde(rename = #rename)]);
-    attrs.push(rename_attr);
+    attrs.push(parse_quote!(#[serde(rename = #rename)]));
 
     Ok(true)
 }
