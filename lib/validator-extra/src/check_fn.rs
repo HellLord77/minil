@@ -2,6 +2,7 @@ use std::mem;
 
 use darling::FromMeta;
 use proc_macro2::TokenStream;
+use quote::format_ident;
 use quote::quote;
 use syn::Expr;
 use syn::Fields;
@@ -12,7 +13,10 @@ use syn_utils::bail_spanned;
 #[derive(Debug, FromMeta)]
 #[darling(derive_syn_parse)]
 struct Args {
-    check: Expr,
+    ident: String,
+    #[darling(multiple)]
+    #[darling(rename = "input")]
+    inputs: Vec<Expr>,
     code: Option<String>,
     message: Option<String>,
 }
@@ -23,17 +27,15 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
         ref mut fields,
         ..
     } = item;
-    attrs.push(parse_quote!(#[::validator_extra::validate_inline_function]));
+    attrs.push(parse_quote!(#[::validator_extra::validate_check]));
 
     match fields {
         Fields::Named(fields) => {
             for field in fields.named.iter_mut() {
-                let field_ident = field.ident.as_ref().unwrap_or_else(|| unreachable!());
-                let field_ident_str = field_ident.to_string();
                 let attrs = mem::take(&mut field.attrs);
 
                 for attr in attrs.into_iter() {
-                    if !attr.path().is_ident("validate_check") {
+                    if !attr.path().is_ident("validate_check_fn") {
                         field.attrs.push(attr);
                         continue;
                     }
@@ -42,20 +44,13 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     field.attrs.push(parse_quote!(#[doc = #doc]));
 
                     let args = attr.parse_args::<Args>()?;
-                    let code = args.code.map(|code| quote!(code = #code,));
-                    let message = args.message.map(|message| quote!(message = #message,));
+                    let code = args.code.map(|code| quote!(, code = #code));
+                    let message = args.message.map(|message| quote!(, message = #message));
 
-                    let check = args.check;
+                    let ident = format_ident!("{}", args.ident);
+                    let inputs = &args.inputs;
                     field.attrs.push(parse_quote! {
-                        #[validate_inline_function(inline_function = {
-                            if #check {
-                                ::core::result::Result::Ok(())
-                            } else {
-                                ::core::result::Result::Err(
-                                    ::validator::ValidationError::new(#field_ident_str)
-                                )
-                            }
-                        }, #code #message)]
+                        #[validate_check(check = #ident(#(#inputs),*), #code #message)]
                     });
                 }
             }

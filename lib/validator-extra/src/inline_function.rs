@@ -13,10 +13,10 @@ use syn_utils::peel_option;
 
 #[derive(Debug, FromMeta)]
 #[darling(derive_syn_parse)]
-pub(super) struct Args {
-    pub(super) inline_function: Expr,
-    pub(super) code: Option<String>,
-    pub(super) message: Option<String>,
+struct Args {
+    inline_function: Expr,
+    code: Option<String>,
+    message: Option<String>,
 }
 
 pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
@@ -44,14 +44,14 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     field.attrs.push(parse_quote!(#[doc = #doc]));
 
                     let args = attr.parse_args::<Args>()?;
-                    let code = args.code.map(|code| quote!(, code = #code));
-                    let message = args.message.map(|message| quote!(, message = #message));
+                    let code = args.code.map(|code| quote!(code = #code,));
+                    let message = args.message.map(|message| quote!(message = #message,));
 
                     let fn_name_lit =
                         format!("_validate_inline_function_{ident}_{field_ident}_{attr_index}");
                     let fn_name_ident = format_ident!("{fn_name_lit}");
                     field.attrs.push(
-                        parse_quote!(#[validate(custom(function = #fn_name_lit #code #message))]),
+                        parse_quote!(#[validate(custom(function = #fn_name_lit, #code #message))]),
                     );
 
                     let fn_body = args.inline_function;
