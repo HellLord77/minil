@@ -13,6 +13,8 @@ use syn_utils::bail_spanned;
 #[darling(derive_syn_parse)]
 struct Args {
     check: Expr,
+    #[darling(default)]
+    invert: bool,
     code: Option<String>,
     message: Option<String>,
 }
@@ -42,13 +44,14 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     field.attrs.push(parse_quote!(#[doc = #doc]));
 
                     let args = attr.parse_args::<Args>()?;
+                    let invert = if args.invert { quote!(!) } else { quote!() };
                     let code = args.code.map(|code| quote!(code = #code,));
                     let message = args.message.map(|message| quote!(message = #message,));
 
                     let check = args.check;
                     field.attrs.push(parse_quote! {
                         #[validate_inline_function(inline_function = {
-                            if #check {
+                            if #invert #check {
                                 ::core::result::Result::Ok(())
                             } else {
                                 ::core::result::Result::Err(

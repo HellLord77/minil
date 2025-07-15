@@ -17,6 +17,7 @@ struct Args {
     #[darling(multiple)]
     #[darling(rename = "input")]
     inputs: Vec<Expr>,
+    invert: Option<bool>,
     code: Option<String>,
     message: Option<String>,
 }
@@ -44,13 +45,14 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     field.attrs.push(parse_quote!(#[doc = #doc]));
 
                     let args = attr.parse_args::<Args>()?;
+                    let invert = args.invert.map(|invert| quote!(invert = #invert,));
                     let code = args.code.map(|code| quote!(code = #code,));
                     let message = args.message.map(|message| quote!(message = #message,));
 
                     let ident = format_ident!("{}", args.ident);
                     let inputs = &args.inputs;
                     field.attrs.push(parse_quote! {
-                        #[validate_check(check = #ident(#(#inputs),*), #code #message)]
+                        #[validate_check(check = #ident(#(#inputs),*), #invert #code #message)]
                     });
                 }
             }
