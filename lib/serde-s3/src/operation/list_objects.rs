@@ -4,7 +4,7 @@ use serde_inline_default::serde_inline_default;
 use serde_rename_chain::serde_rename_chain;
 use serdev::Deserialize;
 use validator::Validate;
-
+use validator_extra::validate_check;
 use crate::types::EncodingType;
 use crate::types::ListBucketResult;
 use crate::types::OptionalObjectAttributes;
@@ -16,15 +16,20 @@ pub struct ListObjectsInputPath {
     pub bucket: String,
 }
 
+#[validate_check]
+// #[serde_as]
 #[serde_inline_default]
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
 pub struct ListObjectsInputQuery {
+    #[validate_check(delimiter == "/")]
+    // #[serde_as(as = "NoneAsEmptyString")]
     pub delimiter: Option<String>,
 
     pub encoding_type: Option<EncodingType>,
 
+    // #[serde_as(as = "NoneAsEmptyString")]
     pub marker: Option<String>,
 
     #[validate(range(min = 1, max = 1_000))]
@@ -32,6 +37,7 @@ pub struct ListObjectsInputQuery {
     pub max_keys: u16,
 
     #[validate(length(min = 0, max = 1_024))]
+    // #[serde_as(as = "NoneAsEmptyString")]
     pub prefix: Option<String>,
 }
 

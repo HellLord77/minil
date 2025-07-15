@@ -1,7 +1,7 @@
 use bon::Builder;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
-use stringify_extra::stringify_ty;
+use stringify_checked::stringify_ty;
 
 #[skip_serializing_none]
 #[derive(Debug, Builder, Serialize)]

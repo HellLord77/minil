@@ -1,19 +1,12 @@
 use serdev::Deserialize;
 use validator::Validate;
-use validator::ValidationError;
+use validator_extra::validate_check;
 
+#[validate_check]
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
 pub struct GetBucketVersioningCheckQuery {
-    #[validate(custom(function = "validate_versioning"))]
+    #[validate_check(versioning.contains(&"".to_owned()))]
     pub versioning: Vec<String>,
-}
-
-fn validate_versioning(versioning: &[String]) -> Result<(), ValidationError> {
-    if versioning.contains(&"".to_owned()) {
-        Ok(())
-    } else {
-        Err(ValidationError::new("versioning"))
-    }
 }

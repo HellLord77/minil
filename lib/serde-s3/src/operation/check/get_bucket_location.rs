@@ -1,19 +1,12 @@
 use serdev::Deserialize;
 use validator::Validate;
-use validator::ValidationError;
+use validator_extra::validate_check;
 
+#[validate_check]
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
 pub struct GetBucketLocationCheckQuery {
-    #[validate(custom(function = "validate_location"))]
+    #[validate_check(location.contains(&"".to_owned()))]
     pub location: Vec<String>,
-}
-
-fn validate_location(location: &[String]) -> Result<(), ValidationError> {
-    if location.contains(&"".to_owned()) {
-        Ok(())
-    } else {
-        Err(ValidationError::new("location"))
-    }
 }
