@@ -28,10 +28,11 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
         ref mut fields,
         ..
     } = item;
-    attrs.push(parse_quote!(#[::validator_extra::validate_check]));
 
     match fields {
         Fields::Named(fields) => {
+            attrs.push(parse_quote!(#[::validator_extra::validate_check]));
+
             for field in fields.named.iter_mut() {
                 let attrs = mem::take(&mut field.attrs);
 
@@ -41,13 +42,13 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                         continue;
                     }
 
-                    let doc = quote!(#attr).to_string();
-                    field.attrs.push(parse_quote!(#[doc = #doc]));
-
                     let args = attr.parse_args::<Args>()?;
                     let invert = args.invert.map(|invert| quote!(invert = #invert,));
                     let code = args.code.map(|code| quote!(code = #code,));
                     let message = args.message.map(|message| quote!(message = #message,));
+
+                    let doc = quote!(#attr).to_string();
+                    field.attrs.push(parse_quote!(#[doc = #doc]));
 
                     let ident = format_ident!("{}", args.ident);
                     let inputs = &args.inputs;
