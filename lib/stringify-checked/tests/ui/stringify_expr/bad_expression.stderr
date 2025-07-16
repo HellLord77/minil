@@ -1,29 +1,3 @@
-warning: use of deprecated macro `stringify_expr`
- --> tests/ui/stringify_expr/bad_expression.rs:4:5
-  |
-4 |     stringify_expr!(match Some(0) {});
-  |     ^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(deprecated)]` on by default
-
-warning: use of deprecated macro `stringify_checked::stringify_expr`
- --> tests/ui/stringify_expr/bad_expression.rs:1:24
-  |
-1 | use stringify_checked::stringify_expr;
-  |                        ^^^^^^^^^^^^^^
-
-warning: unreachable expression
- --> tests/ui/stringify_expr/bad_expression.rs:4:5
-  |
-4 |     stringify_expr!(match Some(0) {});
-  |     ^^^^^^^^^^^^^^^^----------------^
-  |     |               |
-  |     |               any code following this expression is unreachable
-  |     unreachable expression
-  |
-  = note: `#[warn(unreachable_code)]` on by default
-  = note: this warning originates in the macro `stringify_expr` (in Nightly builds, run with -Z macro-backtrace for more info)
-
 error[E0004]: non-exhaustive patterns: `None` and `Some(_)` not covered
  --> tests/ui/stringify_expr/bad_expression.rs:4:27
   |
