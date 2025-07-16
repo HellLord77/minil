@@ -10,6 +10,8 @@ use syn::ItemStruct;
 use syn::parse_quote;
 use syn_utils::bail_spanned;
 
+use crate::check;
+
 #[derive(Debug, FromMeta)]
 #[darling(derive_syn_parse)]
 struct Args {
@@ -23,16 +25,10 @@ struct Args {
 }
 
 pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
-    let ItemStruct {
-        ref mut attrs,
-        ref mut fields,
-        ..
-    } = item;
+    let ItemStruct { ref mut fields, .. } = item;
 
     match fields {
         Fields::Named(fields) => {
-            attrs.insert(0, parse_quote!(#[::validator_extra::validate_check]));
-
             for field in fields.named.iter_mut() {
                 let field_ident = field.ident.as_ref().unwrap_or_else(|| unreachable!());
                 let attrs = mem::take(&mut field.attrs);
@@ -59,7 +55,7 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                 }
             }
 
-            Ok(quote!(#item))
+            check::expand(item)
         }
         _ => bail_spanned!(fields, "expected named fields"),
     }

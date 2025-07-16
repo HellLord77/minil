@@ -2,11 +2,13 @@ use std::mem;
 
 use darling::util::PreservedStrExpr;
 use proc_macro2::TokenStream;
-use quote::quote;
 use syn::Fields;
 use syn::ItemStruct;
-use syn::parse_quote;
+use syn::parse2;
 use syn_utils::bail_spanned;
+
+use crate::check_ass_fn;
+use crate::check_fn;
 
 macro_rules! define_base_args {
     ($($ident:ident => $args:ident),* $(,)?) => {
@@ -193,17 +195,10 @@ macro_rules! impl_check_ass_fn {
 }
 
 pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
-    let ItemStruct {
-        ref mut attrs,
-        ref mut fields,
-        ..
-    } = item;
+    let ItemStruct { ref mut fields, .. } = item;
 
     match fields {
         Fields::Named(fields) => {
-            attrs.insert(0, parse_quote!(#[::validator_extra::validate_check_fn]));
-            attrs.insert(0, parse_quote!(#[::validator_extra::validate_check_ass_fn]));
-
             for field in fields.named.iter_mut() {
                 let attrs = mem::take(&mut field.attrs);
 
@@ -315,7 +310,7 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                 }
             }
 
-            Ok(quote!(#item))
+            check_ass_fn::expand(parse2(check_fn::expand(item)?)?)
         }
         _ => bail_spanned!(fields, "expected named fields"),
     }
