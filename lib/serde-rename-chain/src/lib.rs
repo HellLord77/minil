@@ -1,6 +1,7 @@
 #[cfg(all(feature = "heck", feature = "inflector"))]
 compile_error!("expected at most one of heck or inflector");
 
+mod attr;
 mod error;
 mod rename_chain;
 mod renamer;
@@ -15,7 +16,6 @@ mod heck;
 #[cfg(feature = "ident_case")]
 mod ident_case;
 
-mod attr;
 #[cfg(feature = "inflector")]
 mod inflector;
 

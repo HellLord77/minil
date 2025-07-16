@@ -50,7 +50,7 @@ pub(super) fn modify(item: Item, parts: bool) -> syn::Result<TokenStream> {
             let from_request_attr = parse_quote!(#[from_request(via(#form_request_via))]);
             attrs.push(from_request_attr);
 
-            Ok(quote! { #item })
+            Ok(quote!(#item))
         }
         Item::Enum(_item) => unimplemented!(),
         _ => bail_spanned!(item, "expected struct or enum"),

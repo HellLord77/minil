@@ -37,7 +37,7 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
                         )?;
                     }
 
-                    Ok(quote! { #item })
+                    Ok(quote!(#item))
                 }
                 _ => bail_spanned!(fields, "expected named fields"),
             }
@@ -54,7 +54,7 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
                 apply(&renamers, &variant.ident, &mut variant.attrs)?;
             }
 
-            Ok(quote! { #item })
+            Ok(quote!(#item))
         }
         _ => bail_spanned!(item, "expected struct or enum"),
     }
