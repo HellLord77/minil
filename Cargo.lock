@@ -5100,10 +5100,9 @@ dependencies = [
 
 [[package]]
 name = "validator-extra"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "darling 0.21.0",
- "derive_more",
  "proc-macro2",
  "quote",
  "syn 2.0.104",

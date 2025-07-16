@@ -78,7 +78,7 @@ define_base_args! {
 
 macro_rules! define_args {
     ($ident:ident, $($inputs:ident),* $(,)?) => {
-        #[derive(::core::fmt::Debug, ::derive_more::Into, ::darling::FromMeta)]
+        #[derive(::core::fmt::Debug, ::darling::FromMeta)]
         #[darling(derive_syn_parse)]
         struct $ident {
             $($inputs: PreservedStrExpr,)*
@@ -177,10 +177,11 @@ macro_rules! impl_check_ass_fn {
             let doc = ::std::format!("{arg:?}");
             attrs.push(::syn::parse_quote!(#[doc = #doc]));
 
-            let ($($inputs,)* invert, code, message) = arg.into();
-            let invert = invert.map(|invert| ::quote::quote!(invert = #invert,));
-            let code = code.map(|code| ::quote::quote!(code = #code,));
-            let message = message.map(|message| ::quote::quote!(message = #message,));
+            $(let $inputs = arg.$inputs;)*
+
+            let invert = arg.invert.map(|invert| ::quote::quote!(invert = #invert,));
+            let code = arg.code.map(|code| ::quote::quote!(code = #code,));
+            let message = arg.message.map(|message| ::quote::quote!(message = #message,));
 
             attrs.push(::syn::parse_quote! {
                 #[validate_check_ass_fn(ident = #ident, $(input = #$inputs,)* #invert #code #message)]
@@ -281,36 +282,36 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     field.attrs.extend(impl_check_ass_fn!(args, is_file,));
                     field.attrs.extend(impl_check_ass_fn!(args, is_dir,));
 
-                    field.attrs.extend(impl_check_ass_fn!(args, eq, input0));
-                    field.attrs.extend(impl_check_ass_fn!(args, ne, input0));
-                    field.attrs.extend(impl_check_ass_fn!(args, lt, input0));
-                    field.attrs.extend(impl_check_ass_fn!(args, le, input0));
-                    field.attrs.extend(impl_check_ass_fn!(args, gt, input0));
-                    field.attrs.extend(impl_check_ass_fn!(args, ge, input0));
+                    field.attrs.extend(impl_check_ass_fn!(args, eq, other));
+                    field.attrs.extend(impl_check_ass_fn!(args, ne, other));
+                    field.attrs.extend(impl_check_ass_fn!(args, lt, other));
+                    field.attrs.extend(impl_check_ass_fn!(args, le, other));
+                    field.attrs.extend(impl_check_ass_fn!(args, gt, other));
+                    field.attrs.extend(impl_check_ass_fn!(args, ge, other));
                     field
                         .attrs
-                        .extend(impl_check_ass_fn!(args, is_multiply_of, input0));
+                        .extend(impl_check_ass_fn!(args, is_multiply_of, rhs));
                     field
                         .attrs
-                        .extend(impl_check_ass_fn!(args, is_digit, input0));
+                        .extend(impl_check_ass_fn!(args, is_digit, radix));
                     field
                         .attrs
-                        .extend(impl_check_ass_fn!(args, eq_ignore_ascii_case, input0));
+                        .extend(impl_check_ass_fn!(args, eq_ignore_ascii_case, other));
                     field
                         .attrs
-                        .extend(impl_check_ass_fn!(args, is_char_boundary, input0));
+                        .extend(impl_check_ass_fn!(args, is_char_boundary, index));
                     field
                         .attrs
-                        .extend(impl_check_ass_fn!(args, contains, input0));
+                        .extend(impl_check_ass_fn!(args, contains, pattern));
                     field
                         .attrs
-                        .extend(impl_check_ass_fn!(args, starts_with, input0));
+                        .extend(impl_check_ass_fn!(args, starts_with, pattern));
                     field
                         .attrs
-                        .extend(impl_check_ass_fn!(args, ends_with, input0));
+                        .extend(impl_check_ass_fn!(args, ends_with, pattern));
                     field
                         .attrs
-                        .extend(impl_check_ass_fn!(args, contains_key, input0));
+                        .extend(impl_check_ass_fn!(args, contains_key, pattern));
                 }
             }
 
