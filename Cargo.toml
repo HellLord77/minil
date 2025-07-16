@@ -31,6 +31,7 @@ sha1 = "0.10.6"
 sha2 = "0.10.9"
 
 darling = "0.21.0"
+paste = "1.0.15"
 proc-macro2 = "1.0.95"
 quote = "1.0.40"
 syn = { version = "2.0.104", features = ["extra-traits", "full"] }

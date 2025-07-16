@@ -29,14 +29,13 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
 
             match fields {
                 Fields::Named(fields) => {
-                    fields.named.iter_mut().try_for_each(|field| {
+                    for field in fields.named.iter_mut() {
                         apply(
                             &renamers,
                             field.ident.as_ref().unwrap_or_else(|| unreachable!()),
                             &mut field.attrs,
-                        )
-                        .map(drop)
-                    })?;
+                        )?;
+                    }
 
                     Ok(quote! { #item })
                 }
@@ -51,9 +50,9 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
             } = item;
             process(&mut renamers, attrs)?;
 
-            variants.iter_mut().try_for_each(|variant| {
-                apply(&renamers, &variant.ident, &mut variant.attrs).map(drop)
-            })?;
+            for variant in variants.iter_mut() {
+                apply(&renamers, &variant.ident, &mut variant.attrs)?;
+            }
 
             Ok(quote! { #item })
         }
@@ -94,8 +93,11 @@ fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn
         return Ok(false);
     }
 
-    let doc = format!("{renamers:?}");
-    attrs.push(parse_quote!(#[doc = #doc]));
+    #[cfg(debug_assertions)]
+    {
+        let doc = format!("<!-- {renamers:?} -->");
+        attrs.push(parse_quote!(#[doc = #doc]));
+    }
 
     let rename = renamers
         .iter()

@@ -3,3 +3,17 @@ error[E0425]: cannot find value `tralse` in this scope
   |
 4 |     stringify_expr!(tralse);
   |                     ^^^^^^ not found in this scope
+
+warning: use of deprecated macro `stringify_expr`
+ --> tests/ui/stringify_expr/bad_literal.rs:4:5
+  |
+4 |     stringify_expr!(tralse);
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated macro `stringify_checked::stringify_expr`
+ --> tests/ui/stringify_expr/bad_literal.rs:1:24
+  |
+1 | use stringify_checked::stringify_expr;
+  |                        ^^^^^^^^^^^^^^
