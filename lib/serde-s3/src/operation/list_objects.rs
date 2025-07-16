@@ -18,19 +18,16 @@ pub struct ListObjectsInputPath {
 }
 
 #[validate_extra]
-// #[serde_as]
 #[serde_inline_default]
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
 pub struct ListObjectsInputQuery {
     #[validate_extra(eq(other = "/"))]
-    // #[serde_as(as = "NoneAsEmptyString")]
     pub delimiter: Option<String>,
 
     pub encoding_type: Option<EncodingType>,
 
-    // #[serde_as(as = "NoneAsEmptyString")]
     pub marker: Option<String>,
 
     #[validate(range(min = 1, max = 1_000))]
@@ -38,7 +35,6 @@ pub struct ListObjectsInputQuery {
     pub max_keys: u16,
 
     #[validate(length(min = 0, max = 1_024))]
-    // #[serde_as(as = "NoneAsEmptyString")]
     pub prefix: Option<String>,
 }
 
