@@ -66,8 +66,6 @@ minil-entity = { path = "main/entity" }
 minil-migration = { path = "main/migration" }
 minil-service = { path = "main/service" }
 
-aws-sdk-s3 = "1.96.0"
-
 [profile.release-size]
 inherits = "release"
 opt-level = "z"     # Optimize for size.

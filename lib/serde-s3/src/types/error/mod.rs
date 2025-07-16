@@ -24,7 +24,6 @@ pub use bucket_already_owned_by_you::BucketAlreadyOwnedByYou;
 pub use conditional_request_conflict::ConditionalRequestConflict;
 pub use encryption_type_mismatch::EncryptionTypeMismatch;
 pub use internal_error::InternalError;
-pub use invalid_argument::InvalidArgument;
 pub use invalid_digest::InvalidDigest;
 pub use invalid_object_state::InvalidObjectState;
 pub use invalid_write_offset::InvalidWriteOffset;
