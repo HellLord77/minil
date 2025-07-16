@@ -38,13 +38,13 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                         continue;
                     }
 
+                    let doc = format!("<!-- {} -->", quote!(#attr));
+                    field.attrs.push(parse_quote!(#[doc = #doc]));
+
                     let args = attr.parse_args::<Args>()?;
                     let invert = args.invert.map(|invert| quote!(invert = #invert,));
                     let code = args.code.map(|code| quote!(code = #code,));
                     let message = args.message.map(|message| quote!(message = #message,));
-
-                    let doc = quote!(#attr).to_string();
-                    field.attrs.push(parse_quote!(#[doc = #doc]));
 
                     let ident = format_ident!("{}", args.ident);
                     let inputs = &args.inputs;
