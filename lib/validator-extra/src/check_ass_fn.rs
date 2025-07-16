@@ -39,11 +39,8 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                         continue;
                     }
 
-                    #[cfg(debug_assertions)]
-                    {
-                        let doc = format!("<!-- {} -->", quote!(#attr));
-                        field.attrs.push(parse_quote!(#[doc = #doc]));
-                    }
+                    let doc = format!("<!-- {} -->", quote!(#attr));
+                    field.attrs.push(parse_quote!(#[doc = #doc]));
 
                     let args = attr.parse_args::<Args>()?;
                     let invert = args.invert.map(|invert| quote!(invert = #invert,));

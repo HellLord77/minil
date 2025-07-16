@@ -93,11 +93,8 @@ fn apply(renamers: &[Renamer], ident: &Ident, attrs: &mut Vec<Attribute>) -> syn
         return Ok(false);
     }
 
-    #[cfg(debug_assertions)]
-    {
-        let doc = format!("<!-- {renamers:?} -->");
-        attrs.push(parse_quote!(#[doc = #doc]));
-    }
+    let doc = format!("<!-- {renamers:?} -->");
+    attrs.push(parse_quote!(#[doc = #doc]));
 
     let rename = renamers
         .iter()

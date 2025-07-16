@@ -44,14 +44,11 @@ macro_rules! define_args {
                     let code = self.code.map(|code| ::quote::quote!(code = #code,));
                     let message = self.message.map(|message| ::quote::quote!(message = #message,));
 
-                    #[cfg(debug_assertions)]
-                    {
-                        let attr = ::quote::quote! {
-                            #[validate_extra($ident($($(input = #$inputs,)*)* #invert #code #message))]
-                        };
-                        let doc = ::std::format!("<!-- {attr} -->");
-                        attrs.push(::syn::parse_quote!(#[doc = #doc]));
-                    }
+                    let attr = ::quote::quote! {
+                        #[validate_extra($ident($($(input = #$inputs,)*)* #invert #code #message))]
+                    };
+                    let doc = ::std::format!("<!-- {attr} -->");
+                    attrs.push(::syn::parse_quote!(#[doc = #doc]));
 
                     let ident_str = ::core::stringify!($ident);
                     attrs.push(::syn::parse_quote! {
