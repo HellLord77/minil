@@ -201,8 +201,8 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
 
     match fields {
         Fields::Named(fields) => {
-            attrs.push(parse_quote!(#[::validator_extra::validate_check_fn]));
-            attrs.push(parse_quote!(#[::validator_extra::validate_check_ass_fn]));
+            attrs.insert(0, parse_quote!(#[::validator_extra::validate_check_fn]));
+            attrs.insert(0, parse_quote!(#[::validator_extra::validate_check_ass_fn]));
 
             for field in fields.named.iter_mut() {
                 let attrs = mem::take(&mut field.attrs);

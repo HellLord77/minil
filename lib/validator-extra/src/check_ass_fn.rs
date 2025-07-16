@@ -31,7 +31,7 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
 
     match fields {
         Fields::Named(fields) => {
-            attrs.push(parse_quote!(#[::validator_extra::validate_check]));
+            attrs.insert(0, parse_quote!(#[::validator_extra::validate_check]));
 
             for field in fields.named.iter_mut() {
                 let field_ident = field.ident.as_ref().unwrap_or_else(|| unreachable!());

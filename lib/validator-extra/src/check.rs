@@ -28,7 +28,10 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
 
     match fields {
         Fields::Named(fields) => {
-            attrs.push(parse_quote!(#[::validator_extra::validate_inline_function]));
+            attrs.insert(
+                0,
+                parse_quote!(#[::validator_extra::validate_inline_function]),
+            );
 
             for field in fields.named.iter_mut() {
                 let field_ident = field.ident.as_ref().unwrap_or_else(|| unreachable!());
@@ -52,13 +55,9 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     let check = args.check;
                     field.attrs.push(parse_quote! {
                         #[validate_inline_function(inline_function = {
-                            if #invert #check {
-                                ::core::result::Result::Ok(())
-                            } else {
-                                ::core::result::Result::Err(
-                                    ::validator::ValidationError::new(#field_ident_str)
-                                )
-                            }
+                            (#invert #check).then_some(()).ok_or_else(
+                                || ::validator::ValidationError::new(#field_ident_str)
+                            )
                         }, #code #message)]
                     });
                 }
