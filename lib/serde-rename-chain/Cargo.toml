@@ -1,6 +1,6 @@
 [package]
 name = "serde-rename-chain"
-version = "0.4.5"
+version = "0.5.0"
 edition.workspace = true
 
 [lib]
@@ -21,20 +21,15 @@ inflector_heavyweight = ["inflector", "Inflector/heavyweight"]
 
 strfmt = ["dep:strfmt"]
 
-_dynfmt = ["dep:dynfmt"]
-dynfmt_python = ["_dynfmt", "dynfmt/python"]
-dynfmt_curly = ["_dynfmt", "dynfmt/curly"]
-
 full_slim = ["default", "convert_case", "inflector", "strfmt"]
-full = ["full_slim", "convert_case_random", "inflector_heavyweight", "dynfmt_curly"]
+full = ["full_slim", "convert_case_random", "inflector_heavyweight"]
 
 [dependencies]
 Inflector = { version = "0.11.4", default-features = false, optional = true }
-convert_case = { version = "0.8.0", optional = true }
+convert_case = { version = "0.7.1", optional = true }
 heck = { version = "0.5.0", optional = true }
 ident_case = { version = "1.0.1", optional = true }
 
-dynfmt = { version = "0.1.5", optional = true }
 strfmt = { version = "0.2.4", optional = true }
 
 derive_more.workspace = true
