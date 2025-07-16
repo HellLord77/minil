@@ -83,6 +83,9 @@ use tower::Layer;
 use tower::ServiceBuilder;
 use tower_http::ServiceBuilderExt;
 use tower_http::normalize_path::NormalizePathLayer;
+use tracing::debug;
+use tracing::info;
+use tracing::instrument;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -95,7 +98,6 @@ use crate::macros::app_define_handler;
 use crate::macros::app_define_routes;
 use crate::macros::app_ensure_eq;
 use crate::macros::app_ensure_matches;
-use crate::macros::app_output;
 use crate::macros::app_validate_digest;
 use crate::macros::app_validate_owner;
 use crate::make_request_id::AppMakeRequestId;
@@ -116,11 +118,10 @@ async fn main() {
                 .unwrap_or_else(|_err| format!("{}=debug", env!("CARGO_CRATE_NAME")).into()),
         )
         .with(tracing_subscriber::fmt::layer())
-        .try_init()
-        .expect("failed to set global default subscriber");
+        .init();
 
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".to_owned());
-    tracing::info!("connecting to {}", db_url);
+    info!("connecting to {}", db_url);
     let mut db_opt = ConnectOptions::new(db_url);
     db_opt.sqlx_logging(false);
     let db_conn = Database::connect(db_opt)
@@ -161,7 +162,6 @@ async fn main() {
         "/{Bucket}" => get(get_bucket_handler),
         "/{Bucket}" => head(head_bucket),
         "/{Bucket}" => put(create_bucket),
-        "/{Bucket}/versioning" => get(get_bucket_versioning),
         "/{Bucket}/{*Key}" => put(put_object),
     });
     let router = router
@@ -176,7 +176,7 @@ async fn main() {
     let listener = TcpListener::bind(addr)
         .await
         .expect("failed to bind address");
-    tracing::info!("listening on {}", addr);
+    info!("listening on {}", addr);
     axum::serve(listener, router)
         .with_graceful_shutdown(shutdown_signal())
         .await
@@ -252,16 +252,17 @@ async fn manage_db_txn(
 
     let db_txn = Arc::into_inner(db_txn).expect("failed to take transaction");
     if response.status().is_success() {
-        tracing::debug!("committing transaction");
+        debug!("committing transaction");
         db_txn.commit().await?;
     } else {
-        tracing::debug!("rolling back transaction");
+        debug!("rolling back transaction");
         db_txn.rollback().await?;
     }
 
     Ok(response)
 }
 
+#[instrument(skip(db), ret)]
 async fn create_bucket(
     Extension(db): Extension<DbTxn>,
     input: CreateBucketInput,
@@ -270,7 +271,6 @@ async fn create_bucket(
         .await?
         .unwrap();
 
-    dbg!(&input);
     app_ensure_matches!(input.header.acl, None);
     app_ensure_matches!(input.header.bucket_object_lock_enabled, None | Some(false));
     app_ensure_eq!(input.header.grant_full_control, None);
@@ -287,17 +287,16 @@ async fn create_bucket(
         .await?
         .ok_or(AppError::BucketAlreadyOwnedByYou)?;
 
-    app_output!(
-        CreateBucketOutput::builder()
-            .header(
-                CreateBucketOutputHeader::builder()
-                    .location(format!("/{}", bucket.name))
-                    .build(),
-            )
-            .build()
-    )
+    Ok(CreateBucketOutput::builder()
+        .header(
+            CreateBucketOutputHeader::builder()
+                .location(format!("/{}", bucket.name))
+                .build(),
+        )
+        .build())
 }
 
+#[instrument(skip(db), ret)]
 async fn delete_bucket(
     Extension(db): Extension<DbTxn>,
     input: DeleteBucketInput,
@@ -306,16 +305,15 @@ async fn delete_bucket(
         .await?
         .unwrap();
 
-    dbg!(&input);
-
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     BucketMutation::delete_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
-    app_output!(DeleteBucketOutput::builder().build())
+    Ok(DeleteBucketOutput::builder().build())
 }
 
+#[instrument(skip(db), ret)]
 async fn head_bucket(
     Extension(db): Extension<DbTxn>,
     input: HeadBucketInput,
@@ -324,24 +322,21 @@ async fn head_bucket(
         .await?
         .unwrap();
 
-    dbg!(&input);
-
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
-    app_output!(
-        HeadBucketOutput::builder()
-            .header(
-                HeadBucketOutputHeader::builder()
-                    .bucket_region(bucket.region)
-                    .build(),
-            )
-            .build()
-    )
+    Ok(HeadBucketOutput::builder()
+        .header(
+            HeadBucketOutputHeader::builder()
+                .bucket_region(bucket.region)
+                .build(),
+        )
+        .build())
 }
 
+#[instrument(skip(db), ret)]
 async fn list_buckets(
     Extension(db): Extension<DbTxn>,
     input: ListBucketsInput,
@@ -349,8 +344,6 @@ async fn list_buckets(
     let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
         .await?
         .unwrap();
-
-    dbg!(&input);
 
     let limit = input.query.max_buckets + 1;
     let mut buckets = BucketQuery::find_all_by_owner_id(
@@ -372,36 +365,35 @@ async fn list_buckets(
             .clone()
     });
 
-    app_output!(
-        ListBucketsOutput::builder()
-            .body(
-                ListBucketsOutputBody::builder()
-                    .buckets(
-                        buckets
-                            .into_iter()
-                            .map(|bucket| {
-                                Bucket::builder()
-                                    .name(bucket.name)
-                                    .bucket_region(bucket.region)
-                                    .creation_date(bucket.created_at)
-                                    .build()
-                            })
-                            .collect::<Vec<_>>(),
-                    )
-                    .owner(
-                        Owner::builder()
-                            .display_name(owner.name)
-                            .id(owner.id)
-                            .build(),
-                    )
-                    .maybe_continuation_token(continuation_token)
-                    .maybe_prefix(input.query.prefix)
-                    .build(),
-            )
-            .build()
-    )
+    Ok(ListBucketsOutput::builder()
+        .body(
+            ListBucketsOutputBody::builder()
+                .buckets(
+                    buckets
+                        .into_iter()
+                        .map(|bucket| {
+                            Bucket::builder()
+                                .name(bucket.name)
+                                .bucket_region(bucket.region)
+                                .creation_date(bucket.created_at)
+                                .build()
+                        })
+                        .collect::<Vec<_>>(),
+                )
+                .owner(
+                    Owner::builder()
+                        .display_name(owner.name)
+                        .id(owner.id)
+                        .build(),
+                )
+                .maybe_continuation_token(continuation_token)
+                .maybe_prefix(input.query.prefix)
+                .build(),
+        )
+        .build())
 }
 
+#[instrument(skip(db), ret)]
 async fn put_object(
     Extension(db): Extension<DbTxn>,
     input: PutObjectInput,
@@ -410,7 +402,6 @@ async fn put_object(
         .await?
         .unwrap();
 
-    dbg!(&input);
     app_ensure_matches!(input.header.cache_control, None);
     app_ensure_matches!(input.header.content_disposition, None);
     app_ensure_matches!(input.header.content_encoding, None);
@@ -464,15 +455,13 @@ async fn put_object(
     app_validate_digest!(input.header.checksum_sha1, object.sha1);
     app_validate_digest!(input.header.checksum_sha256, object.sha256);
 
-    app_output!(
-        PutObjectOutput::builder()
-            .header(
-                PutObjectOutputHeader::builder()
-                    .e_tag(format!("\"{}\"", hex::encode(object.md5)))
-                    .build(),
-            )
-            .build()
-    )
+    Ok(PutObjectOutput::builder()
+        .header(
+            PutObjectOutputHeader::builder()
+                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                .build(),
+        )
+        .build())
 }
 
 app_define_handler!(get_bucket_handler {
@@ -482,6 +471,7 @@ app_define_handler!(get_bucket_handler {
     _ => list_objects,
 });
 
+#[instrument(skip(db), ret)]
 async fn get_bucket_versioning(
     Extension(db): Extension<DbTxn>,
     input: GetBucketVersioningInput,
@@ -490,17 +480,14 @@ async fn get_bucket_versioning(
         .await?
         .unwrap();
 
-    dbg!(&input);
-
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
 
-    app_output!(
-        GetBucketVersioningOutput::builder()
-            .body(GetBucketVersioningOutputBody::builder().build())
-            .build()
-    )
+    Ok(GetBucketVersioningOutput::builder()
+        .body(GetBucketVersioningOutputBody::builder().build())
+        .build())
 }
 
+#[instrument(skip(db), ret)]
 async fn get_bucket_location(
     Extension(db): Extension<DbTxn>,
     input: GetBucketLocationInput,
@@ -509,8 +496,6 @@ async fn get_bucket_location(
         .await?
         .unwrap();
 
-    dbg!(&input);
-
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
         .await?
@@ -518,17 +503,16 @@ async fn get_bucket_location(
     let content = serde_plain::from_str::<BucketLocationConstraint>(&bucket.region)
         .unwrap_or_else(|_err| unreachable!());
 
-    app_output!(
-        GetBucketLocationOutput::builder()
-            .body(
-                GetBucketLocationOutputBody::builder()
-                    .content(content)
-                    .build(),
-            )
-            .build()
-    )
+    Ok(GetBucketLocationOutput::builder()
+        .body(
+            GetBucketLocationOutputBody::builder()
+                .content(content)
+                .build(),
+        )
+        .build())
 }
 
+#[instrument(skip(db), ret)]
 async fn list_objects(
     Extension(db): Extension<DbTxn>,
     input: ListObjectsInput,
@@ -537,7 +521,6 @@ async fn list_objects(
         .await?
         .unwrap();
 
-    dbg!(&input);
     app_ensure_matches!(input.header.optional_object_attributes, None);
     app_ensure_matches!(input.header.request_payer, None);
 
@@ -582,56 +565,57 @@ async fn list_objects(
         identity
     };
 
-    app_output!(
-        ListObjectsOutput::builder()
-            .header(ListObjectsOutputHeader::builder().build())
-            .body(
-                ListObjectsOutputBody::builder()
-                    .common_prefixes(
-                        common_prefixes
-                            .into_iter()
-                            .map(|common_prefix| CommonPrefix::builder()
+    Ok(ListObjectsOutput::builder()
+        .header(ListObjectsOutputHeader::builder().build())
+        .body(
+            ListObjectsOutputBody::builder()
+                .common_prefixes(
+                    common_prefixes
+                        .into_iter()
+                        .map(|common_prefix| {
+                            CommonPrefix::builder()
                                 .prefix(encode(common_prefix))
-                                .build())
-                            .collect()
-                    )
-                    .contents(
-                        objects
-                            .into_iter()
-                            .map(|object| {
-                                Object::builder()
-                                    .e_tag(format!("\"{}\"", hex::encode(object.md5)))
-                                    .key(encode(object.key))
-                                    .last_modified(object.updated_at.unwrap_or(object.created_at))
-                                    .owner(
-                                        Owner::builder()
-                                            .display_name(owner.name.clone())
-                                            .id(owner.id)
-                                            .build(),
-                                    )
-                                    .size(object.size as u64)
-                                    .build()
-                            })
-                            .collect()
-                    )
-                    .maybe_delimiter(input.query.delimiter.map(encode))
-                    .maybe_encoding_type(input.query.encoding_type)
-                    .is_truncated(next_marker.is_some())
-                    .marker(input.query.marker.map(encode).unwrap_or_default())
-                    .max_keys(input.query.max_keys)
-                    .name(bucket.name)
-                    .maybe_next_marker(
-                        next_marker
-                            .filter(|_next_marker| delimiter_is_some)
-                            .map(encode)
-                    )
-                    .prefix(input.query.prefix.map(encode).unwrap_or_default())
-                    .build(),
-            )
-            .build()
-    )
+                                .build()
+                        })
+                        .collect(),
+                )
+                .contents(
+                    objects
+                        .into_iter()
+                        .map(|object| {
+                            Object::builder()
+                                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                                .key(encode(object.key))
+                                .last_modified(object.updated_at.unwrap_or(object.created_at))
+                                .owner(
+                                    Owner::builder()
+                                        .display_name(owner.name.clone())
+                                        .id(owner.id)
+                                        .build(),
+                                )
+                                .size(object.size as u64)
+                                .build()
+                        })
+                        .collect(),
+                )
+                .maybe_delimiter(input.query.delimiter.map(encode))
+                .maybe_encoding_type(input.query.encoding_type)
+                .is_truncated(next_marker.is_some())
+                .marker(input.query.marker.map(encode).unwrap_or_default())
+                .max_keys(input.query.max_keys)
+                .name(bucket.name)
+                .maybe_next_marker(
+                    next_marker
+                        .filter(|_next_marker| delimiter_is_some)
+                        .map(encode),
+                )
+                .prefix(input.query.prefix.map(encode).unwrap_or_default())
+                .build(),
+        )
+        .build())
 }
 
+#[instrument(skip(db), ret)]
 async fn list_objects_v2(
     Extension(db): Extension<DbTxn>,
     input: ListObjectsV2Input,
@@ -640,7 +624,6 @@ async fn list_objects_v2(
         .await?
         .unwrap();
 
-    dbg!(&input);
     app_ensure_matches!(input.header.optional_object_attributes, None);
     app_ensure_matches!(input.header.request_payer, None);
 
@@ -689,52 +672,52 @@ async fn list_objects_v2(
         identity
     };
 
-    app_output!(
-        ListObjectsV2Output::builder()
-            .header(ListObjectsV2OutputHeader::builder().build())
-            .body(
-                ListObjectsV2OutputBody::builder()
-                    .common_prefixes(
-                        common_prefixes
-                            .into_iter()
-                            .map(|common_prefix| CommonPrefix::builder()
+    Ok(ListObjectsV2Output::builder()
+        .header(ListObjectsV2OutputHeader::builder().build())
+        .body(
+            ListObjectsV2OutputBody::builder()
+                .common_prefixes(
+                    common_prefixes
+                        .into_iter()
+                        .map(|common_prefix| {
+                            CommonPrefix::builder()
                                 .prefix(encode(common_prefix))
-                                .build())
-                            .collect()
-                    )
-                    .contents(
-                        objects
-                            .into_iter()
-                            .map(|object| {
-                                Object::builder()
-                                    .e_tag(format!("\"{}\"", hex::encode(object.md5)))
-                                    .key(encode(object.key))
-                                    .last_modified(object.updated_at.unwrap_or(object.created_at))
-                                    .maybe_owner(input.query.fetch_owner.unwrap_or_default().then(
-                                        || {
-                                            Owner::builder()
-                                                .display_name(owner.name.clone())
-                                                .id(owner.id)
-                                                .build()
-                                        },
-                                    ))
-                                    .size(object.size as u64)
-                                    .build()
-                            })
-                            .collect()
-                    )
-                    .maybe_continuation_token(input.query.continuation_token)
-                    .maybe_delimiter(input.query.delimiter.map(encode))
-                    .maybe_encoding_type(input.query.encoding_type)
-                    .is_truncated(next_continuation_token.is_some())
-                    .key_count(key_count as u16)
-                    .max_keys(input.query.max_keys)
-                    .name(bucket.name)
-                    .maybe_next_continuation_token(next_continuation_token)
-                    .prefix(input.query.prefix.map(encode).unwrap_or_default())
-                    .maybe_start_after(input.query.start_after.map(encode))
-                    .build(),
-            )
-            .build()
-    )
+                                .build()
+                        })
+                        .collect(),
+                )
+                .contents(
+                    objects
+                        .into_iter()
+                        .map(|object| {
+                            Object::builder()
+                                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                                .key(encode(object.key))
+                                .last_modified(object.updated_at.unwrap_or(object.created_at))
+                                .maybe_owner(input.query.fetch_owner.unwrap_or_default().then(
+                                    || {
+                                        Owner::builder()
+                                            .display_name(owner.name.clone())
+                                            .id(owner.id)
+                                            .build()
+                                    },
+                                ))
+                                .size(object.size as u64)
+                                .build()
+                        })
+                        .collect(),
+                )
+                .maybe_continuation_token(input.query.continuation_token)
+                .maybe_delimiter(input.query.delimiter.map(encode))
+                .maybe_encoding_type(input.query.encoding_type)
+                .is_truncated(next_continuation_token.is_some())
+                .key_count(key_count as u16)
+                .max_keys(input.query.max_keys)
+                .name(bucket.name)
+                .maybe_next_continuation_token(next_continuation_token)
+                .prefix(input.query.prefix.map(encode).unwrap_or_default())
+                .maybe_start_after(input.query.start_after.map(encode))
+                .build(),
+        )
+        .build())
 }

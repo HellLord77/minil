@@ -5,6 +5,18 @@ macro_rules! app_db_ref {
     };
 }
 
+#[allow(unused_macros)]
+macro_rules! app_output {
+    ($expr:expr) => {
+        match $expr {
+            output => {
+                ::std::dbg!(&output);
+                ::core::result::Result::Ok(output)
+            }
+        }
+    };
+}
+
 macro_rules! app_define_handler {
     ($handler_fn:ident {
         $($ck_ty:ident => $handler:ident,)*
@@ -55,22 +67,11 @@ macro_rules! app_log_err {
     };
 }
 
-macro_rules! app_output {
-    ($expr:expr) => {
-        match $expr {
-            output => {
-                ::std::dbg!(&output);
-                ::core::result::Result::Ok(output)
-            }
-        }
-    };
-}
-
 macro_rules! app_output_err {
     ($expr:expr) => {
         match $expr {
             output => {
-                ::std::dbg!(&output);
+                ::tracing::warn!("{output:?}");
                 ::axum::response::IntoResponse::into_response(output)
             }
         }
@@ -124,7 +125,6 @@ pub(crate) use app_define_routes;
 pub(crate) use app_ensure_eq;
 pub(crate) use app_ensure_matches;
 pub(crate) use app_log_err;
-pub(crate) use app_output;
 pub(crate) use app_output_err;
 pub(crate) use app_response_err;
 pub(crate) use app_validate_digest;

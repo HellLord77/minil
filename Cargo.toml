@@ -49,6 +49,9 @@ tokio = { version = "1.46.1", features = ["full"] }
 tokio-stream = { version = "0.1.17", features = ["full"] }
 tokio-util = { version = "0.7.15", features = ["full"] }
 
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
+
 axum-body = { path = "lib/axum-body" }
 axum-derive-macros = { path = "lib/axum-derive-macros" }
 axum-header = { path = "lib/axum-header" }
