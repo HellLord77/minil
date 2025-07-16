@@ -18,3 +18,6 @@ uuid.workspace = true
 serde-rename-chain.workspace = true
 stringify-checked.workspace = true
 validator-extra.workspace = true
+
+[dev-dependencies]
+aws-sdk-s3.workspace = true

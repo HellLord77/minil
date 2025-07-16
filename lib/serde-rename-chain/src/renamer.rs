@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::str::FromStr;
 
 use strum::EnumDiscriminants;
@@ -28,6 +29,18 @@ use crate::inflector::Inflector;
 #[rustfmt::skip]
 #[cfg(feature = "strfmt")]
 use strfmt::strfmt;
+
+#[rustfmt::skip]
+#[cfg(feature = "_dynfmt")]
+use dynfmt::Format;
+
+#[rustfmt::skip]
+#[cfg(feature = "dynfmt_python")]
+use dynfmt::PythonFormat;
+
+#[rustfmt::skip]
+#[cfg(feature = "dynfmt_curly")]
+use dynfmt::SimpleCurlyFormat;
 
 #[derive(Debug, VariantNames, EnumDiscriminants)]
 #[strum(serialize_all = "snake_case")]
@@ -64,6 +77,12 @@ pub(crate) enum Renamer {
 
     #[cfg(feature = "strfmt")]
     StrFmt(String),
+
+    #[cfg(feature = "dynfmt_python")]
+    DynFmtPython(String),
+
+    #[cfg(feature = "dynfmt_curly")]
+    DynFmtCurly(String),
 }
 
 impl Renamer {
@@ -96,6 +115,16 @@ impl Renamer {
             Self::StrFmt(fmt) => {
                 strfmt(fmt, &Self::vars(s).into()).unwrap_or_else(|_err| s.to_owned())
             }
+
+            #[cfg(feature = "dynfmt_python")]
+            Self::DynFmtPython(fmt) => PythonFormat
+                .format(fmt, Self::vars(s).map(|(_, v)| v))
+                .map_or_else(|_err| s.to_owned(), Cow::into_owned),
+
+            #[cfg(feature = "dynfmt_curly")]
+            Self::DynFmtCurly(fmt) => SimpleCurlyFormat
+                .format(fmt, Self::vars(s).map(|(_, v)| v))
+                .map_or_else(|_err| s.to_owned(), Cow::into_owned),
         }
     }
 
@@ -141,6 +170,12 @@ impl TryFrom<(String, String)> for Renamer {
 
             #[cfg(feature = "strfmt")]
             RenamerDiscriminants::StrFmt => Self::StrFmt(value),
+
+            #[cfg(feature = "dynfmt_python")]
+            RenamerDiscriminants::DynFmtPython => Self::DynFmtPython(value),
+
+            #[cfg(feature = "dynfmt_curly")]
+            RenamerDiscriminants::DynFmtCurly => Self::DynFmtCurly(value),
         })
     }
 }
