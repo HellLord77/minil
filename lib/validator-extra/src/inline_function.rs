@@ -44,8 +44,11 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
                     let code = args.code.map(|code| quote!(code = #code,));
                     let message = args.message.map(|message| quote!(message = #message,));
 
-                    let doc = format!("<!-- {} -->", quote!(#attr));
-                    field.attrs.push(parse_quote!(#[doc = #doc]));
+                    #[cfg(debug_assertions)]
+                    {
+                        let doc = format!("<!-- {} -->", quote!(#attr));
+                        field.attrs.push(parse_quote!(#[doc = #doc]));
+                    }
 
                     let fn_name_lit =
                         format!("_validate_inline_function_{ident}_{field_ident}_{attr_index}");
