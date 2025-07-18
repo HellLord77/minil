@@ -1,7 +1,7 @@
+use futures::Stream;
 use minil_entity::bucket;
 use minil_entity::prelude::*;
 use sea_orm::*;
-use tokio_stream::Stream;
 use uuid::Uuid;
 
 use crate::error::DbRes;
@@ -9,7 +9,7 @@ use crate::error::DbRes;
 pub struct BucketQuery;
 
 impl BucketQuery {
-    pub async fn find_by_unique_id(
+    pub async fn find(
         db: &impl ConnectionTrait,
         owner_id: Uuid,
         name: &str,
@@ -50,7 +50,7 @@ impl BucketMutation {
         db: &impl ConnectionTrait,
         bucket: bucket::ActiveModel,
     ) -> DbRes<Option<bucket::Model>> {
-        Insert::one(bucket)
+        Bucket::insert(bucket)
             .on_conflict(
                 sea_query::OnConflict::columns([bucket::Column::OwnerId, bucket::Column::Name])
                     .do_nothing()
@@ -78,25 +78,19 @@ impl BucketMutation {
             region: Set(region.to_owned()),
             ..Default::default()
         };
+
         BucketMutation::insert(db, bucket).await
     }
 
-    async fn delete(
-        db: &impl ConnectionTrait,
-        bucket: bucket::Model,
-    ) -> DbRes<Option<bucket::Model>> {
-        Delete::one(bucket).exec_with_returning(db).await
-    }
-
-    pub async fn delete_by_unique_id(
+    pub async fn delete(
         db: &impl ConnectionTrait,
         owner_id: Uuid,
         name: &str,
-    ) -> DbRes<Option<bucket::Model>> {
-        let bucket = BucketQuery::find_by_unique_id(db, owner_id, name).await?;
-        match bucket {
-            Some(bucket) => BucketMutation::delete(db, bucket).await,
-            None => Ok(None),
-        }
+    ) -> DbRes<DeleteResult> {
+        Bucket::delete_many()
+            .filter(bucket::Column::OwnerId.eq(owner_id))
+            .filter(bucket::Column::Name.eq(name))
+            .exec(db)
+            .await
     }
 }

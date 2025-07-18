@@ -1,8 +1,10 @@
 use mime::Mime;
 
-mod chunked_decoder;
+mod chunk_decoder;
+mod delete_many_ext;
 
-pub(super) use chunked_decoder::ChunkedDecoder;
+pub(super) use chunk_decoder::ChunkDecoder;
+pub(super) use delete_many_ext::DeleteManyExt;
 
 pub(super) fn get_mime(path: &str, bytes: &[u8]) -> Mime {
     let mimes_ext = mime_guess::from_path(path);

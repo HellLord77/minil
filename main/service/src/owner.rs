@@ -7,10 +7,7 @@ use crate::error::DbRes;
 pub struct OwnerQuery;
 
 impl OwnerQuery {
-    pub async fn find_by_unique_id(
-        db: &impl ConnectionTrait,
-        name: &str,
-    ) -> DbRes<Option<owner::Model>> {
+    pub async fn find(db: &impl ConnectionTrait, name: &str) -> DbRes<Option<owner::Model>> {
         Owner::find()
             .filter(owner::Column::Name.eq(name))
             .one(db)

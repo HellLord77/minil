@@ -4,11 +4,11 @@ use bytes::Bytes;
 use tokio_util::bytes::BytesMut;
 use tokio_util::codec::Decoder;
 
-pub(crate) struct ChunkedDecoder {
+pub(crate) struct ChunkDecoder {
     capacity: usize,
 }
 
-impl ChunkedDecoder {
+impl ChunkDecoder {
     #[allow(dead_code)]
     pub(crate) fn new() -> Self {
         Self::with_capacity(0)
@@ -19,7 +19,7 @@ impl ChunkedDecoder {
     }
 }
 
-impl Decoder for ChunkedDecoder {
+impl Decoder for ChunkDecoder {
     type Item = Bytes;
     type Error = io::Error;
 
