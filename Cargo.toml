@@ -10,6 +10,7 @@ edition = "2024"
 bon = "3.6.4"
 bytes = "1.10.1"
 derive_more = { version = "2.0.1", features = ["full"] }
+futures = "0.3.31"
 http = "1.3.1"
 httparse = "1.10.1"
 indexmap = "2.10.0"
@@ -36,7 +37,7 @@ proc-macro2 = "1.0.95"
 quote = "1.0.40"
 syn = { version = "2.0.104", features = ["extra-traits", "full"] }
 
-sea-orm = { version = "1.1.13", features = ["debug-print", "runtime-tokio", "sqlite-use-returning-for-3_35", "sqlx-sqlite"] }
+sea-orm = { version = "1.1.13", features = ["runtime-tokio", "sqlite-use-returning-for-3_35", "sqlx-sqlite"] }
 sea-orm-migration = { version = "1.1.13", features = ["runtime-tokio", "sqlx-sqlite", "with-uuid"] }
 
 serde = { version = "1.0.219", features = ["derive"] }
@@ -46,10 +47,9 @@ serde_path_to_error = "0.1.17"
 serde_with = "3.14.0"
 
 tokio = { version = "1.46.1", features = ["full"] }
-tokio-stream = { version = "0.1.17", features = ["full"] }
 tokio-util = { version = "0.7.15", features = ["full"] }
 
-tracing = "0.1.41"
+tracing = { version = "0.1.41", features = ["max_level_trace", "release_max_level_info"] }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
 
 axum-body = { path = "lib/axum-body" }

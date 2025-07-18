@@ -281,18 +281,18 @@ dependencies = [
 
 [[package]]
 name = "axum-body"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "axum",
  "axum-core",
  "bytes",
  "derive_more",
+ "futures",
  "http",
  "serde",
  "serde_json",
  "serde_urlencoded",
  "tokio",
- "tokio-stream",
 ]
 
 [[package]]
@@ -1852,7 +1852,6 @@ dependencies = [
  "sha2",
  "strum 0.27.1",
  "tokio",
- "tokio-stream",
  "tokio-util",
  "tower",
  "tower-http",
@@ -1863,14 +1862,14 @@ dependencies = [
 
 [[package]]
 name = "minil-entity"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "sea-orm",
 ]
 
 [[package]]
 name = "minil-migration"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "sea-orm-migration",
  "tokio",
@@ -1879,12 +1878,13 @@ dependencies = [
 
 [[package]]
 name = "minil-service"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "bytes",
  "bytesize",
  "crc-fast",
  "digest",
+ "futures",
  "infer",
  "md-5",
  "mime",
@@ -1894,7 +1894,6 @@ dependencies = [
  "sha1",
  "sha2",
  "tokio",
- "tokio-stream",
  "tokio-util",
  "uuid",
 ]
@@ -3715,7 +3714,6 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
- "tokio-util",
 ]
 
 [[package]]

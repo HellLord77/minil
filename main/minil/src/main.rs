@@ -12,6 +12,7 @@ use std::io;
 use std::net::Ipv4Addr;
 use std::net::SocketAddrV4;
 use std::sync::Arc;
+use std::time::Duration;
 use std::time::Instant;
 
 use axum::Extension;
@@ -45,6 +46,7 @@ use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::ErrorParts;
 use base64::Engine;
 use digest::Digest;
+use futures::StreamExt;
 use futures::TryStreamExt;
 use indexmap::IndexSet;
 use minil_migration::Migrator;
@@ -76,8 +78,6 @@ use serde_s3::types::Object;
 use serde_s3::types::Owner;
 use sha2::Sha256;
 use tokio::net::TcpListener;
-use tokio::signal;
-use tokio_stream::StreamExt;
 use tokio_util::io::StreamReader;
 use tower::Layer;
 use tower::ServiceBuilder;
@@ -86,9 +86,9 @@ use tower_http::normalize_path::NormalizePathLayer;
 use tracing::debug;
 use tracing::info;
 use tracing::instrument;
+use tracing::log::LevelFilter;
 use tracing_subscriber::EnvFilter;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::prelude::*;
 
 use crate::database_transaction::DbTxn;
 use crate::error::AppError;
@@ -113,17 +113,26 @@ const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-amz-request-id"
 #[tokio::main]
 async fn main() {
     tracing_subscriber::registry()
-        .with(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_err| format!("{}=debug", env!("CARGO_CRATE_NAME")).into()),
-        )
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_err| {
+            format!(
+                "{}={}",
+                env!("CARGO_CRATE_NAME"),
+                if cfg!(debug_assertions) {
+                    "debug"
+                } else {
+                    "warn"
+                }
+            )
+            .into()
+        }))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".to_owned());
     info!("connecting to {}", db_url);
     let mut db_opt = ConnectOptions::new(db_url);
-    db_opt.sqlx_logging(false);
+    db_opt.sqlx_logging_level(LevelFilter::Debug);
+    db_opt.sqlx_slow_statements_logging_settings(LevelFilter::Warn, Duration::from_secs(1));
     let db_conn = Database::connect(db_opt)
         .await
         .expect("failed to connect to database");
@@ -185,14 +194,14 @@ async fn main() {
 
 async fn shutdown_signal() {
     let ctrl_c = async {
-        signal::ctrl_c()
+        tokio::signal::ctrl_c()
             .await
             .expect("failed to install Ctrl+C handler");
     };
 
     #[cfg(unix)]
     let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
             .expect("failed to install signal handler")
             .recv()
             .await;
@@ -234,10 +243,9 @@ async fn handle_app_err(request: Request, next: Next) -> Response {
     let mut response = next.run(request).await;
 
     let err = response.extensions_mut().remove::<AppErrorDiscriminants>();
-    if let Some(err) = err {
-        err.into_response(err_parts)
-    } else {
-        response
+    match err {
+        Some(err) => err.into_response(err_parts),
+        None => response,
     }
 }
 
@@ -267,9 +275,7 @@ async fn create_bucket(
     Extension(db): Extension<DbTxn>,
     input: CreateBucketInput,
 ) -> AppResult<CreateBucketOutput> {
-    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
-        .await?
-        .unwrap();
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.acl, None);
     app_ensure_matches!(input.header.bucket_object_lock_enabled, None | Some(false));
@@ -301,13 +307,14 @@ async fn delete_bucket(
     Extension(db): Extension<DbTxn>,
     input: DeleteBucketInput,
 ) -> AppResult<DeleteBucketOutput> {
-    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
-        .await?
-        .unwrap();
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    BucketMutation::delete_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
+    (BucketMutation::delete(db.as_ref(), owner.id, &input.path.bucket)
         .await?
+        .rows_affected
+        != 0)
+        .then_some(())
         .ok_or(AppError::NoSuchBucket)?;
 
     Ok(DeleteBucketOutput::builder().build())
@@ -318,12 +325,10 @@ async fn head_bucket(
     Extension(db): Extension<DbTxn>,
     input: HeadBucketInput,
 ) -> AppResult<HeadBucketOutput> {
-    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
-        .await?
-        .unwrap();
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
@@ -341,9 +346,7 @@ async fn list_buckets(
     Extension(db): Extension<DbTxn>,
     input: ListBucketsInput,
 ) -> AppResult<ListBucketsOutput> {
-    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
-        .await?
-        .unwrap();
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     let limit = input.query.max_buckets + 1;
     let mut buckets = BucketQuery::find_all_by_owner_id(
@@ -398,9 +401,7 @@ async fn put_object(
     Extension(db): Extension<DbTxn>,
     input: PutObjectInput,
 ) -> AppResult<PutObjectOutput> {
-    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
-        .await?
-        .unwrap();
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.cache_control, None);
     app_ensure_matches!(input.header.content_disposition, None);
@@ -432,7 +433,7 @@ async fn put_object(
     app_ensure_matches!(input.header.write_offset_bytes, None | Some(0));
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let object = ObjectMutation::create(
@@ -476,9 +477,7 @@ async fn get_bucket_versioning(
     Extension(db): Extension<DbTxn>,
     input: GetBucketVersioningInput,
 ) -> AppResult<GetBucketVersioningOutput> {
-    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
-        .await?
-        .unwrap();
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
 
@@ -492,12 +491,10 @@ async fn get_bucket_location(
     Extension(db): Extension<DbTxn>,
     input: GetBucketLocationInput,
 ) -> AppResult<GetBucketLocationOutput> {
-    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
-        .await?
-        .unwrap();
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let content = serde_plain::from_str::<BucketLocationConstraint>(&bucket.region)
@@ -517,15 +514,13 @@ async fn list_objects(
     Extension(db): Extension<DbTxn>,
     input: ListObjectsInput,
 ) -> AppResult<ListObjectsOutput> {
-    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
-        .await?
-        .unwrap();
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.optional_object_attributes, None);
     app_ensure_matches!(input.header.request_payer, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let limit = input.query.max_keys + 1;
@@ -620,15 +615,13 @@ async fn list_objects_v2(
     Extension(db): Extension<DbTxn>,
     input: ListObjectsV2Input,
 ) -> AppResult<ListObjectsV2Output> {
-    let owner = OwnerQuery::find_by_unique_id(db.as_ref(), "minil")
-        .await?
-        .unwrap();
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.optional_object_attributes, None);
     app_ensure_matches!(input.header.request_payer, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find_by_unique_id(db.as_ref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let limit = input.query.max_keys + 1;
