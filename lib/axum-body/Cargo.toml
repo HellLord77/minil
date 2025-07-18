@@ -1,14 +1,14 @@
 [package]
 name = "axum-body"
-version = "0.2.2"
+version = "0.2.3"
 edition.workspace = true
 
 [dependencies]
 axum-core.workspace = true
 bytes.workspace = true
 derive_more.workspace = true
+futures.workspace = true
 http.workspace = true
-tokio-stream.workspace = true
 
 [dev-dependencies]
 serde_urlencoded = "0.7.1"

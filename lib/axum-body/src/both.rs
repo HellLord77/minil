@@ -7,7 +7,7 @@ use axum_core::extract::Request;
 use crate::error::RejectionError;
 use crate::rejection::BothRejection;
 use crate::rejection::BothRejectionError;
-use crate::utils::cloned2;
+use crate::utils::cloned_request;
 
 #[derive(Debug)]
 #[must_use]
@@ -24,7 +24,7 @@ where
     type Rejection = BothRejection;
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
-        let (req1, req2) = cloned2(req, state).await?;
+        let (req1, req2) = cloned_request(req, state).await?;
 
         Ok(Both(
             L::from_request(req1, state)

@@ -1,15 +1,18 @@
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::pin::pin;
 
+use axum_core::body::Body;
 use axum_core::extract::FromRequest;
 use axum_core::extract::Request;
+use futures::StreamExt;
+use futures::TryStreamExt;
 
 use crate::error::RejectionError;
 use crate::rejection::EmptyRejection;
 use crate::rejection::NonEmptyRejectionError;
 use crate::rejection::NotEmptyRejection;
 use crate::rejection::UnknownBodyError;
-use crate::utils::has_remaining;
 
 #[derive(Debug)]
 #[must_use]
@@ -23,15 +26,18 @@ where
 
     async fn from_request(req: Request, _state: &S) -> Result<Self, Self::Rejection> {
         let body = req.into_body();
-        if has_remaining(body)
+        let mut stream = pin!(body.into_data_stream());
+
+        let is_empty = match stream
+            .try_next()
             .await
             .map_err(UnknownBodyError::from_err)?
-            .0
         {
-            Err(NotEmptyRejection)?
-        } else {
-            Ok(Self)
-        }
+            Some(chunk) => chunk.is_empty(),
+            None => true,
+        };
+
+        Ok(is_empty.then_some(Self).ok_or(NotEmptyRejection)?)
     }
 }
 
@@ -49,19 +55,30 @@ where
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         let (parts, body) = req.into_parts();
+        let mut stream = Box::pin(body.into_data_stream().peekable());
 
-        match has_remaining(body)
-            .await
-            .map_err(UnknownBodyError::from_err)?
-        {
-            (true, body) => {
-                let req = Request::from_parts(parts, body);
-                match T::from_request(req, state).await {
-                    Ok(data) => Ok(Self(Some(data))),
-                    Err(rej) => Err(NonEmptyRejectionError::from_err(RejectionError::right(rej)))?,
-                }
+        let is_empty = match stream.as_mut().peek().await {
+            Some(Ok(chunk)) => chunk.is_empty(),
+            Some(Err(_)) => {
+                stream
+                    .try_next()
+                    .await
+                    .map_err(UnknownBodyError::from_err)?;
+                unreachable!()
             }
-            (false, _) => Ok(Self(None)),
+            None => true,
+        };
+
+        if is_empty {
+            Ok(Self(None))
+        } else {
+            let body = Body::from_stream(stream);
+            let req = Request::from_parts(parts, body);
+
+            match T::from_request(req, state).await {
+                Ok(data) => Ok(Self(Some(data))),
+                Err(rej) => Err(NonEmptyRejectionError::from_err(RejectionError::right(rej)))?,
+            }
         }
     }
 }
