@@ -76,7 +76,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_index(Index::drop().name("idx_object_bucket_id_key").to_owned())
+            .drop_index(Index::drop().name("idx_object_bucket_id").to_owned())
             .await?;
 
         manager
@@ -84,7 +84,7 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
-            .drop_index(Index::drop().name("idx_object_bucket_id").to_owned())
+            .drop_index(Index::drop().name("idx_object_bucket_id_key").to_owned())
             .await?;
 
         manager

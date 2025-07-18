@@ -10,21 +10,21 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Bucket::Table)
+                    .table(Upload::Table)
                     .if_not_exists()
-                    .col(pk_uuid(Bucket::Id))
-                    .col(uuid(Bucket::OwnerId))
-                    .col(string(Bucket::Name))
-                    .col(string(Bucket::Region))
+                    .col(pk_uuid(Upload::Id))
+                    .col(uuid(Upload::BucketId))
+                    .col(string(Upload::Key))
+                    .col(string_null(Upload::Mime))
                     .col(
-                        timestamp_with_time_zone(Bucket::CreatedAt)
+                        timestamp_with_time_zone(Upload::CreatedAt)
                             .default(Expr::current_timestamp()),
                     )
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk_bucket_owner")
-                            .from(Bucket::Table, Bucket::OwnerId)
-                            .to(Owner::Table, Owner::Id)
+                            .name("fk_upload_bucket")
+                            .from(Upload::Table, Upload::BucketId)
+                            .to(Bucket::Table, Bucket::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
@@ -34,9 +34,9 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_bucket_owner_id")
-                    .table(Bucket::Table)
-                    .col(Bucket::OwnerId)
+                    .name("idx_upload_bucket_id")
+                    .table(Upload::Table)
+                    .col(Upload::BucketId)
                     .to_owned(),
             )
             .await?;
@@ -44,9 +44,9 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_bucket_name")
-                    .table(Bucket::Table)
-                    .col(Bucket::Name)
+                    .name("idx_upload_key")
+                    .table(Upload::Table)
+                    .col(Upload::Key)
                     .to_owned(),
             )
             .await?;
@@ -54,10 +54,10 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_bucket_owner_id_name")
-                    .table(Bucket::Table)
-                    .col(Bucket::OwnerId)
-                    .col(Bucket::Name)
+                    .name("idx_upload_bucket_id_key")
+                    .table(Upload::Table)
+                    .col(Upload::BucketId)
+                    .col(Upload::Key)
                     .unique()
                     .to_owned(),
             )
@@ -68,19 +68,19 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_index(Index::drop().name("idx_bucket_owner_id_name").to_owned())
+            .drop_index(Index::drop().name("idx_upload_bucket_id").to_owned())
             .await?;
 
         manager
-            .drop_index(Index::drop().name("idx_bucket_name").to_owned())
+            .drop_index(Index::drop().name("idx_upload_key").to_owned())
             .await?;
 
         manager
-            .drop_index(Index::drop().name("idx_bucket_owner_id").to_owned())
+            .drop_index(Index::drop().name("idx_upload_bucket_id_key").to_owned())
             .await?;
 
         manager
-            .drop_table(Table::drop().table(Bucket::Table).to_owned())
+            .drop_table(Table::drop().table(Upload::Table).to_owned())
             .await?;
 
         Ok(())
@@ -88,17 +88,17 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum Owner {
+enum Bucket {
     Table,
     Id,
 }
 
 #[derive(DeriveIden)]
-enum Bucket {
+enum Upload {
     Table,
     Id,
-    OwnerId,
-    Name,
-    Region,
+    BucketId,
+    Key,
+    Mime,
     CreatedAt,
 }
