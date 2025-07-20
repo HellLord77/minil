@@ -9,8 +9,6 @@ use std::convert::identity;
 use std::env;
 use std::future;
 use std::io;
-use std::net::Ipv4Addr;
-use std::net::SocketAddrV4;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -88,6 +86,8 @@ use tracing::debug;
 use tracing::info;
 use tracing::instrument;
 use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::filter::Targets;
 use tracing_subscriber::prelude::*;
 
 use crate::database_transaction::DbTxn;
@@ -112,11 +112,11 @@ const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-amz-request-id"
 
 #[tokio::main]
 async fn main() {
-    let config = init_config();
-    let _log_guard = init_log(&config);
-    let db_conn = init_db(&config).await;
+    let config = dbg!(init_config());
+    let _log_guard = init_trace(&config);
+    let db = init_db(&config).await;
 
-    let state = AppState { db_conn };
+    let state = AppState::new(db);
     let node_id = format!("{:x}", Sha256::digest(NODE_NAME.as_bytes()));
     let server = format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
@@ -156,11 +156,11 @@ async fn main() {
         NormalizePathLayer::trim_trailing_slash().layer(router),
     );
 
-    let addr = SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 3000);
+    let addr = config.server.to_socket();
     let listener = TcpListener::bind(addr)
         .await
         .expect("failed to bind address");
-    info!("listening on {}", addr);
+    info!("tcp listening on {}", addr);
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
@@ -168,7 +168,7 @@ async fn main() {
 }
 
 fn init_config() -> AppConfig {
-    match env::var("APP_ENV_FILE") {
+    match env::var("RUST_ENV") {
         Ok(path) => dotenvy::from_path(path).expect("failed to load env file"),
         Err(_) => match dotenvy::dotenv() {
             Ok(path) => {
@@ -183,10 +183,15 @@ fn init_config() -> AppConfig {
     AppConfig::try_new().expect("failed to load config")
 }
 
-fn init_log(config: &AppConfig) -> WorkerGuard {
+fn init_trace(config: &AppConfig) -> WorkerGuard {
     let (writer, _guard) = config.log.stream.to_writer();
     tracing_subscriber::registry()
-        .with(config.log.level.to_layer(env!("CARGO_CRATE_NAME")))
+        .with(match EnvFilter::try_from_default_env() {
+            Ok(filter) => filter.boxed(),
+            Err(_) => Targets::new()
+                .with_target(env!("CARGO_CRATE_NAME"), config.log.level.try_as_level())
+                .boxed(),
+        })
         .with(
             tracing_subscriber::fmt::layer()
                 .with_writer(writer)
@@ -198,21 +203,22 @@ fn init_log(config: &AppConfig) -> WorkerGuard {
 }
 
 async fn init_db(config: &AppConfig) -> DbConn {
-    let mut opts = ConnectOptions::new(config.database.url.clone());
-    opts.sqlx_logging_level(config.database.log_level.as_filter());
-    opts.sqlx_slow_statements_logging_settings(
+    let mut options =
+        ConnectOptions::new(config.database.try_to_url().expect("invalid database url"));
+    options.sqlx_logging_level(config.database.log_level.as_filter());
+    options.sqlx_slow_statements_logging_settings(
         config.database.slow_log_level.as_filter(),
         Duration::from_secs(config.database.slow_threshold),
     );
 
-    let conn = Database::connect(opts)
+    let connection = Database::connect(options)
         .await
         .expect("failed to connect to database");
-    Migrator::up(&conn, None)
+    Migrator::up(&connection, None)
         .await
         .expect("failed to run migrations");
 
-    conn
+    connection
 }
 
 async fn shutdown_signal() {
