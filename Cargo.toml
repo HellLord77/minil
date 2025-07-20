@@ -46,10 +46,11 @@ serde_json = "1.0.140"
 serde_path_to_error = "0.1.17"
 serde_with = "3.14.0"
 
-tokio = { version = "1.46.1", features = ["full"] }
+tokio = { version = "1.46.1", features = ["full", "tracing"] }
 tokio-util = { version = "0.7.15", features = ["full"] }
 
-tracing = { version = "0.1.41", features = ["max_level_trace", "release_max_level_info"] }
+tracing = { version = "0.1.41", features = ["log", "max_level_trace", "release_max_level_info"] }
+tracing-appender = "0.2.3"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
 
 axum-body = { path = "lib/axum-body" }
@@ -65,6 +66,7 @@ stringify-checked = { path = "lib/stringify-checked" }
 syn-utils = { path = "lib/syn-utils" }
 validator-extra = { path = "lib/validator-extra" }
 
+minil-config = { path = "main/config" }
 minil-entity = { path = "main/entity" }
 minil-migration = { path = "main/migration" }
 minil-service = { path = "main/service" }

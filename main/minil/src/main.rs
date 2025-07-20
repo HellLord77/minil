@@ -49,6 +49,7 @@ use digest::Digest;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use indexmap::IndexSet;
+use minil_config::AppConfig;
 use minil_migration::Migrator;
 use minil_migration::MigratorTrait;
 use minil_service::BucketMutation;
@@ -86,8 +87,7 @@ use tower_http::normalize_path::NormalizePathLayer;
 use tracing::debug;
 use tracing::info;
 use tracing::instrument;
-use tracing::log::LevelFilter;
-use tracing_subscriber::EnvFilter;
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::prelude::*;
 
 use crate::database_transaction::DbTxn;
@@ -112,33 +112,9 @@ const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-amz-request-id"
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_err| {
-            format!(
-                "{}={}",
-                env!("CARGO_CRATE_NAME"),
-                if cfg!(debug_assertions) {
-                    "debug"
-                } else {
-                    "warn"
-                }
-            )
-            .into()
-        }))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
-    let db_url = env::var("DATABASE_URL").unwrap_or_else(|_err| "sqlite::memory:".to_owned());
-    info!("connecting to {}", db_url);
-    let mut db_opt = ConnectOptions::new(db_url);
-    db_opt.sqlx_logging_level(LevelFilter::Debug);
-    db_opt.sqlx_slow_statements_logging_settings(LevelFilter::Warn, Duration::from_secs(1));
-    let db_conn = Database::connect(db_opt)
-        .await
-        .expect("failed to connect to database");
-    Migrator::up(&db_conn, None)
-        .await
-        .expect("failed to run migrations");
+    let config = init_config();
+    let _log_guard = init_log(&config);
+    let db_conn = init_db(&config).await;
 
     let state = AppState { db_conn };
     let node_id = format!("{:x}", Sha256::digest(NODE_NAME.as_bytes()));
@@ -172,12 +148,11 @@ async fn main() {
         "/{Bucket}" => head(head_bucket),
         "/{Bucket}" => put(create_bucket),
         "/{Bucket}/{*Key}" => put(put_object),
-    });
-    let router = router
-        .method_not_allowed_fallback(async || AppError::MethodNotAllowed)
-        .with_state(state)
-        .layer(middleware);
-    let router = ServiceExt::<Request>::into_make_service(
+    })
+    .method_not_allowed_fallback(async || AppError::MethodNotAllowed)
+    .with_state(state)
+    .layer(middleware);
+    let app = ServiceExt::<Request>::into_make_service(
         NormalizePathLayer::trim_trailing_slash().layer(router),
     );
 
@@ -186,10 +161,58 @@ async fn main() {
         .await
         .expect("failed to bind address");
     info!("listening on {}", addr);
-    axum::serve(listener, router)
+    axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
+}
+
+fn init_config() -> AppConfig {
+    match env::var("APP_ENV_FILE") {
+        Ok(path) => dotenvy::from_path(path).expect("failed to load env file"),
+        Err(_) => match dotenvy::dotenv() {
+            Ok(path) => {
+                info!("loaded env from {}", path.display());
+            }
+            Err(err) => {
+                debug!(%err, "DotEnvyError")
+            }
+        },
+    }
+
+    AppConfig::try_new().expect("failed to load config")
+}
+
+fn init_log(config: &AppConfig) -> WorkerGuard {
+    let (writer, _guard) = config.log.stream.to_writer();
+    tracing_subscriber::registry()
+        .with(config.log.level.to_layer(env!("CARGO_CRATE_NAME")))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(writer)
+                .event_format(config.log.format.to_format()),
+        )
+        .init();
+
+    _guard
+}
+
+async fn init_db(config: &AppConfig) -> DbConn {
+    let mut opts = ConnectOptions::new(config.database.url.clone());
+    opts.sqlx_logging_level(config.database.log_level.as_filter());
+    opts.sqlx_slow_statements_logging_settings(
+        config.database.slow_log_level.as_filter(),
+        Duration::from_secs(config.database.slow_threshold),
+    );
+
+    let conn = Database::connect(opts)
+        .await
+        .expect("failed to connect to database");
+    Migrator::up(&conn, None)
+        .await
+        .expect("failed to run migrations");
+
+    conn
 }
 
 async fn shutdown_signal() {
