@@ -1,12 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::Level;
-use tracing::Subscriber;
 use tracing::log::LevelFilter;
-use tracing_subscriber::EnvFilter;
-use tracing_subscriber::Layer;
-use tracing_subscriber::filter::Targets;
-use tracing_subscriber::registry::LookupSpan;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -33,7 +28,7 @@ impl LogLevel {
         }
     }
 
-    fn try_as_level(&self) -> Option<Level> {
+    pub fn try_as_level(&self) -> Option<Level> {
         match self {
             Self::Off => None,
             Self::Error => Some(Level::ERROR),
@@ -41,18 +36,6 @@ impl LogLevel {
             Self::Info => Some(Level::INFO),
             Self::Debug => Some(Level::DEBUG),
             Self::Trace => Some(Level::TRACE),
-        }
-    }
-
-    pub fn to_layer<S>(&self, target: &str) -> Box<dyn Layer<S> + Send + Sync + 'static>
-    where
-        S: Subscriber + for<'lookup> LookupSpan<'lookup>,
-    {
-        match EnvFilter::try_from_default_env() {
-            Ok(filter) => filter.boxed(),
-            Err(_) => Targets::new()
-                .with_target(target, self.try_as_level())
-                .boxed(),
         }
     }
 }

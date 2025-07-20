@@ -6,12 +6,15 @@ use serde::Serialize;
 
 use crate::configs::DatabaseConfig;
 use crate::configs::LogConfig;
+use crate::configs::ServerConfig;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AppConfig {
     pub log: LogConfig,
 
     pub database: DatabaseConfig,
+
+    pub server: ServerConfig,
 }
 
 impl AppConfig {

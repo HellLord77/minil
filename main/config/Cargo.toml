@@ -1,12 +1,14 @@
 [package]
 name = "minil-config"
-version = "0.1.0"
+version = "0.1.1"
 edition.workspace = true
 
 [dependencies]
 config = "0.15.13"
 smart-default = "0.7.1"
+url = { version = "2.5.4", features = ["serde"] }
 
+derive_more.workspace = true
 serde.workspace = true
 tracing.workspace = true
 tracing-appender.workspace = true
