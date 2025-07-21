@@ -16,7 +16,7 @@ impl MigrationTrait for Migration {
                     .col(uuid(Object::BucketId))
                     .col(string(Object::Key))
                     .col(string(Object::Mime))
-                    .col(big_integer(Object::Size))
+                    .col(big_unsigned(Object::Size))
                     .col(binary_len(Object::Crc32, 4))
                     .col(binary_len(Object::Crc32c, 4))
                     .col(binary_len(Object::Crc64nvme, 8))

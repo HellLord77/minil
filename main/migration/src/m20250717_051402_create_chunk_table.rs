@@ -15,11 +15,25 @@ impl MigrationTrait for Migration {
                     .col(pk_uuid(Chunk::Id))
                     .col(uuid_null(Chunk::ObjectId))
                     .col(uuid_null(Chunk::PartId))
-                    .col(big_integer(Chunk::Index))
+                    .col(big_unsigned(Chunk::Index))
                     .col(binary(Chunk::Data))
                     .col(
                         timestamp_with_time_zone(Chunk::CreatedAt)
                             .default(Expr::current_timestamp()),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_chunk_object")
+                            .from(Chunk::Table, Chunk::ObjectId)
+                            .to(Object::Table, Object::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_chunk_part")
+                            .from(Chunk::Table, Chunk::PartId)
+                            .to(Part::Table, Part::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
                     )
                     .check(
                         Expr::expr(
@@ -78,24 +92,10 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        manager
-            .get_connection()
-            .execute_unprepared(include_str!(
-                "../sql/m20250717_051402_create_chunk_table/up.sql"
-            ))
-            .await?;
-
         Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .get_connection()
-            .execute_unprepared(include_str!(
-                "../sql/m20250717_051402_create_chunk_table/down.sql"
-            ))
-            .await?;
-
         manager
             .drop_index(Index::drop().name("idx_chunk_object_id").to_owned())
             .await?;
@@ -122,6 +122,18 @@ impl MigrationTrait for Migration {
 
         Ok(())
     }
+}
+
+#[derive(DeriveIden)]
+enum Object {
+    Table,
+    Id,
+}
+
+#[derive(DeriveIden)]
+enum Part {
+    Table,
+    Id,
 }
 
 #[derive(DeriveIden)]
