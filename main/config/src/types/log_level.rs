@@ -8,10 +8,9 @@ use tracing::log::LevelFilter;
 pub enum LogLevel {
     Off,
     Error,
-    #[cfg_attr(not(debug_assertions), default)]
     Warn,
+    #[default]
     Info,
-    #[cfg_attr(debug_assertions, default)]
     Debug,
     Trace,
 }
