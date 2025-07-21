@@ -14,16 +14,6 @@ pub enum DatabaseDriver {
     Mysql,
 }
 
-impl DatabaseDriver {
-    pub fn try_as_port(&self) -> Option<u16> {
-        match self {
-            Self::Sqlite => None,
-            Self::Postgres => Some(5432),
-            Self::Mysql => Some(3306),
-        }
-    }
-}
-
 impl Display for DatabaseDriver {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {

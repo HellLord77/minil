@@ -10,9 +10,10 @@ use crate::types::LogLevel;
 
 #[derive(Debug, SmartDefault, Serialize, Deserialize)]
 pub struct DatabaseConfig {
+    #[default(DatabaseDriver::Postgres)]
     pub driver: DatabaseDriver,
 
-    #[default = ":memory:"]
+    #[default = "localhost"]
     pub host: String,
 
     pub port: Option<u16>,
@@ -21,7 +22,8 @@ pub struct DatabaseConfig {
 
     pub password: Option<String>,
 
-    pub database: String,
+    #[default = "minil"]
+    pub name: String,
 
     pub params: Option<String>,
 
@@ -56,13 +58,12 @@ impl DatabaseConfig {
                     } else {
                         &self.host
                     }))?;
-                    url.set_port(self.port.or_else(|| self.driver.try_as_port()))
-                        .map_err(|_| UrlParseError::Port)?;
+                    url.set_port(self.port).map_err(|_| UrlParseError::Port)?;
                     url.set_username(&self.username)
                         .map_err(|_| UrlParseError::Username)?;
                     url.set_password(self.password.as_deref())
                         .map_err(|_| UrlParseError::Password)?;
-                    url.set_path(&self.database);
+                    url.set_path(&self.name);
                     url.set_query(self.params.as_deref());
 
                     url
