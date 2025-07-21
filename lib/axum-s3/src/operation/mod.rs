@@ -2,6 +2,7 @@ pub mod check;
 
 mod create_bucket;
 mod delete_bucket;
+mod delete_object;
 mod get_bucket_location;
 mod get_bucket_versioning;
 mod get_object;
@@ -16,6 +17,8 @@ pub use create_bucket::CreateBucketInput;
 pub use create_bucket::CreateBucketOutput;
 pub use delete_bucket::DeleteBucketInput;
 pub use delete_bucket::DeleteBucketOutput;
+pub use delete_object::DeleteObjectInput;
+pub use delete_object::DeleteObjectOutput;
 pub use get_bucket_location::GetBucketLocationInput;
 pub use get_bucket_location::GetBucketLocationOutput;
 pub use get_bucket_versioning::GetBucketVersioningInput;
