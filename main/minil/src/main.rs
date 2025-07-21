@@ -27,6 +27,8 @@ use axum_s3::operation::CreateBucketInput;
 use axum_s3::operation::CreateBucketOutput;
 use axum_s3::operation::DeleteBucketInput;
 use axum_s3::operation::DeleteBucketOutput;
+use axum_s3::operation::DeleteObjectInput;
+use axum_s3::operation::DeleteObjectOutput;
 use axum_s3::operation::GetBucketLocationInput;
 use axum_s3::operation::GetBucketLocationOutput;
 use axum_s3::operation::GetBucketVersioningInput;
@@ -60,6 +62,7 @@ use sea_orm::Database;
 use sea_orm::DbConn;
 use sea_orm::TransactionTrait;
 use serde_s3::operation::CreateBucketOutputHeader;
+use serde_s3::operation::DeleteObjectOutputHeader;
 use serde_s3::operation::GetBucketLocationOutputBody;
 use serde_s3::operation::GetBucketVersioningOutputBody;
 use serde_s3::operation::HeadBucketOutputHeader;
@@ -147,6 +150,7 @@ async fn main() {
         "/{Bucket}" => get(get_bucket_handler),
         "/{Bucket}" => head(head_bucket),
         "/{Bucket}" => put(create_bucket),
+        "/{Bucket}/{*Key}" => delete(delete_object),
         "/{Bucket}/{*Key}" => put(put_object),
     })
     .method_not_allowed_fallback(async || AppError::MethodNotAllowed)
@@ -494,6 +498,33 @@ async fn put_object(
         .build())
 }
 
+#[instrument(skip(db), ret)]
+async fn delete_object(
+    Extension(db): Extension<DbTxn>,
+    input: DeleteObjectInput,
+) -> AppResult<DeleteObjectOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    dbg!(&input);
+    app_ensure_eq!(input.query.version_id, None);
+    app_ensure_eq!(input.header.if_match, None);
+    app_ensure_eq!(input.header.bypass_governance_retention, None);
+    app_ensure_eq!(input.header.if_match_last_modified_time, None);
+    app_ensure_eq!(input.header.if_match_size, None);
+    app_ensure_eq!(input.header.mfa, None);
+    app_ensure_matches!(input.header.request_payer, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    ObjectMutation::delete(db.as_ref(), bucket.id, &input.path.key).await?;
+
+    Ok(DeleteObjectOutput::builder()
+        .header(DeleteObjectOutputHeader::builder().build())
+        .build())
+}
+
 app_define_handler!(get_bucket_handler {
     GetBucketVersioningCheck => get_bucket_versioning,
     GetBucketLocationCheck => get_bucket_location,
@@ -533,107 +564,6 @@ async fn get_bucket_location(
         .body(
             GetBucketLocationOutputBody::builder()
                 .content(content)
-                .build(),
-        )
-        .build())
-}
-
-#[instrument(skip(db), ret)]
-async fn list_objects(
-    Extension(db): Extension<DbTxn>,
-    input: ListObjectsInput,
-) -> AppResult<ListObjectsOutput> {
-    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
-
-    app_ensure_matches!(input.header.optional_object_attributes, None);
-    app_ensure_matches!(input.header.request_payer, None);
-
-    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
-        .await?
-        .ok_or(AppError::NoSuchBucket)?;
-    let limit = input.query.max_keys + 1;
-    let mut objects = ObjectQuery::find_all_by_bucket_id(
-        db.as_ref(),
-        bucket.id,
-        input.query.prefix.as_deref(),
-        input.query.marker.as_deref(),
-        Some(limit as u64),
-    )
-    .await?
-    .try_collect::<Vec<_>>()
-    .await?;
-    let mut common_prefixes = IndexSet::new();
-    let next_marker = (objects.len() == limit as usize).then(|| {
-        objects.pop();
-        objects.last().unwrap_or_else(|| unreachable!()).key.clone()
-    });
-    if let Some(delimiter) = &input.query.delimiter {
-        let prefix_len = input.query.prefix.as_deref().map_or(0, str::len);
-        let offset = prefix_len + delimiter.len();
-        objects.retain(|object| {
-            if let Some(delimiter_index) = &object.key[prefix_len..].find(delimiter) {
-                common_prefixes.insert(object.key[..offset + delimiter_index].to_owned());
-                false
-            } else {
-                true
-            }
-        });
-    }
-    let delimiter_is_some = input.query.delimiter.is_some();
-    let encode = if let Some(encoding_type) = &input.query.encoding_type {
-        match encoding_type {
-            EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
-        }
-    } else {
-        identity
-    };
-
-    Ok(ListObjectsOutput::builder()
-        .header(ListObjectsOutputHeader::builder().build())
-        .body(
-            ListObjectsOutputBody::builder()
-                .common_prefixes(
-                    common_prefixes
-                        .into_iter()
-                        .map(|common_prefix| {
-                            CommonPrefix::builder()
-                                .prefix(encode(common_prefix))
-                                .build()
-                        })
-                        .collect(),
-                )
-                .contents(
-                    objects
-                        .into_iter()
-                        .map(|object| {
-                            Object::builder()
-                                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
-                                .key(encode(object.key))
-                                .last_modified(object.updated_at.unwrap_or(object.created_at))
-                                .owner(
-                                    Owner::builder()
-                                        .display_name(owner.name.clone())
-                                        .id(owner.id)
-                                        .build(),
-                                )
-                                .size(object.size)
-                                .build()
-                        })
-                        .collect(),
-                )
-                .maybe_delimiter(input.query.delimiter.map(encode))
-                .maybe_encoding_type(input.query.encoding_type)
-                .is_truncated(next_marker.is_some())
-                .marker(input.query.marker.map(encode).unwrap_or_default())
-                .max_keys(input.query.max_keys)
-                .name(bucket.name)
-                .maybe_next_marker(
-                    next_marker
-                        .filter(|_next_marker| delimiter_is_some)
-                        .map(encode),
-                )
-                .prefix(input.query.prefix.map(encode).unwrap_or_default())
                 .build(),
         )
         .build())
@@ -724,7 +654,7 @@ async fn list_objects_v2(
                                             .build()
                                     },
                                 ))
-                                .size(object.size)
+                                .size(object.size as u64)
                                 .build()
                         })
                         .collect(),
@@ -739,6 +669,107 @@ async fn list_objects_v2(
                 .maybe_next_continuation_token(next_continuation_token)
                 .prefix(input.query.prefix.map(encode).unwrap_or_default())
                 .maybe_start_after(input.query.start_after.map(encode))
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn list_objects(
+    Extension(db): Extension<DbTxn>,
+    input: ListObjectsInput,
+) -> AppResult<ListObjectsOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_ensure_matches!(input.header.optional_object_attributes, None);
+    app_ensure_matches!(input.header.request_payer, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let limit = input.query.max_keys + 1;
+    let mut objects = ObjectQuery::find_all_by_bucket_id(
+        db.as_ref(),
+        bucket.id,
+        input.query.prefix.as_deref(),
+        input.query.marker.as_deref(),
+        Some(limit as u64),
+    )
+    .await?
+    .try_collect::<Vec<_>>()
+    .await?;
+    let mut common_prefixes = IndexSet::new();
+    let next_marker = (objects.len() == limit as usize).then(|| {
+        objects.pop();
+        objects.last().unwrap_or_else(|| unreachable!()).key.clone()
+    });
+    if let Some(delimiter) = &input.query.delimiter {
+        let prefix_len = input.query.prefix.as_deref().map_or(0, str::len);
+        let offset = prefix_len + delimiter.len();
+        objects.retain(|object| {
+            if let Some(delimiter_index) = &object.key[prefix_len..].find(delimiter) {
+                common_prefixes.insert(object.key[..offset + delimiter_index].to_owned());
+                false
+            } else {
+                true
+            }
+        });
+    }
+    let delimiter_is_some = input.query.delimiter.is_some();
+    let encode = if let Some(encoding_type) = &input.query.encoding_type {
+        match encoding_type {
+            EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
+        }
+    } else {
+        identity
+    };
+
+    Ok(ListObjectsOutput::builder()
+        .header(ListObjectsOutputHeader::builder().build())
+        .body(
+            ListObjectsOutputBody::builder()
+                .common_prefixes(
+                    common_prefixes
+                        .into_iter()
+                        .map(|common_prefix| {
+                            CommonPrefix::builder()
+                                .prefix(encode(common_prefix))
+                                .build()
+                        })
+                        .collect(),
+                )
+                .contents(
+                    objects
+                        .into_iter()
+                        .map(|object| {
+                            Object::builder()
+                                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                                .key(encode(object.key))
+                                .last_modified(object.updated_at.unwrap_or(object.created_at))
+                                .owner(
+                                    Owner::builder()
+                                        .display_name(owner.name.clone())
+                                        .id(owner.id)
+                                        .build(),
+                                )
+                                .size(object.size as u64)
+                                .build()
+                        })
+                        .collect(),
+                )
+                .maybe_delimiter(input.query.delimiter.map(encode))
+                .maybe_encoding_type(input.query.encoding_type)
+                .is_truncated(next_marker.is_some())
+                .marker(input.query.marker.map(encode).unwrap_or_default())
+                .max_keys(input.query.max_keys)
+                .name(bucket.name)
+                .maybe_next_marker(
+                    next_marker
+                        .filter(|_next_marker| delimiter_is_some)
+                        .map(encode),
+                )
+                .prefix(input.query.prefix.map(encode).unwrap_or_default())
                 .build(),
         )
         .build())

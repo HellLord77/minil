@@ -384,7 +384,7 @@ dependencies = [
 
 [[package]]
 name = "axum-s3"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "axum",
  "axum-body",
@@ -1968,7 +1968,7 @@ dependencies = [
 
 [[package]]
 name = "minil-config"
-version = "0.1.1"
+version = "0.1.3"
 dependencies = [
  "config",
  "derive_more",
@@ -1982,14 +1982,14 @@ dependencies = [
 
 [[package]]
 name = "minil-entity"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "sea-orm",
 ]
 
 [[package]]
 name = "minil-migration"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "sea-orm-migration",
  "tokio",
@@ -3107,7 +3107,7 @@ dependencies = [
 
 [[package]]
 name = "serde-s3"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "bon",
  "chrono",

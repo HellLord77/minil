@@ -9,6 +9,7 @@ use futures::Stream;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use md5::Md5;
+use minil_entity::bucket;
 use minil_entity::object;
 use minil_entity::prelude::*;
 use sea_orm::*;
@@ -200,6 +201,18 @@ impl ObjectMutation {
         };
 
         Ok(ObjectMutation::insert(db, object).await)
+    }
+
+    pub async fn delete(
+        db: &impl ConnectionTrait,
+        bucket_id: Uuid,
+        key: &str,
+    ) -> DbRes<DeleteResult> {
+        Object::delete_many()
+            .filter(object::Column::BucketId.eq(bucket_id))
+            .filter(object::Column::Key.eq(key))
+            .exec(db)
+            .await
     }
 
     pub async fn remove(
