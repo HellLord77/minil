@@ -11,7 +11,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(Upload::Table)
-                    .if_not_exists()
                     .col(pk_uuid(Upload::Id))
                     .col(uuid(Upload::BucketId))
                     .col(string(Upload::Key))

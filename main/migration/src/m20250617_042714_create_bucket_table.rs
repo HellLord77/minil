@@ -11,7 +11,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(Bucket::Table)
-                    .if_not_exists()
                     .col(pk_uuid(Bucket::Id))
                     .col(uuid(Bucket::OwnerId))
                     .col(string(Bucket::Name))

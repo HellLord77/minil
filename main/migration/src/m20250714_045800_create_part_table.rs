@@ -11,7 +11,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(Part::Table)
-                    .if_not_exists()
                     .col(pk_uuid(Part::Id))
                     .col(uuid(Part::UploadId))
                     .col(small_unsigned(Part::Number))

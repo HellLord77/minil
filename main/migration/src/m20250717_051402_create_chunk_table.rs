@@ -11,7 +11,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(Chunk::Table)
-                    .if_not_exists()
                     .col(pk_uuid(Chunk::Id))
                     .col(uuid_null(Chunk::ObjectId))
                     .col(uuid_null(Chunk::PartId))
@@ -90,6 +89,13 @@ impl MigrationTrait for Migration {
                     .unique()
                     .to_owned(),
             )
+            .await?;
+
+        manager // https://github.com/SeaQL/sea-query/pull/589
+            .get_connection()
+            .execute_unprepared(include_str!(
+                "../sql/m20250717_051402_create_chunk_table/up.sql"
+            ))
             .await?;
 
         Ok(())

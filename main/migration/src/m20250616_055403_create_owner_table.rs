@@ -12,7 +12,6 @@ impl MigrationTrait for Migration {
             .create_table(
                 Table::create()
                     .table(Owner::Table)
-                    .if_not_exists()
                     .col(pk_uuid(Owner::Id))
                     .col(string_uniq(Owner::Name))
                     .col(
