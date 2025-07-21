@@ -617,7 +617,7 @@ async fn list_objects(
                                         .id(owner.id)
                                         .build(),
                                 )
-                                .size(object.size as u64)
+                                .size(object.size)
                                 .build()
                         })
                         .collect(),
@@ -724,7 +724,7 @@ async fn list_objects_v2(
                                             .build()
                                     },
                                 ))
-                                .size(object.size as u64)
+                                .size(object.size)
                                 .build()
                         })
                         .collect(),
