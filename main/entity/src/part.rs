@@ -11,11 +11,10 @@ pub struct Model {
     #[sea_orm(unique, indexed)]
     pub upload_id: Uuid,
 
-    #[sea_orm(column_type = "SmallInteger", unique, indexed)]
-    pub number: u16,
+    #[sea_orm(unique, indexed)]
+    pub number: i16,
 
-    #[sea_orm(column_type = "BigInteger")]
-    pub size: u64,
+    pub size: i64,
 
     #[sea_orm(column_type = "Binary(4)")]
     pub crc32: Vec<u8>,

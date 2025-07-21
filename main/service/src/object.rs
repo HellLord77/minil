@@ -116,7 +116,7 @@ impl ObjectMutation {
         let mut stream = pin!(
             FramedRead::new(
                 read,
-                ChunkDecoder::with_capacity(ByteSize::mib(16).as_u64() as usize),
+                ChunkDecoder::with_capacity(ByteSize::mib(4).as_u64() as usize),
             )
             .enumerate()
             .map(|(index, chunk)| chunk.map(|chunk| (index as u64, chunk)))
@@ -189,7 +189,7 @@ impl ObjectMutation {
             bucket_id: Set(bucket_id),
             key: Set(key.to_owned()),
             mime: Set(mime),
-            size: Set(size),
+            size: Set(size as i64),
             crc32: Set(crc32_buf.to_vec()),
             crc32c: Set(crc32c_buf.to_vec()),
             crc64nvme: Set(crc64nvme_buf.to_vec()),

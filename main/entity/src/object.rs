@@ -16,8 +16,7 @@ pub struct Model {
 
     pub mime: String,
 
-    #[sea_orm(column_type = "BigInteger")]
-    pub size: u64,
+    pub size: i64,
 
     #[sea_orm(column_type = "Binary(4)")]
     pub crc32: Vec<u8>,

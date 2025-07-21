@@ -14,8 +14,8 @@ pub struct Model {
     #[sea_orm(unique, indexed)]
     pub part_id: Option<Uuid>,
 
-    #[sea_orm(column_type = "BigInteger", unique, indexed)]
-    pub index: u64,
+    #[sea_orm(unique, indexed)]
+    pub index: i64,
 
     pub data: Vec<u8>,
 

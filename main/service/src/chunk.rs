@@ -62,7 +62,7 @@ impl ChunkMutation {
             id: Set(Uuid::new_v4()),
             object_id: Set(object_id),
             part_id: Set(part_id),
-            index: Set(index),
+            index: Set(index as i64),
             data: Set(data),
             ..Default::default()
         };
