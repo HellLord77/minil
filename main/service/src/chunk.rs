@@ -13,7 +13,7 @@ impl ChunkQuery {
         db: &(impl ConnectionTrait + StreamTrait),
         object_id: Option<Uuid>,
         part_id: Option<Uuid>,
-        index: u32,
+        index: u64,
     ) -> DbRes<Option<chunk::Model>> {
         let mut query = Chunk::find();
         if let Some(object_id) = object_id {
@@ -62,7 +62,7 @@ impl ChunkMutation {
             id: Set(Uuid::new_v4()),
             object_id: Set(object_id),
             part_id: Set(part_id),
-            index: Set(index as i64),
+            index: Set(index),
             data: Set(data),
             ..Default::default()
         };

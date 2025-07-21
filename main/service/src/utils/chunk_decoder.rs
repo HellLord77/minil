@@ -1,7 +1,7 @@
 use std::io;
 
 use bytes::Bytes;
-use tokio_util::bytes::BytesMut;
+use bytes::BytesMut;
 use tokio_util::codec::Decoder;
 
 pub(crate) struct ChunkDecoder {

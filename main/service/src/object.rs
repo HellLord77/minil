@@ -2,6 +2,7 @@ use std::io;
 use std::pin::pin;
 
 use bytes::Bytes;
+use bytesize::ByteSize;
 use crc_fast::CrcAlgorithm;
 use digest::Digest;
 use futures::Stream;
@@ -115,8 +116,10 @@ impl ObjectMutation {
         let mut stream = pin!(
             FramedRead::new(
                 read,
-                ChunkDecoder::with_capacity(bytesize::mib(4u64) as usize),
+                ChunkDecoder::with_capacity(ByteSize::mib(16).as_u64() as usize),
             )
+            .enumerate()
+            .map(|(index, chunk)| chunk.map(|chunk| (index as u64, chunk)))
             .peekable()
         );
 
@@ -124,7 +127,7 @@ impl ObjectMutation {
             Some(mime) => mime.to_owned(),
             None => {
                 let chunk = match stream.as_mut().peek().await {
-                    Some(Ok(chunk)) => chunk,
+                    Some(Ok((_, chunk))) => chunk,
                     Some(Err(_)) => {
                         stream.try_next().await?;
                         unreachable!()
@@ -136,7 +139,7 @@ impl ObjectMutation {
             }
         };
 
-        let mut size = 0usize;
+        let mut size = 0u64;
         let mut crc32;
         let mut crc32c;
         let mut crc64nvme;
@@ -150,9 +153,8 @@ impl ObjectMutation {
         let mut sha256 = Sha256::new();
         let mut md5 = Md5::new();
 
-        let mut index = 0u64;
-        while let Some(chunk) = stream.try_next().await? {
-            size += chunk.len();
+        while let Some((index, chunk)) = stream.try_next().await? {
+            size += chunk.len() as u64;
             crc32.update(&chunk);
             crc32c.update(&chunk);
             crc64nvme.update(&chunk);
@@ -164,7 +166,6 @@ impl ObjectMutation {
             {
                 return Ok(Err(err));
             }
-            index += 1;
         }
 
         let mut crc32_buf = [0u8; 4];
@@ -188,7 +189,7 @@ impl ObjectMutation {
             bucket_id: Set(bucket_id),
             key: Set(key.to_owned()),
             mime: Set(mime),
-            size: Set(size as i64),
+            size: Set(size),
             crc32: Set(crc32_buf.to_vec()),
             crc32c: Set(crc32c_buf.to_vec()),
             crc64nvme: Set(crc64nvme_buf.to_vec()),
