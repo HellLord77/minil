@@ -17,6 +17,10 @@ pub struct Model {
     #[sea_orm(unique, indexed)]
     pub index: i64,
 
+    pub start: i64,
+
+    pub end: i64,
+
     pub data: Vec<u8>,
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]

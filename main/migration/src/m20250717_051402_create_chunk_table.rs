@@ -15,6 +15,8 @@ impl MigrationTrait for Migration {
                     .col(uuid_null(Chunk::ObjectId))
                     .col(uuid_null(Chunk::PartId))
                     .col(big_unsigned(Chunk::Index))
+                    .col(big_unsigned(Chunk::Start))
+                    .col(big_unsigned(Chunk::End))
                     .col(binary(Chunk::Data))
                     .col(
                         timestamp_with_time_zone(Chunk::CreatedAt)
@@ -149,6 +151,8 @@ enum Chunk {
     ObjectId,
     PartId,
     Index,
+    Start,
+    End,
     Data,
     CreatedAt,
 }
