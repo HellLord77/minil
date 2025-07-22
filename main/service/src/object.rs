@@ -9,7 +9,7 @@ use futures::Stream;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use md5::Md5;
-use minil_entity::bucket;
+use mime::Mime;
 use minil_entity::object;
 use minil_entity::prelude::*;
 use sea_orm::*;
@@ -96,7 +96,7 @@ impl ObjectMutation {
         db: &(impl ConnectionTrait + StreamTrait),
         bucket_id: Uuid,
         key: &str,
-        mime: Option<&str>,
+        mime: Option<Mime>,
         read: impl Unpin + AsyncRead,
     ) -> io::Result<DbRes<object::Model>> {
         let id = match ObjectQuery::find(db, bucket_id, key).await {
@@ -114,18 +114,14 @@ impl ObjectMutation {
             Err(err) => return Ok(Err(err)),
         };
 
-        let mut stream = pin!(
-            FramedRead::new(
-                read,
-                ChunkDecoder::with_capacity(ByteSize::mib(4).as_u64() as usize),
-            )
+        let decoder = ChunkDecoder::with_capacity(ByteSize::mib(4).as_u64() as usize);
+        let chunks = FramedRead::new(read, decoder)
             .enumerate()
-            .map(|(index, chunk)| chunk.map(|chunk| (index as u64, chunk)))
-            .peekable()
-        );
+            .map(|(index, chunk)| chunk.map(|chunk| (index as u64, chunk)));
+        let mut stream = pin!(chunks.peekable());
 
         let mime = match mime {
-            Some(mime) => mime.to_owned(),
+            Some(mime) => mime,
             None => {
                 let chunk = match stream.as_mut().peek().await {
                     Some(Ok((_, chunk))) => chunk,
@@ -136,7 +132,7 @@ impl ObjectMutation {
                     None => &Bytes::new(),
                 };
 
-                get_mime(key, chunk).essence_str().to_owned()
+                get_mime(key, chunk)
             }
         };
 
@@ -155,6 +151,8 @@ impl ObjectMutation {
         let mut md5 = Md5::new();
 
         while let Some((index, chunk)) = stream.try_next().await? {
+            let start = size;
+
             size += chunk.len() as u64;
             crc32.update(&chunk);
             crc32c.update(&chunk);
@@ -163,7 +161,9 @@ impl ObjectMutation {
             sha256.update(&chunk);
             md5.update(&chunk);
 
-            if let Err(err) = ChunkMutation::insert(db, Some(id), None, index, chunk.to_vec()).await
+            let end = size - 1;
+            if let Err(err) =
+                ChunkMutation::insert(db, Some(id), None, index, start, end, chunk.to_vec()).await
             {
                 return Ok(Err(err));
             }
@@ -189,7 +189,7 @@ impl ObjectMutation {
             id: Set(id),
             bucket_id: Set(bucket_id),
             key: Set(key.to_owned()),
-            mime: Set(mime),
+            mime: Set(mime.essence_str().to_owned()),
             size: Set(size as i64),
             crc32: Set(crc32_buf.to_vec()),
             crc32c: Set(crc32c_buf.to_vec()),
