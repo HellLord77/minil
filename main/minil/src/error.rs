@@ -16,6 +16,7 @@ use crate::macros::app_response_err;
 
 pub(crate) type AppResult<T> = Result<T, AppError>;
 
+// todo macro
 #[derive(Debug, Display, From, Error, EnumDiscriminants)]
 #[strum_discriminants(derive(Display))]
 pub(crate) enum AppError {
@@ -33,6 +34,11 @@ pub(crate) enum AppError {
     InvalidDigest,
     #[allow(dead_code)]
     InvalidObjectState,
+    #[allow(dead_code)]
+    InvalidPart,
+    #[allow(dead_code)]
+    InvalidPartOrder,
+    InvalidRange,
     #[allow(dead_code)]
     InvalidWriteOffset,
     MethodNotAllowed,
@@ -77,6 +83,9 @@ impl AppErrorDiscriminants {
             InternalError => InternalErrorOutput,
             InvalidDigest => InvalidDigestOutput,
             InvalidObjectState => InvalidObjectStateOutput,
+            InvalidPart => InvalidPartOutput,
+            InvalidPartOrder => InvalidPartOrderOutput,
+            InvalidRange => InvalidRangeOutput,
             InvalidWriteOffset => InvalidWriteOffsetOutput,
             MethodNotAllowed => MethodNotAllowedOutput,
             NoSuchBucket => NoSuchBucketOutput,

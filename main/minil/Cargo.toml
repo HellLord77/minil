@@ -17,6 +17,7 @@ axum-extra.workspace = true
 derive_more.workspace = true
 digest.workspace = true
 futures.workspace = true
+http-content-range.workspace = true
 indexmap.workspace = true
 paste.workspace = true
 sea-orm.workspace = true

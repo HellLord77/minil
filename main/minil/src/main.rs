@@ -16,6 +16,7 @@ use std::time::Instant;
 use axum::Extension;
 use axum::Router;
 use axum::ServiceExt;
+use axum::body::Body;
 use axum::extract::Request;
 use axum::extract::State;
 use axum::http::HeaderName;
@@ -33,8 +34,12 @@ use axum_s3::operation::GetBucketLocationInput;
 use axum_s3::operation::GetBucketLocationOutput;
 use axum_s3::operation::GetBucketVersioningInput;
 use axum_s3::operation::GetBucketVersioningOutput;
+use axum_s3::operation::GetObjectInput;
+use axum_s3::operation::GetObjectOutput;
 use axum_s3::operation::HeadBucketInput;
 use axum_s3::operation::HeadBucketOutput;
+use axum_s3::operation::HeadObjectInput;
+use axum_s3::operation::HeadObjectOutput;
 use axum_s3::operation::ListBucketsInput;
 use axum_s3::operation::ListBucketsOutput;
 use axum_s3::operation::ListObjectsInput;
@@ -46,14 +51,17 @@ use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::ErrorParts;
 use base64::Engine;
 use digest::Digest;
+use ensure::fixme;
 use futures::StreamExt;
 use futures::TryStreamExt;
+use http_content_range::ContentRangeBytes;
 use indexmap::IndexSet;
 use minil_config::AppConfig;
 use minil_migration::Migrator;
 use minil_migration::MigratorTrait;
 use minil_service::BucketMutation;
 use minil_service::BucketQuery;
+use minil_service::ChunkQuery;
 use minil_service::ObjectMutation;
 use minil_service::ObjectQuery;
 use minil_service::OwnerQuery;
@@ -65,7 +73,9 @@ use serde_s3::operation::CreateBucketOutputHeader;
 use serde_s3::operation::DeleteObjectOutputHeader;
 use serde_s3::operation::GetBucketLocationOutputBody;
 use serde_s3::operation::GetBucketVersioningOutputBody;
+use serde_s3::operation::GetObjectOutputHeader;
 use serde_s3::operation::HeadBucketOutputHeader;
+use serde_s3::operation::HeadObjectOutputHeader;
 use serde_s3::operation::ListBucketsOutputBody;
 use serde_s3::operation::ListObjectsOutputBody;
 use serde_s3::operation::ListObjectsOutputHeader;
@@ -146,11 +156,15 @@ async fn main() {
     let router = Router::new();
     let router = app_define_routes!(router {
         "/" => get(list_buckets),
+
         "/{Bucket}" => delete(delete_bucket),
         "/{Bucket}" => get(get_bucket_handler),
         "/{Bucket}" => head(head_bucket),
         "/{Bucket}" => put(create_bucket),
+
         "/{Bucket}/{*Key}" => delete(delete_object),
+        "/{Bucket}/{*Key}" => get(get_object),
+        "/{Bucket}/{*Key}" => head(head_object),
         "/{Bucket}/{*Key}" => put(put_object),
     })
     .method_not_allowed_fallback(async || AppError::MethodNotAllowed)
@@ -304,77 +318,6 @@ async fn manage_db_txn(
 }
 
 #[instrument(skip(db), ret)]
-async fn create_bucket(
-    Extension(db): Extension<DbTxn>,
-    input: CreateBucketInput,
-) -> AppResult<CreateBucketOutput> {
-    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
-
-    app_ensure_matches!(input.header.acl, None);
-    app_ensure_matches!(input.header.bucket_object_lock_enabled, None | Some(false));
-    app_ensure_eq!(input.header.grant_full_control, None);
-    app_ensure_eq!(input.header.grant_read, None);
-    app_ensure_eq!(input.header.grant_read_acp, None);
-    app_ensure_eq!(input.header.grant_write, None);
-    app_ensure_eq!(input.header.grant_write_acp, None);
-    app_ensure_matches!(input.header.object_ownership, None);
-    app_ensure_matches!(input.body, None);
-
-    let region = serde_plain::to_string(&BucketLocationConstraint::UsEast1)
-        .unwrap_or_else(|_err| unreachable!());
-    let bucket = BucketMutation::create(db.as_ref(), owner.id, &input.path.bucket, &region)
-        .await?
-        .ok_or(AppError::BucketAlreadyOwnedByYou)?;
-
-    Ok(CreateBucketOutput::builder()
-        .header(
-            CreateBucketOutputHeader::builder()
-                .location(format!("/{}", bucket.name))
-                .build(),
-        )
-        .build())
-}
-
-#[instrument(skip(db), ret)]
-async fn delete_bucket(
-    Extension(db): Extension<DbTxn>,
-    input: DeleteBucketInput,
-) -> AppResult<DeleteBucketOutput> {
-    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
-
-    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    (BucketMutation::delete(db.as_ref(), owner.id, &input.path.bucket)
-        .await?
-        .rows_affected
-        != 0)
-        .then_some(())
-        .ok_or(AppError::NoSuchBucket)?;
-
-    Ok(DeleteBucketOutput::builder().build())
-}
-
-#[instrument(skip(db), ret)]
-async fn head_bucket(
-    Extension(db): Extension<DbTxn>,
-    input: HeadBucketInput,
-) -> AppResult<HeadBucketOutput> {
-    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
-
-    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
-        .await?
-        .ok_or(AppError::NoSuchBucket)?;
-
-    Ok(HeadBucketOutput::builder()
-        .header(
-            HeadBucketOutputHeader::builder()
-                .bucket_region(bucket.region)
-                .build(),
-        )
-        .build())
-}
-
-#[instrument(skip(db), ret)]
 async fn list_buckets(
     Extension(db): Extension<DbTxn>,
     input: ListBucketsInput,
@@ -430,99 +373,21 @@ async fn list_buckets(
 }
 
 #[instrument(skip(db), ret)]
-async fn put_object(
+async fn delete_bucket(
     Extension(db): Extension<DbTxn>,
-    input: PutObjectInput,
-) -> AppResult<PutObjectOutput> {
+    input: DeleteBucketInput,
+) -> AppResult<DeleteBucketOutput> {
     let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
-    app_ensure_matches!(input.header.cache_control, None);
-    app_ensure_matches!(input.header.content_disposition, None);
-    app_ensure_matches!(input.header.content_encoding, None);
-    app_ensure_matches!(input.header.content_language, None);
-    app_ensure_matches!(input.header.expires, None);
-    app_ensure_matches!(input.header.if_match, None);
-    app_ensure_matches!(input.header.if_none_match, None);
-    app_ensure_matches!(input.header.acl, None);
-    app_ensure_matches!(input.header.grant_full_control, None);
-    app_ensure_matches!(input.header.grant_read, None);
-    app_ensure_matches!(input.header.grant_read_acp, None);
-    app_ensure_matches!(input.header.grant_write_acp, None);
-    app_ensure_matches!(input.header.object_lock_legal_hold, None);
-    app_ensure_matches!(input.header.object_lock_mode, None);
-    app_ensure_matches!(input.header.object_lock_retain_until_date, None);
-    app_ensure_matches!(input.header.request_payer, None);
-    app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
-    app_ensure_matches!(input.header.server_side_encryption, None);
-    app_ensure_matches!(input.header.server_side_encryption_aws_kms_key_id, None);
-    app_ensure_matches!(input.header.server_side_encryption_bucket_key_enabled, None);
-    app_ensure_matches!(input.header.server_side_encryption_context, None);
-    app_ensure_matches!(input.header.server_side_encryption_customer_algorithm, None);
-    app_ensure_matches!(input.header.server_side_encryption_customer_key, None);
-    app_ensure_matches!(input.header.server_side_encryption_customer_key_md5, None);
-    app_ensure_matches!(input.header.storage_class, None);
-    app_ensure_matches!(input.header.tagging, None);
-    app_ensure_matches!(input.header.website_redirect_location, None);
-    app_ensure_matches!(input.header.write_offset_bytes, None | Some(0));
-
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+    (BucketMutation::delete(db.as_ref(), owner.id, &input.path.bucket)
         .await?
+        .rows_affected
+        != 0)
+        .then_some(())
         .ok_or(AppError::NoSuchBucket)?;
-    let object = ObjectMutation::create(
-        db.as_ref(),
-        bucket.id,
-        &input.path.key,
-        input.header.content_type.as_deref(),
-        StreamReader::new(
-            input
-                .body
-                .into_data_stream()
-                .map(|res| res.map_err(|err| io::Error::other(err.into_inner()))),
-        ),
-    )
-    .await??;
-    app_validate_digest!(input.header.content_md5, object.md5.clone());
-    app_validate_digest!(input.header.checksum_crc32, object.crc32);
-    app_validate_digest!(input.header.checksum_crc32c, object.crc32c);
-    app_validate_digest!(input.header.checksum_crc64nvme, object.crc64nvme);
-    app_validate_digest!(input.header.checksum_sha1, object.sha1);
-    app_validate_digest!(input.header.checksum_sha256, object.sha256);
 
-    Ok(PutObjectOutput::builder()
-        .header(
-            PutObjectOutputHeader::builder()
-                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
-                .build(),
-        )
-        .build())
-}
-
-#[instrument(skip(db), ret)]
-async fn delete_object(
-    Extension(db): Extension<DbTxn>,
-    input: DeleteObjectInput,
-) -> AppResult<DeleteObjectOutput> {
-    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
-
-    dbg!(&input);
-    app_ensure_eq!(input.query.version_id, None);
-    app_ensure_eq!(input.header.if_match, None);
-    app_ensure_eq!(input.header.bypass_governance_retention, None);
-    app_ensure_eq!(input.header.if_match_last_modified_time, None);
-    app_ensure_eq!(input.header.if_match_size, None);
-    app_ensure_eq!(input.header.mfa, None);
-    app_ensure_matches!(input.header.request_payer, None);
-
-    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
-        .await?
-        .ok_or(AppError::NoSuchBucket)?;
-    ObjectMutation::delete(db.as_ref(), bucket.id, &input.path.key).await?;
-
-    Ok(DeleteObjectOutput::builder()
-        .header(DeleteObjectOutputHeader::builder().build())
-        .build())
+    Ok(DeleteBucketOutput::builder().build())
 }
 
 app_define_handler!(get_bucket_handler {
@@ -770,6 +635,256 @@ async fn list_objects(
                         .map(encode),
                 )
                 .prefix(input.query.prefix.map(encode).unwrap_or_default())
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn head_bucket(
+    Extension(db): Extension<DbTxn>,
+    input: HeadBucketInput,
+) -> AppResult<HeadBucketOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+
+    Ok(HeadBucketOutput::builder()
+        .header(
+            HeadBucketOutputHeader::builder()
+                .bucket_region(bucket.region)
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn create_bucket(
+    Extension(db): Extension<DbTxn>,
+    input: CreateBucketInput,
+) -> AppResult<CreateBucketOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_ensure_matches!(input.header.acl, None);
+    app_ensure_matches!(input.header.bucket_object_lock_enabled, None | Some(false));
+    app_ensure_eq!(input.header.grant_full_control, None);
+    app_ensure_eq!(input.header.grant_read, None);
+    app_ensure_eq!(input.header.grant_read_acp, None);
+    app_ensure_eq!(input.header.grant_write, None);
+    app_ensure_eq!(input.header.grant_write_acp, None);
+    app_ensure_matches!(input.header.object_ownership, None);
+    app_ensure_matches!(input.body, None);
+
+    let region = serde_plain::to_string(&BucketLocationConstraint::UsEast1)
+        .unwrap_or_else(|_err| unreachable!());
+    let bucket = BucketMutation::create(db.as_ref(), owner.id, &input.path.bucket, &region)
+        .await?
+        .ok_or(AppError::BucketAlreadyOwnedByYou)?;
+
+    Ok(CreateBucketOutput::builder()
+        .header(
+            CreateBucketOutputHeader::builder()
+                .location(format!("/{}", bucket.name))
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn delete_object(
+    Extension(db): Extension<DbTxn>,
+    input: DeleteObjectInput,
+) -> AppResult<DeleteObjectOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_ensure_eq!(input.query.version_id, None);
+    app_ensure_eq!(input.header.if_match, None);
+    app_ensure_eq!(input.header.bypass_governance_retention, None);
+    app_ensure_eq!(input.header.if_match_last_modified_time, None);
+    app_ensure_eq!(input.header.if_match_size, None);
+    app_ensure_eq!(input.header.mfa, None);
+    app_ensure_matches!(input.header.request_payer, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    ObjectMutation::delete(db.as_ref(), bucket.id, &input.path.key).await?;
+
+    Ok(DeleteObjectOutput::builder()
+        .header(DeleteObjectOutputHeader::builder().build())
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn get_object(
+    State(db_conn): State<DbConn>,
+    Extension(db): Extension<DbTxn>,
+    input: GetObjectInput,
+) -> AppResult<GetObjectOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    dbg!(&input);
+    app_ensure_matches!(input.query.part_number, None | Some(1));
+    app_ensure_eq!(input.query.version_id, None);
+    app_ensure_eq!(input.header.if_match, None);
+    app_ensure_eq!(input.header.if_modified_since, None);
+    app_ensure_eq!(input.header.if_none_match, None);
+    app_ensure_eq!(input.header.if_unmodified_since, None);
+    app_ensure_matches!(
+        input.header.range.as_ref().map(|range| range.ranges.len()),
+        None | Some(1)
+    );
+    app_ensure_matches!(input.header.checksum_mode, None);
+    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_matches!(input.header.server_side_encryption_customer_algorithm, None);
+    app_ensure_matches!(input.header.server_side_encryption_customer_key, None);
+    app_ensure_matches!(input.header.server_side_encryption_customer_key_md5, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let object = ObjectQuery::find(db.as_ref(), bucket.id, &input.path.key)
+        .await?
+        .ok_or(AppError::NoSuchKey)?;
+    let range = input
+        .header
+        .range
+        .map(|ranges| {
+            ranges
+                .validate(object.size as u64)
+                .map_err(|_err| AppError::InvalidRange)
+        })
+        .transpose()?
+        .and_then(|mut ranges| ranges.pop());
+    let body = match &range {
+        Some(range) => Body::from_stream(
+            ChunkQuery::find_by_object_range(db_conn, object.id, range.clone()).await,
+        ),
+        None => Body::from_stream(ChunkQuery::find_by_object(db_conn, object.id).await),
+    };
+
+    Ok(GetObjectOutput::builder()
+        .header(
+            GetObjectOutputHeader::builder()
+                .accept_ranges("bytes".to_owned())
+                .maybe_cache_control(input.query.response_cache_control)
+                .maybe_content_disposition(input.query.response_content_disposition)
+                .maybe_content_encoding(input.query.response_content_encoding)
+                .maybe_content_language(input.query.response_content_language)
+                .content_length(
+                    range
+                        .as_ref()
+                        .map(|range| range.end() - range.start() + 1)
+                        .unwrap_or(object.size as u64),
+                )
+                .maybe_content_range(range.map(|range| ContentRangeBytes {
+                    first_byte: *range.start(),
+                    last_byte: *range.end(),
+                    complete_length: object.size as u64,
+                }))
+                .maybe_content_type(input.query.response_content_type)
+                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                .maybe_expires(input.query.response_expires)
+                .last_modified(object.updated_at.unwrap_or(object.created_at))
+                .build(),
+        )
+        .body(body)
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn head_object(
+    Extension(db): Extension<DbTxn>,
+    input: HeadObjectInput,
+) -> AppResult<HeadObjectOutput> {
+    let _owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    fixme!();
+    dbg!(&input);
+
+    Ok(HeadObjectOutput::builder()
+        .header(
+            HeadObjectOutputHeader::builder()
+                .maybe_cache_control(input.query.response_cache_control)
+                .maybe_content_disposition(input.query.response_content_disposition)
+                .maybe_content_encoding(input.query.response_content_encoding)
+                .maybe_content_language(input.query.response_content_language)
+                .maybe_content_type(input.query.response_content_type)
+                .maybe_expires(input.query.response_expires)
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn put_object(
+    Extension(db): Extension<DbTxn>,
+    input: PutObjectInput,
+) -> AppResult<PutObjectOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_ensure_eq!(input.header.cache_control, None);
+    app_ensure_eq!(input.header.content_disposition, None);
+    app_ensure_eq!(input.header.content_encoding, None);
+    app_ensure_eq!(input.header.content_language, None);
+    app_ensure_eq!(input.header.expires, None);
+    app_ensure_eq!(input.header.if_match, None);
+    app_ensure_eq!(input.header.if_none_match, None);
+    app_ensure_matches!(input.header.acl, None);
+    app_ensure_eq!(input.header.grant_full_control, None);
+    app_ensure_eq!(input.header.grant_read, None);
+    app_ensure_eq!(input.header.grant_read_acp, None);
+    app_ensure_eq!(input.header.grant_write_acp, None);
+    app_ensure_matches!(input.header.object_lock_legal_hold, None);
+    app_ensure_matches!(input.header.object_lock_mode, None);
+    app_ensure_eq!(input.header.object_lock_retain_until_date, None);
+    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
+    app_ensure_matches!(input.header.server_side_encryption, None);
+    app_ensure_eq!(input.header.server_side_encryption_aws_kms_key_id, None);
+    app_ensure_eq!(input.header.server_side_encryption_bucket_key_enabled, None);
+    app_ensure_eq!(input.header.server_side_encryption_context, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_algorithm, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_key, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_key_md5, None);
+    app_ensure_matches!(input.header.storage_class, None);
+    app_ensure_eq!(input.header.tagging, None);
+    app_ensure_eq!(input.header.website_redirect_location, None);
+    app_ensure_matches!(input.header.write_offset_bytes, None | Some(0));
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let object = ObjectMutation::create(
+        db.as_ref(),
+        bucket.id,
+        &input.path.key,
+        input.header.content_type,
+        StreamReader::new(
+            input
+                .body
+                .into_data_stream()
+                .map(|res| res.map_err(|err| io::Error::other(err.into_inner()))),
+        ),
+    )
+    .await??;
+    app_validate_digest!(input.header.content_md5, object.md5.clone());
+    app_validate_digest!(input.header.checksum_crc32, object.crc32);
+    app_validate_digest!(input.header.checksum_crc32c, object.crc32c);
+    app_validate_digest!(input.header.checksum_crc64nvme, object.crc64nvme);
+    app_validate_digest!(input.header.checksum_sha1, object.sha1);
+    app_validate_digest!(input.header.checksum_sha256, object.sha256);
+
+    Ok(PutObjectOutput::builder()
+        .header(
+            PutObjectOutputHeader::builder()
+                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
                 .build(),
         )
         .build())
