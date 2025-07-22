@@ -1,6 +1,7 @@
 use bon::Builder;
 use chrono::DateTime;
 use chrono::Utc;
+use httpdate::HttpDate;
 use mime::Mime;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
@@ -53,8 +54,9 @@ pub struct PutObjectInputHeader {
     #[serde_rename_chain(convert_case = "train")]
     pub content_type: Option<Mime>,
 
+    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
     #[serde_rename_chain(convert_case = "train")]
-    pub expires: Option<DateTime<Utc>>,
+    pub expires: Option<HttpDate>,
 
     #[serde_rename_chain(convert_case = "train")]
     pub if_match: Option<String>,

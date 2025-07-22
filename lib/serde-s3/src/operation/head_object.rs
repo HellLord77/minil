@@ -3,6 +3,7 @@ use chrono::DateTime;
 use chrono::Utc;
 use http_content_range::ContentRangeBytes;
 use http_range_header::ParsedRanges;
+use httpdate::HttpDate;
 use mime::Mime;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
@@ -55,7 +56,8 @@ pub struct HeadObjectInputQuery {
     #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
     pub response_content_type: Option<Mime>,
 
-    pub response_expires: Option<DateTime<Utc>>,
+    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
+    pub response_expires: Option<HttpDate>,
 
     #[serde_rename_chain(convert_case = "camel")]
     pub version_id: Option<String>,
@@ -68,14 +70,16 @@ pub struct HeadObjectInputHeader {
     #[serde_rename_chain(convert_case = "train")]
     pub if_match: Option<String>,
 
+    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
     #[serde_rename_chain(convert_case = "train")]
-    pub if_modified_since: Option<DateTime<Utc>>,
+    pub if_modified_since: Option<HttpDate>,
 
     #[serde_rename_chain(convert_case = "train")]
     pub if_none_match: Option<String>,
 
+    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
     #[serde_rename_chain(convert_case = "train")]
-    pub if_unmodified_since: Option<DateTime<Utc>>,
+    pub if_unmodified_since: Option<HttpDate>,
 
     #[serde_as(as = "Option<SerdeHttpRange>")]
     #[serde_rename_chain(convert_case = "train")]
@@ -128,11 +132,13 @@ pub struct HeadObjectOutputHeader {
     #[serde_rename_chain(convert_case = "pascal")]
     pub e_tag: Option<String>,
 
+    #[serde_as(as = "Option<DisplayFromStr>")]
     #[serde_rename_chain(convert_case = "train")]
-    pub expires: Option<DateTime<Utc>>,
+    pub expires: Option<HttpDate>,
 
+    #[serde_as(as = "Option<DisplayFromStr>")]
     #[serde_rename_chain(convert_case = "train")]
-    pub last_modified: Option<DateTime<Utc>>,
+    pub last_modified: Option<HttpDate>,
 
     pub archive_status: Option<ArchiveStatus>,
 

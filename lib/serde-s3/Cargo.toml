@@ -1,6 +1,6 @@
 [package]
 name = "serde-s3"
-version = "0.4.6"
+version = "0.4.7"
 edition.workspace = true
 
 [dependencies]
@@ -12,6 +12,7 @@ bon.workspace = true
 derive_more.workspace = true
 http-content-range.workspace = true
 http-range-header.workspace = true
+httpdate.workspace = true
 mime.workspace = true
 serde.workspace = true
 serde-inline-default.workspace = true
