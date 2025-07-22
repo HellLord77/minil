@@ -6,6 +6,9 @@ pub mod value;
 #[cfg(feature = "caseless")]
 pub mod caseless_map;
 
+use std::io;
+use std::iter;
+
 use indexmap::IndexMap;
 use indexmap::map::Entry;
 use serde::de;
@@ -66,7 +69,7 @@ where
 pub fn from_reader<T, R>(mut input: R) -> Result<T, Error>
 where
     T: de::DeserializeOwned,
-    R: std::io::Read,
+    R: io::Read,
 {
     let mut buf = vec![];
     input
@@ -185,7 +188,7 @@ impl<'de> de::Deserializer<'de> for Deserializer<'de> {
         }
 
         let map = MapDeserializer::new(group_entries(&self.0).into_iter());
-        let field_map = std::iter::zip(canonical_fields, fields.iter().copied());
+        let field_map = iter::zip(canonical_fields, fields.iter().copied());
         visitor.visit_map(caseless_map::CaselessMap::new(map, field_map))
     }
 

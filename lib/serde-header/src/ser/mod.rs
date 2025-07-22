@@ -4,6 +4,8 @@ pub mod header;
 pub mod name;
 pub mod value;
 
+use std::io;
+
 use serde::Serialize;
 use serde::de::Unexpected;
 use serde::ser;
@@ -58,7 +60,7 @@ where
 
 pub fn to_writer<W, T>(mut writer: W, input: &T) -> Result<W, Error>
 where
-    W: std::io::Write,
+    W: io::Write,
     T: Serialize,
 {
     let headers = to_bytes(input)?;
