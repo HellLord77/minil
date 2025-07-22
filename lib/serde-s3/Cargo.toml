@@ -1,6 +1,6 @@
 [package]
 name = "serde-s3"
-version = "0.4.4"
+version = "0.4.5"
 edition.workspace = true
 
 [dependencies]
@@ -10,11 +10,15 @@ validator = { version = "0.20.0", features = ["derive"] }
 
 bon.workspace = true
 derive_more.workspace = true
+http-content-range.workspace = true
+http-range-header.workspace = true
+mime.workspace = true
 serde.workspace = true
 serde-inline-default.workspace = true
 serde_with.workspace = true
 uuid.workspace = true
 
 serde-rename-chain.workspace = true
+serde-with-extra.workspace = true
 stringify-checked.workspace = true
 validator-extra.workspace = true

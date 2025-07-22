@@ -1,8 +1,15 @@
 use bon::Builder;
 use chrono::DateTime;
 use chrono::Utc;
+use http_content_range::ContentRangeBytes;
+use http_range_header::ParsedRanges;
+use mime::Mime;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
+use serde_with::DisplayFromStr;
+use serde_with::serde_as;
+use serde_with_extra::AsString;
+use serde_with_extra::SerdeHttpRange;
 use serdev::Deserialize;
 use validator::Validate;
 
@@ -26,6 +33,7 @@ pub struct GetObjectInputPath {
     pub key: String,
 }
 
+#[serde_as]
 #[serde_rename_chain]
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -43,7 +51,8 @@ pub struct GetObjectInputQuery {
 
     pub response_content_language: Option<String>,
 
-    pub response_content_type: Option<String>,
+    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
+    pub response_content_type: Option<Mime>,
 
     pub response_expires: Option<DateTime<Utc>>,
 
@@ -51,6 +60,7 @@ pub struct GetObjectInputQuery {
     pub version_id: Option<String>,
 }
 
+#[serde_as]
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Deserialize)]
 pub struct GetObjectInputHeader {
@@ -66,8 +76,9 @@ pub struct GetObjectInputHeader {
     #[serde_rename_chain(convert_case = "train")]
     pub if_unmodified_since: Option<DateTime<Utc>>,
 
+    #[serde_as(as = "Option<SerdeHttpRange>")]
     #[serde_rename_chain(convert_case = "train")]
-    pub range: Option<String>,
+    pub range: Option<ParsedRanges>,
 
     pub checksum_mode: Option<ChecksumMode>,
 
@@ -83,6 +94,7 @@ pub struct GetObjectInputHeader {
     pub server_side_encryption_customer_key_md5: Option<String>,
 }
 
+#[serde_as]
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Builder, Serialize)]
 pub struct GetObjectOutputHeader {
@@ -104,8 +116,13 @@ pub struct GetObjectOutputHeader {
     #[serde_rename_chain(convert_case = "train")]
     pub content_length: Option<u64>,
 
+    #[serde_as(as = "Option<SerdeHttpRange>")]
     #[serde_rename_chain(convert_case = "train")]
-    pub content_type: Option<String>,
+    pub content_range: Option<ContentRangeBytes>,
+
+    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde_rename_chain(convert_case = "train")]
+    pub content_type: Option<Mime>,
 
     #[serde_rename_chain(convert_case = "pascal")]
     pub e_tag: Option<String>,

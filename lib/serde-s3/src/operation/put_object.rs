@@ -1,8 +1,12 @@
 use bon::Builder;
 use chrono::DateTime;
 use chrono::Utc;
+use mime::Mime;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
+use serde_with::DisplayFromStr;
+use serde_with::serde_as;
+use serde_with_extra::AsString;
 use serdev::Deserialize;
 use validator::Validate;
 
@@ -25,6 +29,7 @@ pub struct PutObjectInputPath {
     pub key: String,
 }
 
+#[serde_as]
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Validate, Deserialize)]
 #[serde(validate = "Validate::validate")]
@@ -44,8 +49,9 @@ pub struct PutObjectInputHeader {
     #[serde(rename = "Content-MD5")]
     pub content_md5: Option<String>,
 
+    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
     #[serde_rename_chain(convert_case = "train")]
-    pub content_type: Option<String>,
+    pub content_type: Option<Mime>,
 
     #[serde_rename_chain(convert_case = "train")]
     pub expires: Option<DateTime<Utc>>,
