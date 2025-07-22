@@ -5,6 +5,7 @@ mod make_request_id;
 mod service_builder_ext;
 mod state;
 
+use std::alloc::System;
 use std::convert::identity;
 use std::env;
 use std::future;
@@ -12,6 +13,7 @@ use std::io;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
+use std::time::SystemTime;
 
 use axum::Extension;
 use axum::Router;
@@ -50,8 +52,9 @@ use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::ErrorParts;
 use base64::Engine;
+use bytesize::ByteSize;
+use cap::Cap;
 use digest::Digest;
-use ensure::fixme;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use http_content_range::ContentRangeBytes;
@@ -117,6 +120,10 @@ use crate::make_request_id::AppMakeRequestId;
 use crate::service_builder_ext::AppServiceBuilderExt;
 use crate::state::AppState;
 
+#[cfg(debug_assertions)]
+#[global_allocator]
+static ALLOCATOR: Cap<System> = Cap::new(System, ByteSize::mib(64).as_u64() as usize);
+
 const NODE_NAME: &str = "minil";
 const PROCESS_TIME: &str = "x-process-time";
 
@@ -136,7 +143,7 @@ async fn main() {
     let middleware = ServiceBuilder::new()
         .trace_for_http()
         .decompression()
-        .compression()
+        // .compression() // todo keep headers
         .set_request_id(REQUEST_ID_HEADER, AppMakeRequestId)
         .propagate_request_id(REQUEST_ID_HEADER)
         .override_response_header(
@@ -719,7 +726,7 @@ async fn delete_object(
         .build())
 }
 
-#[instrument(skip(db), ret)]
+#[instrument(skip(db_conn, db), ret)]
 async fn get_object(
     State(db_conn): State<DbConn>,
     Extension(db): Extension<DbTxn>,
@@ -727,7 +734,6 @@ async fn get_object(
 ) -> AppResult<GetObjectOutput> {
     let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
-    dbg!(&input);
     app_ensure_matches!(input.query.part_number, None | Some(1));
     app_ensure_eq!(input.query.version_id, None);
     app_ensure_eq!(input.header.if_match, None);
@@ -790,7 +796,9 @@ async fn get_object(
                 .maybe_content_type(input.query.response_content_type)
                 .e_tag(format!("\"{}\"", hex::encode(object.md5)))
                 .maybe_expires(input.query.response_expires)
-                .last_modified(object.updated_at.unwrap_or(object.created_at))
+                .last_modified(
+                    SystemTime::from(object.updated_at.unwrap_or(object.created_at)).into(),
+                )
                 .build(),
         )
         .body(body)
@@ -802,20 +810,67 @@ async fn head_object(
     Extension(db): Extension<DbTxn>,
     input: HeadObjectInput,
 ) -> AppResult<HeadObjectOutput> {
-    let _owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
-    fixme!();
-    dbg!(&input);
+    app_ensure_matches!(input.query.part_number, None | Some(1));
+    app_ensure_eq!(input.query.version_id, None);
+    app_ensure_eq!(input.header.if_match, None);
+    app_ensure_eq!(input.header.if_modified_since, None);
+    app_ensure_eq!(input.header.if_none_match, None);
+    app_ensure_eq!(input.header.if_unmodified_since, None);
+    app_ensure_matches!(
+        input.header.range.as_ref().map(|range| range.ranges.len()),
+        None | Some(1)
+    );
+    app_ensure_matches!(input.header.checksum_mode, None);
+    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_matches!(input.header.server_side_encryption_customer_algorithm, None);
+    app_ensure_matches!(input.header.server_side_encryption_customer_key, None);
+    app_ensure_matches!(input.header.server_side_encryption_customer_key_md5, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let object = ObjectQuery::find(db.as_ref(), bucket.id, &input.path.key)
+        .await?
+        .ok_or(AppError::NoSuchKey)?;
+    let range = input
+        .header
+        .range
+        .map(|ranges| {
+            ranges
+                .validate(object.size as u64)
+                .map_err(|_err| AppError::InvalidRange)
+        })
+        .transpose()?
+        .and_then(|mut ranges| ranges.pop());
 
     Ok(HeadObjectOutput::builder()
         .header(
             HeadObjectOutputHeader::builder()
+                .accept_ranges("bytes".to_owned())
                 .maybe_cache_control(input.query.response_cache_control)
                 .maybe_content_disposition(input.query.response_content_disposition)
                 .maybe_content_encoding(input.query.response_content_encoding)
                 .maybe_content_language(input.query.response_content_language)
+                .content_length(
+                    range
+                        .as_ref()
+                        .map(|range| range.end() - range.start() + 1)
+                        .unwrap_or(object.size as u64),
+                )
+                .maybe_content_range(range.map(|range| ContentRangeBytes {
+                    first_byte: *range.start(),
+                    last_byte: *range.end(),
+                    complete_length: object.size as u64,
+                }))
                 .maybe_content_type(input.query.response_content_type)
+                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
                 .maybe_expires(input.query.response_expires)
+                .last_modified(
+                    SystemTime::from(object.updated_at.unwrap_or(object.created_at)).into(),
+                )
                 .build(),
         )
         .build())

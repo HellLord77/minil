@@ -650,6 +650,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a3c8f83209414aacf0eeae3cf730b18d6981697fba62f200fcfb92b9f082acba"
 
 [[package]]
+name = "cap"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f125eb85b84a24c36b02ed1d22c9dd8632f53b3cde6e4d23512f94021030003"
+
+[[package]]
 name = "cc"
 version = "1.2.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1946,6 +1952,8 @@ dependencies = [
  "axum-extra",
  "axum-s3",
  "base64 0.22.1",
+ "bytesize",
+ "cap",
  "derive_more",
  "digest",
  "dotenvy",
@@ -3115,13 +3123,14 @@ dependencies = [
 
 [[package]]
 name = "serde-s3"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "bon",
  "chrono",
  "derive_more",
  "http-content-range",
  "http-range-header",
+ "httpdate",
  "mime",
  "serde",
  "serde-inline-default",
