@@ -1,12 +1,20 @@
-use serde::Deserialize;
+use serdev::Deserialize;
+use validator::Validate;
+use validator_extra::validate_extra;
 
 use crate::types::BucketInfo;
 use crate::types::BucketLocationConstraint;
 use crate::types::LocationInfo;
 
-#[derive(Debug, Deserialize)]
+#[validate_extra]
+#[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "PascalCase")]
+#[serde(validate = "Validate::validate")]
 pub struct CreateBucketConfiguration {
+    #[validate_extra(eq(other = "http://s3.amazonaws.com/doc/2006-03-01/"))]
+    #[serde(rename = "@xmlns")]
+    pub xmlns: String,
+
     pub bucket: Option<BucketInfo>,
 
     pub location: Option<LocationInfo>,
