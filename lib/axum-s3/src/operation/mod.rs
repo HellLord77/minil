@@ -11,6 +11,7 @@ mod head_object;
 mod list_buckets;
 mod list_objects;
 mod list_objects_v2;
+mod put_bucket_versioning;
 mod put_object;
 
 pub use create_bucket::CreateBucketInput;
@@ -35,5 +36,7 @@ pub use list_objects::ListObjectsInput;
 pub use list_objects::ListObjectsOutput;
 pub use list_objects_v2::ListObjectsV2Input;
 pub use list_objects_v2::ListObjectsV2Output;
+pub use put_bucket_versioning::PutBucketVersioningInput;
+pub use put_bucket_versioning::PutBucketVersioningOutput;
 pub use put_object::PutObjectInput;
 pub use put_object::PutObjectOutput;
