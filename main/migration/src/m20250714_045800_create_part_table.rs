@@ -15,6 +15,8 @@ impl MigrationTrait for Migration {
                     .col(uuid_null(Part::UploadId))
                     .col(uuid_null(Part::VersionId))
                     .col(small_unsigned(Part::Number))
+                    .col(big_unsigned(Part::Start))
+                    .col(big_unsigned(Part::End))
                     .col(big_unsigned(Part::Size))
                     .col(binary_len(Part::Crc32, 4))
                     .col(binary_len(Part::Crc32c, 4))
@@ -51,6 +53,20 @@ impl MigrationTrait for Migration {
                         .or(Expr::col(Part::UploadId)
                             .is_null()
                             .and(Expr::col(Part::VersionId).is_not_null())),
+                    )
+                    .check(
+                        Expr::expr(
+                            Expr::col(Part::UploadId).is_not_null().and(
+                                Expr::col(Part::Start)
+                                    .is_null()
+                                    .and(Expr::col(Part::End).is_null()),
+                            ),
+                        )
+                        .or(Expr::col(Part::VersionId).is_not_null().and(
+                            Expr::col(Part::Start)
+                                .is_not_null()
+                                .and(Expr::col(Part::End).is_not_null()),
+                        )),
                     )
                     .to_owned(),
             )
@@ -157,6 +173,8 @@ enum Part {
     UploadId,
     VersionId,
     Number,
+    Start,
+    End,
     Size,
     Crc32,
     Crc32c,

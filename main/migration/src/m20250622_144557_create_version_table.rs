@@ -26,6 +26,7 @@ impl MigrationTrait for Migration {
                         timestamp_with_time_zone(Version::CreatedAt)
                             .default(Expr::current_timestamp()),
                     )
+                    .col(timestamp_with_time_zone_null(Version::UpdatedAt))
                     .col(timestamp_with_time_zone_null(Version::DeletedAt))
                     .foreign_key(
                         ForeignKey::create()
@@ -118,5 +119,6 @@ enum Version {
     Md5,
     ETag,
     CreatedAt,
+    UpdatedAt,
     DeletedAt,
 }
