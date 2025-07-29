@@ -48,6 +48,8 @@ use axum_s3::operation::ListObjectsInput;
 use axum_s3::operation::ListObjectsOutput;
 use axum_s3::operation::ListObjectsV2Input;
 use axum_s3::operation::ListObjectsV2Output;
+use axum_s3::operation::PutBucketVersioningInput;
+use axum_s3::operation::PutBucketVersioningOutput;
 use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::ErrorParts;
@@ -68,6 +70,7 @@ use minil_service::ChunkQuery;
 use minil_service::ObjectMutation;
 use minil_service::ObjectQuery;
 use minil_service::OwnerQuery;
+use minil_service::VersionMutation;
 use sea_orm::ConnectOptions;
 use sea_orm::Database;
 use sea_orm::DbConn;
@@ -87,8 +90,10 @@ use serde_s3::operation::ListObjectsV2OutputHeader;
 use serde_s3::operation::PutObjectOutputHeader;
 use serde_s3::types::Bucket;
 use serde_s3::types::BucketLocationConstraint;
+use serde_s3::types::BucketVersioningStatus;
 use serde_s3::types::CommonPrefix;
 use serde_s3::types::EncodingType;
+use serde_s3::types::MfaDeleteStatus;
 use serde_s3::types::Object;
 use serde_s3::types::Owner;
 use sha2::Sha256;
@@ -167,7 +172,7 @@ async fn main() {
         "/{Bucket}" => delete(delete_bucket),
         "/{Bucket}" => get(get_bucket_handler),
         "/{Bucket}" => head(head_bucket),
-        "/{Bucket}" => put(create_bucket),
+        "/{Bucket}" => put(put_bucket_handler),
 
         "/{Bucket}/{*Key}" => delete(delete_object),
         "/{Bucket}/{*Key}" => get(get_object),
@@ -332,7 +337,7 @@ async fn list_buckets(
     let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     let limit = input.query.max_buckets + 1;
-    let mut buckets = BucketQuery::find_all_by_owner_id(
+    let mut buckets = BucketQuery::find_by_owner_id(
         db.as_ref(),
         owner.id,
         input.query.prefix.as_deref(),
@@ -360,7 +365,6 @@ async fn list_buckets(
                         .map(|bucket| {
                             Bucket::builder()
                                 .name(bucket.name)
-                                .bucket_region(bucket.region)
                                 .creation_date(bucket.created_at)
                                 .build()
                         })
@@ -387,11 +391,8 @@ async fn delete_bucket(
     let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    (BucketMutation::delete(db.as_ref(), owner.id, &input.path.bucket)
+    BucketMutation::delete(db.as_ref(), owner.id, &input.path.bucket)
         .await?
-        .rows_affected
-        != 0)
-        .then_some(())
         .ok_or(AppError::NoSuchBucket)?;
 
     Ok(DeleteBucketOutput::builder().build())
@@ -412,9 +413,31 @@ async fn get_bucket_versioning(
     let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let mfa_delete = bucket.mfa_delete.map(|mfa_delete| {
+        if mfa_delete {
+            MfaDeleteStatus::Enabled
+        } else {
+            MfaDeleteStatus::Disabled
+        }
+    });
+    let status = bucket.versioning.map(|versioning| {
+        if versioning {
+            BucketVersioningStatus::Enabled
+        } else {
+            BucketVersioningStatus::Suspended
+        }
+    });
 
     Ok(GetBucketVersioningOutput::builder()
-        .body(GetBucketVersioningOutputBody::builder().build())
+        .body(
+            GetBucketVersioningOutputBody::builder()
+                .maybe_mfa_delete(mfa_delete)
+                .maybe_status(status)
+                .build(),
+        )
         .build())
 }
 
@@ -426,16 +449,14 @@ async fn get_bucket_location(
     let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+    BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    let content = serde_plain::from_str::<BucketLocationConstraint>(&bucket.region)
-        .unwrap_or_else(|_err| unreachable!());
 
     Ok(GetBucketLocationOutput::builder()
         .body(
             GetBucketLocationOutputBody::builder()
-                .content(content)
+                .content(BucketLocationConstraint::UsEast1)
                 .build(),
         )
         .build())
@@ -456,7 +477,7 @@ async fn list_objects_v2(
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let limit = input.query.max_keys + 1;
-    let mut objects = ObjectQuery::find_all_by_bucket_id(
+    let (mut objects, versions) = ObjectQuery::find_version_by_bucket_id(
         db.as_ref(),
         bucket.id,
         input.query.prefix.as_deref(),
@@ -468,13 +489,13 @@ async fn list_objects_v2(
         Some(limit as u64),
     )
     .await?
-    .try_collect::<Vec<_>>()
+    .try_collect::<(Vec<_>, Vec<_>)>()
     .await?;
-    let mut common_prefixes = IndexSet::new();
     let next_continuation_token = (objects.len() == limit as usize).then(|| {
         objects.pop();
         objects.last().unwrap_or_else(|| unreachable!()).key.clone()
     });
+    let mut common_prefixes = IndexSet::new();
     if let Some(delimiter) = &input.query.delimiter {
         let prefix_len = input.query.prefix.as_deref().map_or(0, str::len);
         let offset = prefix_len + delimiter.len();
@@ -513,11 +534,12 @@ async fn list_objects_v2(
                 .contents(
                     objects
                         .into_iter()
-                        .map(|object| {
+                        .zip(versions.into_iter())
+                        .map(|(object, version)| {
                             Object::builder()
-                                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                                .e_tag(version.e_tag)
                                 .key(encode(object.key))
-                                .last_modified(object.updated_at.unwrap_or(object.created_at))
+                                .last_modified(version.created_at)
                                 .maybe_owner(input.query.fetch_owner.unwrap_or_default().then(
                                     || {
                                         Owner::builder()
@@ -526,7 +548,7 @@ async fn list_objects_v2(
                                             .build()
                                     },
                                 ))
-                                .size(object.size as u64)
+                                .size(version.size as u64)
                                 .build()
                         })
                         .collect(),
@@ -561,7 +583,7 @@ async fn list_objects(
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let limit = input.query.max_keys + 1;
-    let mut objects = ObjectQuery::find_all_by_bucket_id(
+    let (mut objects, versions) = ObjectQuery::find_version_by_bucket_id(
         db.as_ref(),
         bucket.id,
         input.query.prefix.as_deref(),
@@ -569,13 +591,13 @@ async fn list_objects(
         Some(limit as u64),
     )
     .await?
-    .try_collect::<Vec<_>>()
+    .try_collect::<(Vec<_>, Vec<_>)>()
     .await?;
-    let mut common_prefixes = IndexSet::new();
     let next_marker = (objects.len() == limit as usize).then(|| {
         objects.pop();
         objects.last().unwrap_or_else(|| unreachable!()).key.clone()
     });
+    let mut common_prefixes = IndexSet::new();
     if let Some(delimiter) = &input.query.delimiter {
         let prefix_len = input.query.prefix.as_deref().map_or(0, str::len);
         let offset = prefix_len + delimiter.len();
@@ -614,18 +636,19 @@ async fn list_objects(
                 .contents(
                     objects
                         .into_iter()
-                        .map(|object| {
+                        .zip(versions.into_iter())
+                        .map(|(object, version)| {
                             Object::builder()
-                                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                                .e_tag(version.e_tag)
                                 .key(encode(object.key))
-                                .last_modified(object.updated_at.unwrap_or(object.created_at))
+                                .last_modified(version.created_at)
                                 .owner(
                                     Owner::builder()
                                         .display_name(owner.name.clone())
                                         .id(owner.id)
                                         .build(),
                                 )
-                                .size(object.size as u64)
+                                .size(version.size as u64)
                                 .build()
                         })
                         .collect(),
@@ -647,6 +670,48 @@ async fn list_objects(
         .build())
 }
 
+app_define_handler!(put_bucket_handler {
+    PutBucketVersioningCheck => put_bucket_versioning,
+    _ => create_bucket,
+});
+
+#[instrument(skip(db), ret)]
+async fn put_bucket_versioning(
+    Extension(db): Extension<DbTxn>,
+    input: PutBucketVersioningInput,
+) -> AppResult<PutBucketVersioningOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_ensure_eq!(input.header.content_md5, None);
+    app_ensure_eq!(input.header.mfa, None);
+    app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
+    app_ensure_matches!(
+        input.body.mfa_delete,
+        None | Some(MfaDeleteStatus::Disabled)
+    );
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let mfa_delete = input
+        .body
+        .mfa_delete
+        .map(|mfa_delete| matches!(mfa_delete, MfaDeleteStatus::Enabled));
+    let status = input
+        .body
+        .status
+        .map(|status| matches!(status, BucketVersioningStatus::Enabled));
+    BucketMutation::update_versioning(
+        db.as_ref(),
+        owner.id,
+        &input.path.bucket,
+        mfa_delete,
+        status,
+    )
+    .await?
+    .ok_or(AppError::NoSuchBucket)?;
+
+    Ok(PutBucketVersioningOutput::builder().build())
+}
+
 #[instrument(skip(db), ret)]
 async fn head_bucket(
     Extension(db): Extension<DbTxn>,
@@ -655,14 +720,16 @@ async fn head_bucket(
     let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+    BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
+    let region = serde_plain::to_string(&BucketLocationConstraint::UsEast1)
+        .unwrap_or_else(|_err| unreachable!());
 
     Ok(HeadBucketOutput::builder()
         .header(
             HeadBucketOutputHeader::builder()
-                .bucket_region(bucket.region)
+                .bucket_region(region)
                 .build(),
         )
         .build())
@@ -685,9 +752,7 @@ async fn create_bucket(
     app_ensure_matches!(input.header.object_ownership, None);
     app_ensure_matches!(input.body, None);
 
-    let region = serde_plain::to_string(&BucketLocationConstraint::UsEast1)
-        .unwrap_or_else(|_err| unreachable!());
-    let bucket = BucketMutation::create(db.as_ref(), owner.id, &input.path.bucket, &region)
+    let bucket = BucketMutation::insert(db.as_ref(), owner.id, input.path.bucket)
         .await?
         .ok_or(AppError::BucketAlreadyOwnedByYou)?;
 
@@ -754,7 +819,7 @@ async fn get_object(
     let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    let object = ObjectQuery::find(db.as_ref(), bucket.id, &input.path.key)
+    let (object, version) = ObjectQuery::find_version(db.as_ref(), bucket.id, &input.path.key)
         .await?
         .ok_or(AppError::NoSuchKey)?;
     let range = input
@@ -762,17 +827,12 @@ async fn get_object(
         .range
         .map(|ranges| {
             ranges
-                .validate(object.size as u64)
+                .validate(version.size as u64)
                 .map_err(|_err| AppError::InvalidRange)
         })
         .transpose()?
-        .and_then(|mut ranges| ranges.pop());
-    let body = match &range {
-        Some(range) => Body::from_stream(
-            ChunkQuery::find_by_object_range(db_conn, object.id, range.clone()).await,
-        ),
-        None => Body::from_stream(ChunkQuery::find_by_object(db_conn, object.id).await),
-    };
+        .and_then(|mut ranges| ranges.pop()); // todo stream part
+    let body = ChunkQuery::stream_by_part_id(db_conn, object.id, range.clone()).await;
 
     Ok(GetObjectOutput::builder()
         .header(
@@ -786,22 +846,20 @@ async fn get_object(
                     range
                         .as_ref()
                         .map(|range| range.end() - range.start() + 1)
-                        .unwrap_or(object.size as u64),
+                        .unwrap_or(version.size as u64),
                 )
                 .maybe_content_range(range.map(|range| ContentRangeBytes {
                     first_byte: *range.start(),
                     last_byte: *range.end(),
-                    complete_length: object.size as u64,
+                    complete_length: version.size as u64,
                 }))
                 .maybe_content_type(input.query.response_content_type)
-                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                .e_tag(version.e_tag)
                 .maybe_expires(input.query.response_expires)
-                .last_modified(
-                    SystemTime::from(object.updated_at.unwrap_or(object.created_at)).into(),
-                )
+                .last_modified(SystemTime::from(version.created_at).into())
                 .build(),
         )
-        .body(body)
+        .body(Body::from_stream(body))
         .build())
 }
 
@@ -832,7 +890,7 @@ async fn head_object(
     let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    let object = ObjectQuery::find(db.as_ref(), bucket.id, &input.path.key)
+    let (_, version) = ObjectQuery::find_version(db.as_ref(), bucket.id, &input.path.key)
         .await?
         .ok_or(AppError::NoSuchKey)?;
     let range = input
@@ -840,7 +898,7 @@ async fn head_object(
         .range
         .map(|ranges| {
             ranges
-                .validate(object.size as u64)
+                .validate(version.size as u64)
                 .map_err(|_err| AppError::InvalidRange)
         })
         .transpose()?
@@ -858,19 +916,17 @@ async fn head_object(
                     range
                         .as_ref()
                         .map(|range| range.end() - range.start() + 1)
-                        .unwrap_or(object.size as u64),
+                        .unwrap_or(version.size as u64),
                 )
                 .maybe_content_range(range.map(|range| ContentRangeBytes {
                     first_byte: *range.start(),
                     last_byte: *range.end(),
-                    complete_length: object.size as u64,
+                    complete_length: version.size as u64,
                 }))
                 .maybe_content_type(input.query.response_content_type)
-                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                .e_tag(version.e_tag)
                 .maybe_expires(input.query.response_expires)
-                .last_modified(
-                    SystemTime::from(object.updated_at.unwrap_or(object.created_at)).into(),
-                )
+                .last_modified(SystemTime::from(version.created_at).into())
                 .build(),
         )
         .build())
@@ -916,10 +972,16 @@ async fn put_object(
     let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    let object = ObjectMutation::create(
+    if !bucket.versioning.unwrap_or_default() {
+        if let Some(object) = ObjectQuery::find(db.as_ref(), bucket.id, &input.path.key).await? {
+            VersionMutation::delete_by_object_id(db.as_ref(), object.id).await?;
+        }
+    }
+
+    let (_, version) = ObjectMutation::insert_version(
         db.as_ref(),
         bucket.id,
-        &input.path.key,
+        input.path.key,
         input.header.content_type,
         StreamReader::new(
             input
@@ -928,18 +990,18 @@ async fn put_object(
                 .map(|res| res.map_err(|err| io::Error::other(err.into_inner()))),
         ),
     )
-    .await??;
-    app_validate_digest!(input.header.content_md5, object.md5.clone());
-    app_validate_digest!(input.header.checksum_crc32, object.crc32);
-    app_validate_digest!(input.header.checksum_crc32c, object.crc32c);
-    app_validate_digest!(input.header.checksum_crc64nvme, object.crc64nvme);
-    app_validate_digest!(input.header.checksum_sha1, object.sha1);
-    app_validate_digest!(input.header.checksum_sha256, object.sha256);
+    .await?;
+    app_validate_digest!(input.header.content_md5, version.md5.clone());
+    app_validate_digest!(input.header.checksum_crc32, version.crc32);
+    app_validate_digest!(input.header.checksum_crc32c, version.crc32c);
+    app_validate_digest!(input.header.checksum_crc64nvme, version.crc64nvme);
+    app_validate_digest!(input.header.checksum_sha1, version.sha1);
+    app_validate_digest!(input.header.checksum_sha256, version.sha256);
 
     Ok(PutObjectOutput::builder()
         .header(
             PutObjectOutputHeader::builder()
-                .e_tag(format!("\"{}\"", hex::encode(object.md5)))
+                .e_tag(version.e_tag)
                 .build(),
         )
         .build())

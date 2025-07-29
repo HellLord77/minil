@@ -8,6 +8,7 @@ use axum_s3::utils::ErrorParts;
 use derive_more::Display;
 use derive_more::Error;
 use derive_more::From;
+use minil_service::InsErr;
 use sea_orm::DbErr;
 use strum::EnumDiscriminants;
 
@@ -56,6 +57,15 @@ pub(crate) enum AppError {
     AxumError(axum::Error),
     DatabaseError(DbErr),
     IoError(io::Error),
+}
+
+impl From<InsErr> for AppError {
+    fn from(err: InsErr) -> Self {
+        match err {
+            InsErr::IoError(err) => Self::IoError(err),
+            InsErr::DbError(err) => Self::DatabaseError(err),
+        }
+    }
 }
 
 impl IntoResponse for AppError {
