@@ -2,11 +2,13 @@ use mime::Mime;
 
 mod chunk_decoder;
 mod delete_many_ext;
+mod expr_ext;
 mod select_ext;
 mod update_many_ext;
 
 pub(super) use chunk_decoder::ChunkDecoder;
 pub(super) use delete_many_ext::DeleteManyExt;
+pub(super) use expr_ext::ExprExt;
 pub(super) use select_ext::SelectExt;
 pub(super) use update_many_ext::UpdateManyExt;
 

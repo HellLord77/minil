@@ -1,21 +1,33 @@
 use futures::Stream;
 use futures::StreamExt;
+use futures::TryStreamExt;
 use mime::Mime;
+use minil_entity::bucket;
 use minil_entity::object;
 use minil_entity::prelude::*;
 use minil_entity::version;
 use sea_orm::prelude::*;
 use sea_orm::*;
+use sea_query::*;
 use tokio::io::AsyncRead;
 
 use crate::InsRes;
 use crate::PartMutation;
 use crate::error::DbRes;
+use crate::utils::ExprExt;
 use crate::utils::SelectExt;
+use crate::utils::UpdateManyExt;
 
 pub struct VersionQuery;
 
 impl VersionQuery {
+    pub async fn find(
+        db: &(impl ConnectionTrait + StreamTrait),
+        id: Uuid,
+    ) -> DbRes<Option<version::Model>> {
+        Version::find_by_id(id).one(db).await
+    }
+
     pub async fn find_by_object_id(
         db: &(impl ConnectionTrait + StreamTrait),
         object_id: Uuid,
@@ -72,7 +84,7 @@ impl VersionMutation {
         mime: Mime,
         read: impl Unpin + AsyncRead,
     ) -> InsRes<version::Model> {
-        let part = PartMutation::insert(db, None, Some(id), 1, read).await?;
+        let part = PartMutation::insert(db, None, Some(id), 1, Some(0), read).await?;
 
         let version = version::ActiveModel {
             id: Set(id),
@@ -89,9 +101,45 @@ impl VersionMutation {
             ..Default::default()
         };
 
-        Ok(Version::insert(version).exec_with_returning(db).await?)
+        Ok(Version::insert(version)
+            .on_conflict(
+                OnConflict::column(version::Column::Id)
+                    .update_columns([
+                        version::Column::Mime,
+                        version::Column::Size,
+                        version::Column::Crc32,
+                        version::Column::Crc32c,
+                        version::Column::Crc64nvme,
+                        version::Column::Sha1,
+                        version::Column::Sha256,
+                        version::Column::Md5,
+                        version::Column::ETag,
+                    ])
+                    .value(version::Column::UpdatedAt, Expr::current_timestamp())
+                    .value(version::Column::DeletedAt, Expr::null())
+                    .to_owned(),
+            )
+            .exec_with_returning(db)
+            .await?)
     }
 
+    pub async fn update_deleted_at(
+        db: &(impl ConnectionTrait + StreamTrait),
+        id: Uuid,
+    ) -> DbRes<Option<version::Model>> {
+        // fixme PartMutation::delete_by_version_id(db, id).await?;
+
+        Version::update_many()
+            .filter(version::Column::Id.eq(id))
+            .filter(version::Column::DeletedAt.is_null())
+            .col_expr(bucket::Column::UpdatedAt, Expr::current_timestamp().into())
+            .exec_with_streaming(db)
+            .await?
+            .try_next()
+            .await
+    }
+
+    #[deprecated]
     pub async fn delete_by_object_id(
         db: &impl ConnectionTrait,
         object_id: Uuid,

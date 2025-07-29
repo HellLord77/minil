@@ -18,6 +18,7 @@ use tokio_util::io::StreamReader;
 use uuid::Uuid;
 
 use crate::InsRes;
+use crate::PartMutation;
 use crate::VersionMutation;
 use crate::error::DbRes;
 use crate::utils::ChunkDecoder;
@@ -44,12 +45,12 @@ impl ObjectQuery {
         bucket_id: Uuid,
         key: &str,
     ) -> DbRes<Option<(object::Model, version::Model)>> {
-        Ok(Object::find()
+        let mut query = Object::find()
             .join(JoinType::InnerJoin, object::Relation::LatestVersion.def())
             .select_also(Version)
             .filter(object::Column::BucketId.eq(bucket_id))
-            .filter(object::Column::Key.eq(key))
-            .filter(version::Column::DeletedAt.is_null())
+            .filter(object::Column::Key.eq(key));
+        Ok(query
             .one(db)
             .await?
             .map(|(object, version)| (object, version.unwrap_or_else(|| unreachable!()))))
@@ -91,9 +92,19 @@ impl ObjectMutation {
         db: &(impl ConnectionTrait + StreamTrait),
         bucket_id: Uuid,
         key: String,
+        version_id: Option<Uuid>,
         mime: Option<Mime>,
         read: impl Unpin + AsyncRead,
     ) -> InsRes<(object::Model, version::Model)> {
+        let version_id = match version_id {
+            Some(version_id) => {
+                PartMutation::delete_by_version_id(db, version_id).await?;
+
+                version_id
+            }
+            None => Uuid::new_v4(),
+        };
+
         let decode = ChunkDecoder::with_capacity(ByteSize::kib(4).as_u64() as usize);
         let read = FramedRead::new(read, decode);
         let mut stream = pin!(read.peekable());
@@ -118,7 +129,7 @@ impl ObjectMutation {
             id: Set(Uuid::new_v4()),
             bucket_id: Set(bucket_id),
             key: Set(key.clone()),
-            version_id: Set(Uuid::new_v4()),
+            version_id: Set(version_id),
             ..Default::default()
         };
 

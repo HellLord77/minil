@@ -6,6 +6,7 @@ use bytes::Bytes;
 use futures::Stream;
 use futures::TryStreamExt;
 use minil_entity::chunk;
+use minil_entity::part;
 use minil_entity::prelude::*;
 use sea_orm::*;
 use uuid::Uuid;
@@ -27,6 +28,43 @@ impl ChunkQuery {
             .await
     }
 
+    pub async fn stream_by_version_id(
+        db: impl Clone + ConnectionTrait + StreamTrait,
+        version_id: Uuid,
+        range: Option<RangeInclusive<u64>>,
+    ) -> impl Stream<Item = DbRes<Bytes>> {
+        try_stream! {
+            let mut query = Part::find().filter(part::Column::VersionId.eq(version_id));
+            if let Some(range) = &range {
+                query = query
+                    .filter(part::Column::Start.lte(*range.end()))
+                    .filter(part::Column::End.gte(*range.start()));
+            }
+            let parts = query
+                .order_by_asc(part::Column::Number)
+                .stream(&db)
+                .await?;
+            let mut stream = pin!(parts);
+
+            while let Some(part) = stream.try_next().await? {
+                let range = range.as_ref().map(|range| {
+                    let start = part.start.unwrap_or_else(|| unreachable!()) as u64;
+                    let end = part.end.unwrap_or_else(|| unreachable!()) as u64;
+                    let offset = start;
+
+                    let start = start.max(*range.start()) - offset;
+                    let end = end.min(*range.end()) - offset;
+                    start..=end
+                });
+
+                let chunks = ChunkQuery::stream_by_part_id(db.clone(), part.id, range).await;
+                for await chunk in chunks {
+                    yield chunk?;
+                }
+            }
+        }
+    }
+
     pub async fn stream_by_part_id(
         db: impl ConnectionTrait + StreamTrait,
         part_id: Uuid,
@@ -37,8 +75,8 @@ impl ChunkQuery {
                 .filter(chunk::Column::PartId.eq(part_id));
             if let Some(range) = &range {
                 query = query
-                    .filter(chunk::Column::Start.lte(*range.end() as i64))
-                    .filter(chunk::Column::End.gte(*range.start() as i64));
+                    .filter(chunk::Column::Start.lte(*range.end()))
+                    .filter(chunk::Column::End.gte(*range.start()));
             }
             let chunks = query
                 .order_by_asc(chunk::Column::Index)

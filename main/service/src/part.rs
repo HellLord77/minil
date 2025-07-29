@@ -12,8 +12,8 @@ use minil_entity::object;
 use minil_entity::part;
 use minil_entity::prelude::*;
 use sea_orm::prelude::*;
-use sea_orm::sea_query::OnConflict;
 use sea_orm::*;
+use sea_query::*;
 use sha1::Sha1;
 use sha2::Sha256;
 use tokio::io::AsyncRead;
@@ -43,6 +43,7 @@ impl PartQuery {
         query.filter(part::Column::Number.eq(number)).one(db).await
     }
 
+    #[deprecated]
     pub async fn find_by_unique_id(
         db: &(impl ConnectionTrait + StreamTrait),
         upload_id: Option<Uuid>,
@@ -72,6 +73,7 @@ impl PartMutation {
         upload_id: Option<Uuid>,
         version_id: Option<Uuid>,
         number: u16,
+        start: Option<u64>,
         read: impl Unpin + AsyncRead,
     ) -> InsRes<part::Model> {
         let id = match PartQuery::find(db, upload_id, version_id, number).await? {
@@ -129,6 +131,8 @@ impl PartMutation {
             upload_id: Set(upload_id),
             version_id: Set(version_id),
             number: Set(number as i16),
+            start: Set(start.map(|start| start as i64)),
+            end: Set(start.map(|start| (start + size - 1) as i64)),
             size: Set(size as i64),
             crc32: Set(Box::new(crc32).finalize().to_vec()),
             crc32c: Set(Box::new(crc32c).finalize().to_vec()),
@@ -162,5 +166,15 @@ impl PartMutation {
             )
             .exec_with_returning(db)
             .await?)
+    }
+
+    pub(super) async fn delete_by_version_id(
+        db: &impl ConnectionTrait,
+        version_id: Uuid,
+    ) -> DbRes<DeleteResult> {
+        Part::delete_many()
+            .filter(part::Column::VersionId.eq(version_id))
+            .exec(db)
+            .await
     }
 }
