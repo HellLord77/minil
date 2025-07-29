@@ -5,7 +5,6 @@ mod make_request_id;
 mod service_builder_ext;
 mod state;
 
-use std::alloc::System;
 use std::convert::identity;
 use std::env;
 use std::future;
@@ -23,6 +22,7 @@ use axum::extract::Request;
 use axum::extract::State;
 use axum::http::HeaderName;
 use axum::http::HeaderValue;
+use axum::http::StatusCode;
 use axum::http::header;
 use axum::middleware::Next;
 use axum::response::Response;
@@ -54,8 +54,6 @@ use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::ErrorParts;
 use base64::Engine;
-use bytesize::ByteSize;
-use cap::Cap;
 use digest::Digest;
 use futures::StreamExt;
 use futures::TryStreamExt;
@@ -70,7 +68,9 @@ use minil_service::ChunkQuery;
 use minil_service::ObjectMutation;
 use minil_service::ObjectQuery;
 use minil_service::OwnerQuery;
+use minil_service::PartQuery;
 use minil_service::VersionMutation;
+use minil_service::VersionQuery;
 use sea_orm::ConnectOptions;
 use sea_orm::Database;
 use sea_orm::DbConn;
@@ -127,7 +127,10 @@ use crate::state::AppState;
 
 #[cfg(debug_assertions)]
 #[global_allocator]
-static ALLOCATOR: Cap<System> = Cap::new(System, ByteSize::mib(64).as_u64() as usize);
+static ALLOCATOR: cap::Cap<std::alloc::System> = cap::Cap::new(
+    std::alloc::System,
+    bytesize::ByteSize::mib(64).as_u64() as usize,
+);
 
 const NODE_NAME: &str = "minil";
 const PROCESS_TIME: &str = "x-process-time";
@@ -148,7 +151,7 @@ async fn main() {
     let middleware = ServiceBuilder::new()
         .trace_for_http()
         .decompression()
-        // .compression() // todo keep headers
+        // fixme .compression()
         .set_request_id(REQUEST_ID_HEADER, AppMakeRequestId)
         .propagate_request_id(REQUEST_ID_HEADER)
         .override_response_header(
@@ -539,7 +542,7 @@ async fn list_objects_v2(
                             Object::builder()
                                 .e_tag(version.e_tag)
                                 .key(encode(object.key))
-                                .last_modified(version.created_at)
+                                .last_modified(version.updated_at.unwrap_or(version.created_at))
                                 .maybe_owner(input.query.fetch_owner.unwrap_or_default().then(
                                     || {
                                         Owner::builder()
@@ -641,7 +644,7 @@ async fn list_objects(
                             Object::builder()
                                 .e_tag(version.e_tag)
                                 .key(encode(object.key))
-                                .last_modified(version.created_at)
+                                .last_modified(version.updated_at.unwrap_or(version.created_at))
                                 .owner(
                                     Owner::builder()
                                         .display_name(owner.name.clone())
@@ -772,7 +775,6 @@ async fn delete_object(
 ) -> AppResult<DeleteObjectOutput> {
     let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
-    app_ensure_eq!(input.query.version_id, None);
     app_ensure_eq!(input.header.if_match, None);
     app_ensure_eq!(input.header.bypass_governance_retention, None);
     app_ensure_eq!(input.header.if_match_last_modified_time, None);
@@ -784,10 +786,39 @@ async fn delete_object(
     let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    ObjectMutation::delete(db.as_ref(), bucket.id, &input.path.key).await?;
+    let (delete_marker, version_id) = if bucket.versioning.is_some() {
+        let version = match input.query.version_id {
+            Some(version_id) => VersionQuery::find(db.as_ref(), version_id).await?,
+            None => ObjectQuery::find_version(db.as_ref(), bucket.id, &input.path.key)
+                .await?
+                .map(|(_, version)| version),
+        };
+
+        if let Some(version) = &version {
+            VersionMutation::update_deleted_at(db.as_ref(), version.id).await?;
+        }
+
+        (
+            version.as_ref().map(|version| version.deleted_at.is_none()),
+            version.map(|version| version.id),
+        )
+    } else {
+        if input.query.version_id.is_some() {
+            Err(AppError::InternalError)?
+        };
+
+        ObjectMutation::delete(db.as_ref(), bucket.id, &input.path.key).await?;
+
+        (None, None)
+    };
 
     Ok(DeleteObjectOutput::builder()
-        .header(DeleteObjectOutputHeader::builder().build())
+        .header(
+            DeleteObjectOutputHeader::builder()
+                .maybe_delete_marker(delete_marker)
+                .maybe_version_id(version_id)
+                .build(),
+        )
         .build())
 }
 
@@ -799,15 +830,13 @@ async fn get_object(
 ) -> AppResult<GetObjectOutput> {
     let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
-    app_ensure_matches!(input.query.part_number, None | Some(1));
-    app_ensure_eq!(input.query.version_id, None);
     app_ensure_eq!(input.header.if_match, None);
     app_ensure_eq!(input.header.if_modified_since, None);
     app_ensure_eq!(input.header.if_none_match, None);
     app_ensure_eq!(input.header.if_unmodified_since, None);
     app_ensure_matches!(
         input.header.range.as_ref().map(|range| range.ranges.len()),
-        None | Some(1)
+        None | Some(1) // todo multipart/byteranges
     );
     app_ensure_matches!(input.header.checksum_mode, None);
     app_ensure_matches!(input.header.request_payer, None);
@@ -819,20 +848,74 @@ async fn get_object(
     let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    let (object, version) = ObjectQuery::find_version(db.as_ref(), bucket.id, &input.path.key)
-        .await?
-        .ok_or(AppError::NoSuchKey)?;
+    let version = match input.query.version_id {
+        Some(version_id) => VersionQuery::find(db.as_ref(), version_id).await?,
+        None => ObjectQuery::find_version(db.as_ref(), bucket.id, &input.path.key)
+            .await?
+            .map(|(_, version)| version),
+    }
+    .ok_or(AppError::NoSuchKey)?;
+    if version.deleted_at.is_some() {
+        return Ok(GetObjectOutput::builder()
+            .status(if input.query.version_id.is_some() {
+                StatusCode::METHOD_NOT_ALLOWED
+            } else {
+                StatusCode::NOT_FOUND
+            })
+            .header(
+                GetObjectOutputHeader::builder()
+                    .maybe_last_modified(input.query.version_id.map(|_version_id| {
+                        SystemTime::from(version.updated_at.unwrap_or(version.created_at))
+                    }))
+                    .delete_marker(true)
+                    .build(),
+            )
+            .body(Body::empty())
+            .build());
+    }
+    let (part_id, size, e_tag, last_modified) = match input.query.part_number {
+        Some(part_number) => {
+            #[cfg(not(feature = "part-number-with-range"))]
+            if input.header.range.is_some() {
+                Err(AppError::InternalError)?
+            }
+
+            let part = PartQuery::find(db.as_ref(), None, Some(version.id), part_number)
+                .await?
+                .ok_or(AppError::InvalidPart)?;
+
+            (
+                Some(part.id),
+                part.size as u64,
+                part.e_tag,
+                part.updated_at.unwrap_or(part.created_at),
+            )
+        }
+        None => (
+            None,
+            version.size as u64,
+            version.e_tag,
+            version.updated_at.unwrap_or(version.created_at),
+        ),
+    };
     let range = input
         .header
         .range
         .map(|ranges| {
             ranges
-                .validate(version.size as u64)
+                .validate(size)
+                .map(|mut ranges| ranges.pop().unwrap_or_else(|| unreachable!()))
                 .map_err(|_err| AppError::InvalidRange)
         })
-        .transpose()?
-        .and_then(|mut ranges| ranges.pop()); // todo stream part
-    let body = ChunkQuery::stream_by_part_id(db_conn, object.id, range.clone()).await;
+        .transpose()?;
+    let body = match part_id {
+        Some(part_id) => ChunkQuery::stream_by_part_id(db_conn, part_id, range.clone())
+            .await
+            .left_stream(),
+        None => ChunkQuery::stream_by_version_id(db_conn, version.id, range.clone())
+            .await
+            .right_stream(),
+    };
 
     Ok(GetObjectOutput::builder()
         .header(
@@ -846,17 +929,19 @@ async fn get_object(
                     range
                         .as_ref()
                         .map(|range| range.end() - range.start() + 1)
-                        .unwrap_or(version.size as u64),
+                        .unwrap_or(size),
                 )
                 .maybe_content_range(range.map(|range| ContentRangeBytes {
                     first_byte: *range.start(),
                     last_byte: *range.end(),
-                    complete_length: version.size as u64,
+                    complete_length: size,
                 }))
                 .maybe_content_type(input.query.response_content_type)
-                .e_tag(version.e_tag)
+                .e_tag(e_tag)
                 .maybe_expires(input.query.response_expires)
-                .last_modified(SystemTime::from(version.created_at).into())
+                .last_modified(SystemTime::from(last_modified))
+                // todo mp_parts_count
+                .maybe_version_id(bucket.versioning.unwrap_or_default().then_some(version.id))
                 .build(),
         )
         .body(Body::from_stream(body))
@@ -870,15 +955,13 @@ async fn head_object(
 ) -> AppResult<HeadObjectOutput> {
     let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
-    app_ensure_matches!(input.query.part_number, None | Some(1));
-    app_ensure_eq!(input.query.version_id, None);
     app_ensure_eq!(input.header.if_match, None);
     app_ensure_eq!(input.header.if_modified_since, None);
     app_ensure_eq!(input.header.if_none_match, None);
     app_ensure_eq!(input.header.if_unmodified_since, None);
     app_ensure_matches!(
         input.header.range.as_ref().map(|range| range.ranges.len()),
-        None | Some(1)
+        None | Some(1) // todo multipart/byteranges
     );
     app_ensure_matches!(input.header.checksum_mode, None);
     app_ensure_matches!(input.header.request_payer, None);
@@ -890,19 +973,63 @@ async fn head_object(
     let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    let (_, version) = ObjectQuery::find_version(db.as_ref(), bucket.id, &input.path.key)
-        .await?
-        .ok_or(AppError::NoSuchKey)?;
+    let version = match input.query.version_id {
+        Some(version_id) => VersionQuery::find(db.as_ref(), version_id).await?,
+        None => ObjectQuery::find_version(db.as_ref(), bucket.id, &input.path.key)
+            .await?
+            .map(|(_, version)| version),
+    }
+    .ok_or(AppError::NoSuchKey)?;
+    if version.deleted_at.is_some() {
+        return Ok(HeadObjectOutput::builder()
+            .status(if input.query.version_id.is_some() {
+                StatusCode::METHOD_NOT_ALLOWED
+            } else {
+                StatusCode::NOT_FOUND
+            })
+            .header(
+                HeadObjectOutputHeader::builder()
+                    .maybe_last_modified(input.query.version_id.map(|_version_id| {
+                        SystemTime::from(version.updated_at.unwrap_or(version.created_at))
+                    }))
+                    .delete_marker(true)
+                    .build(),
+            )
+            .build());
+    }
+    let (size, e_tag, last_modified) = match input.query.part_number {
+        Some(part_number) => {
+            #[cfg(not(feature = "part-number-with-range"))]
+            if input.header.range.is_some() {
+                Err(AppError::InternalError)?
+            }
+
+            let part = PartQuery::find(db.as_ref(), None, Some(version.id), part_number)
+                .await?
+                .ok_or(AppError::InvalidPart)?;
+
+            (
+                part.size as u64,
+                part.e_tag,
+                part.updated_at.unwrap_or(part.created_at),
+            )
+        }
+        None => (
+            version.size as u64,
+            version.e_tag,
+            version.updated_at.unwrap_or(version.created_at),
+        ),
+    };
     let range = input
         .header
         .range
         .map(|ranges| {
             ranges
-                .validate(version.size as u64)
+                .validate(size)
+                .map(|mut ranges| ranges.pop().unwrap_or_else(|| unreachable!()))
                 .map_err(|_err| AppError::InvalidRange)
         })
-        .transpose()?
-        .and_then(|mut ranges| ranges.pop());
+        .transpose()?;
 
     Ok(HeadObjectOutput::builder()
         .header(
@@ -924,9 +1051,11 @@ async fn head_object(
                     complete_length: version.size as u64,
                 }))
                 .maybe_content_type(input.query.response_content_type)
-                .e_tag(version.e_tag)
+                .e_tag(e_tag)
                 .maybe_expires(input.query.response_expires)
-                .last_modified(SystemTime::from(version.created_at).into())
+                .last_modified(SystemTime::from(last_modified))
+                // todo mp_parts_count
+                .maybe_version_id(bucket.versioning.unwrap_or_default().then_some(version.id))
                 .build(),
         )
         .build())
@@ -972,16 +1101,19 @@ async fn put_object(
     let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    if !bucket.versioning.unwrap_or_default() {
-        if let Some(object) = ObjectQuery::find(db.as_ref(), bucket.id, &input.path.key).await? {
-            VersionMutation::delete_by_object_id(db.as_ref(), object.id).await?;
-        }
-    }
+    let version_id = if bucket.versioning.unwrap_or_default() {
+        None
+    } else {
+        ObjectQuery::find(db.as_ref(), bucket.id, &input.path.key)
+            .await?
+            .map(|object| object.version_id)
+    };
 
     let (_, version) = ObjectMutation::insert_version(
         db.as_ref(),
         bucket.id,
         input.path.key,
+        version_id,
         input.header.content_type,
         StreamReader::new(
             input
@@ -1002,6 +1134,11 @@ async fn put_object(
         .header(
             PutObjectOutputHeader::builder()
                 .e_tag(version.e_tag)
+                .maybe_version_id(
+                    bucket
+                        .versioning
+                        .and_then(|versioning| versioning.then_some(version.id)),
+                )
                 .build(),
         )
         .build())

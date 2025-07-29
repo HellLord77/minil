@@ -30,12 +30,11 @@ pub(crate) enum AppError {
     ConditionalRequestConflict,
     #[allow(dead_code)]
     EncryptionTypeMismatch,
-    #[allow(dead_code)]
+    #[deprecated]
     InternalError,
     InvalidDigest,
     #[allow(dead_code)]
     InvalidObjectState,
-    #[allow(dead_code)]
     InvalidPart,
     #[allow(dead_code)]
     InvalidPartOrder,

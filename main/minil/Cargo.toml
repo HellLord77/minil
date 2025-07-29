@@ -3,6 +3,11 @@ name = "minil"
 version = "0.2.0"
 edition.workspace = true
 
+[features]
+default = []
+part-number-with-range = []
+full = ["part-number-with-range"]
+
 [dependencies]
 base64 = "0.22.1"
 dotenvy = "0.15.7"
@@ -29,6 +34,7 @@ tokio-util.workspace = true
 tracing.workspace = true
 tracing-appender.workspace = true
 tracing-subscriber.workspace = true
+uuid.workspace = true
 
 axum-s3.workspace = true
 ensure.workspace = true

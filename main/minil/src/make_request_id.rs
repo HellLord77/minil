@@ -1,21 +1,18 @@
-use std::time::SystemTime;
-
 use axum::http::Request;
 use tower_http::request_id::MakeRequestId;
 use tower_http::request_id::RequestId;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub(crate) struct AppMakeRequestId;
 
 impl MakeRequestId for AppMakeRequestId {
     fn make_request_id<B>(&mut self, _request: &Request<B>) -> Option<RequestId> {
-        let nanos = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_else(|_err| todo!())
-            .as_nanos();
-        let request_id = format!("{nanos:X}");
         Some(RequestId::new(
-            request_id.parse().unwrap_or_else(|_err| unreachable!()),
+            Uuid::new_v4()
+                .to_string()
+                .parse()
+                .unwrap_or_else(|_err| unreachable!()),
         ))
     }
 }
