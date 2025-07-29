@@ -17,6 +17,10 @@ pub struct Model {
     #[sea_orm(indexed, unique)]
     pub number: i16,
 
+    pub start: Option<i64>,
+
+    pub end: Option<i64>,
+
     pub size: i64,
 
     #[sea_orm(column_type = "Binary(4)")]

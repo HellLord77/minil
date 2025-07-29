@@ -38,6 +38,8 @@ pub struct Model {
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
 
+    pub updated_at: Option<DateTimeUtc>,
+
     pub deleted_at: Option<DateTimeUtc>,
 }
 
