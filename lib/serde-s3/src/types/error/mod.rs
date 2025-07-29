@@ -11,6 +11,7 @@ mod invalid_object_state;
 mod invalid_part;
 mod invalid_part_order;
 mod invalid_range;
+mod invalid_request;
 mod invalid_write_offset;
 mod method_not_allowed;
 mod no_such_bucket;

@@ -3,6 +3,7 @@ use chrono::DateTime;
 use chrono::Utc;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
+use uuid::Uuid;
 
 use crate::types::ChecksumAlgorithm;
 use crate::types::ChecksumType;
@@ -34,5 +35,5 @@ pub struct ObjectVersion {
 
     pub storage_class: Option<ObjectVersionStorageClass>,
 
-    pub version_id: Option<String>,
+    pub version_id: Option<Uuid>,
 }

@@ -3,6 +3,7 @@ use chrono::DateTime;
 use chrono::Utc;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
+use uuid::Uuid;
 
 use crate::types::Owner;
 
@@ -18,5 +19,5 @@ pub struct DeleteMarkerEntry {
 
     pub owner: Option<Owner>,
 
-    pub version_id: Option<String>,
+    pub version_id: Option<Uuid>,
 }

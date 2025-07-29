@@ -4,6 +4,7 @@ use chrono::Utc;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
 use serdev::Deserialize;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::types::RequestCharged;
@@ -24,7 +25,7 @@ pub struct DeleteObjectInputPath {
 #[serde(rename_all = "kebab-case")]
 pub struct DeleteObjectInputQuery {
     #[serde_rename_chain(convert_case = "camel")]
-    pub version_id: Option<String>,
+    pub version_id: Option<Uuid>,
 }
 
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
@@ -53,5 +54,5 @@ pub struct DeleteObjectOutputHeader {
 
     pub request_charged: Option<RequestCharged>,
 
-    pub version_id: Option<String>,
+    pub version_id: Option<Uuid>,
 }

@@ -9,6 +9,7 @@ use serde_with::DisplayFromStr;
 use serde_with::serde_as;
 use serde_with_extra::AsString;
 use serdev::Deserialize;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::types::ChecksumAlgorithm;
@@ -167,5 +168,5 @@ pub struct PutObjectOutputHeader {
     #[serde(rename = "x-amz-server-side-encryption-customer-key-MD5")]
     pub server_side_encryption_customer_key_md5: Option<String>,
 
-    pub version_id: Option<String>,
+    pub version_id: Option<Uuid>,
 }

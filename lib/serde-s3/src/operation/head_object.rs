@@ -12,6 +12,7 @@ use serde_with::serde_as;
 use serde_with_extra::AsString;
 use serde_with_extra::SerdeHttpRange;
 use serdev::Deserialize;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::types::ArchiveStatus;
@@ -60,7 +61,7 @@ pub struct HeadObjectInputQuery {
     pub response_expires: Option<HttpDate>,
 
     #[serde_rename_chain(convert_case = "camel")]
-    pub version_id: Option<String>,
+    pub version_id: Option<Uuid>,
 }
 
 #[serde_as]
@@ -125,6 +126,7 @@ pub struct HeadObjectOutputHeader {
     #[serde_rename_chain(convert_case = "train")]
     pub content_range: Option<ContentRangeBytes>,
 
+    #[builder(into)]
     #[serde_rename_chain(convert_case = "train")]
     #[serde_as(as = "Option<DisplayFromStr>")]
     pub content_type: Option<Mime>,
@@ -132,10 +134,12 @@ pub struct HeadObjectOutputHeader {
     #[serde_rename_chain(convert_case = "pascal")]
     pub e_tag: Option<String>,
 
+    #[builder(into)]
     #[serde_as(as = "Option<DisplayFromStr>")]
     #[serde_rename_chain(convert_case = "train")]
     pub expires: Option<HttpDate>,
 
+    #[builder(into)]
     #[serde_as(as = "Option<DisplayFromStr>")]
     #[serde_rename_chain(convert_case = "train")]
     pub last_modified: Option<HttpDate>,
@@ -194,7 +198,7 @@ pub struct HeadObjectOutputHeader {
 
     pub tagging_count: Option<u16>,
 
-    pub version_id: Option<String>,
+    pub version_id: Option<Uuid>,
 
     pub website_redirect_location: Option<String>,
 }
