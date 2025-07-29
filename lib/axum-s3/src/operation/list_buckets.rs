@@ -1,4 +1,5 @@
 use axum::extract::FromRequest;
+use axum::http::StatusCode;
 use axum_derive_macros::IntoResponse;
 use axum_extra::extract::Query;
 use axum_serde::Xml;
@@ -14,6 +15,9 @@ pub struct ListBucketsInput {
 
 #[derive(Debug, Builder, IntoResponse)]
 pub struct ListBucketsOutput {
+    #[builder(default = StatusCode::OK)]
+    pub status: StatusCode,
+
     #[into_response(via(Xml))]
     pub body: ListBucketsOutputBody,
 }

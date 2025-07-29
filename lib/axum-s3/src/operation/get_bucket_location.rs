@@ -1,5 +1,6 @@
 use axum::extract::FromRequest;
 use axum::extract::Path;
+use axum::http::StatusCode;
 use axum_derive_macros::IntoResponse;
 use axum_header::Header;
 use axum_serde::Xml;
@@ -19,6 +20,9 @@ pub struct GetBucketLocationInput {
 
 #[derive(Debug, Builder, IntoResponse)]
 pub struct GetBucketLocationOutput {
+    #[builder(default = StatusCode::OK)]
+    pub status: StatusCode,
+
     #[into_response(via(Xml))]
     pub body: GetBucketLocationOutputBody,
 }
