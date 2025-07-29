@@ -17,57 +17,49 @@ pub struct ChunkQuery;
 impl ChunkQuery {
     pub async fn find(
         db: &(impl ConnectionTrait + StreamTrait),
-        object_id: Option<Uuid>,
-        part_id: Option<Uuid>,
+        part_id: Uuid,
         index: u64,
     ) -> DbRes<Option<chunk::Model>> {
-        let mut query = Chunk::find();
-        if let Some(object_id) = object_id {
-            query = query.filter(chunk::Column::ObjectId.eq(object_id));
-        }
-        if let Some(part_id) = part_id {
-            query = query.filter(chunk::Column::PartId.eq(part_id));
-        }
-        query.filter(chunk::Column::Id.eq(index)).one(db).await
+        Chunk::find()
+            .filter(chunk::Column::PartId.eq(part_id))
+            .filter(chunk::Column::Id.eq(index))
+            .one(db)
+            .await
     }
 
-    pub async fn find_by_object(
+    pub async fn stream_by_part_id(
         db: impl ConnectionTrait + StreamTrait,
-        object_id: Uuid,
+        part_id: Uuid,
+        range: Option<RangeInclusive<u64>>,
     ) -> impl Stream<Item = DbRes<Bytes>> {
         try_stream! {
-            let chunks = Chunk::find()
-                .filter(chunk::Column::ObjectId.eq(object_id))
-                .order_by_asc(chunk::Column::Index)
-                .stream(&db)
-                .await?;
-            let mut stream = pin!(chunks);
-
-            while let Some(chunk) = stream.try_next().await? {
-                yield Bytes::copy_from_slice(&chunk.data);
+            let mut query = Chunk::find()
+                .filter(chunk::Column::PartId.eq(part_id));
+            if let Some(range) = &range {
+                query = query
+                    .filter(chunk::Column::Start.lte(*range.end() as i64))
+                    .filter(chunk::Column::End.gte(*range.start() as i64));
             }
-        }
-    }
-
-    pub async fn find_by_object_range(
-        db: impl ConnectionTrait + StreamTrait,
-        object_id: Uuid,
-        range: RangeInclusive<u64>,
-    ) -> impl Stream<Item = DbRes<Bytes>> {
-        try_stream! {
-            let chunks = Chunk::find()
-                .filter(chunk::Column::ObjectId.eq(object_id))
-                .filter(chunk::Column::Start.lte(*range.end()))
-                .filter(chunk::Column::End.gte(*range.start()))
+            let chunks = query
                 .order_by_asc(chunk::Column::Index)
                 .stream(&db)
                 .await?;
             let mut stream = pin!(chunks);
 
             while let Some(chunk) = stream.try_next().await? {
-                let start = (chunk.start.max(*range.start() as i64) - chunk.start) as usize;
-                let end = (chunk.end.min(*range.end() as i64) - chunk.start) as usize;
-                yield Bytes::copy_from_slice(&chunk.data[start..=end])
+                let data = if let Some(range) = &range {
+                    let start = chunk.start as u64;
+                    let end = chunk.end as u64;
+                    let offset = start;
+
+                    let start = (start.max(*range.start()) - offset) as usize;
+                    let end = (end.min(*range.end()) - offset) as usize;
+                    &chunk.data[start..=end]
+                } else {
+                    &chunk.data
+                };
+
+                yield Bytes::copy_from_slice(data)
             }
         }
     }
@@ -76,10 +68,9 @@ impl ChunkQuery {
 pub struct ChunkMutation;
 
 impl ChunkMutation {
-    pub async fn insert(
+    pub(super) async fn insert(
         db: &impl ConnectionTrait,
-        object_id: Option<Uuid>,
-        part_id: Option<Uuid>,
+        part_id: Uuid,
         index: u64,
         start: u64,
         end: u64,
@@ -87,7 +78,6 @@ impl ChunkMutation {
     ) -> DbRes<InsertResult<chunk::ActiveModel>> {
         let chunk = chunk::ActiveModel {
             id: Set(Uuid::new_v4()),
-            object_id: Set(object_id),
             part_id: Set(part_id),
             index: Set(index as i64),
             start: Set(start as i64),
@@ -99,17 +89,7 @@ impl ChunkMutation {
         Chunk::insert(chunk).exec(db).await
     }
 
-    pub async fn delete_all_by_object_id(
-        db: &impl ConnectionTrait,
-        object_id: Uuid,
-    ) -> DbRes<DeleteResult> {
-        Chunk::delete_many()
-            .filter(chunk::Column::ObjectId.eq(object_id))
-            .exec(db)
-            .await
-    }
-
-    pub async fn delete_all_by_part_id(
+    pub(super) async fn delete_by_part_id(
         db: &impl ConnectionTrait,
         part_id: Uuid,
     ) -> DbRes<DeleteResult> {
