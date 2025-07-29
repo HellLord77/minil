@@ -3,19 +3,15 @@ use sea_orm::entity::prelude::*;
 use super::prelude::*;
 
 #[derive(Debug, Clone, DeriveEntityModel)]
-#[sea_orm(table_name = "part")]
+#[sea_orm(table_name = "version")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
-    #[sea_orm(indexed, unique)]
-    pub upload_id: Option<Uuid>,
+    #[sea_orm(indexed)]
+    pub object_id: Uuid,
 
-    #[sea_orm(indexed, unique)]
-    pub version_id: Option<Uuid>,
-
-    #[sea_orm(indexed, unique)]
-    pub number: i16,
+    pub mime: String,
 
     pub size: i64,
 
@@ -42,44 +38,31 @@ pub struct Model {
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
 
-    pub updated_at: Option<DateTimeUtc>,
+    pub deleted_at: Option<DateTimeUtc>,
 }
 
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "Upload",
-        from = "Column::UploadId",
-        to = "super::upload::Column::Id"
+        belongs_to = "Object",
+        from = "Column::ObjectId",
+        to = "super::object::Column::Id"
     )]
-    Upload,
+    Object,
 
-    #[sea_orm(
-        belongs_to = "Version",
-        from = "Column::VersionId",
-        to = "super::version::Column::Id"
-    )]
-    Version,
-
-    #[sea_orm(has_many = "Chunk")]
-    Chunk,
+    #[sea_orm(has_many = "Part")]
+    Part,
 }
 
-impl Related<Upload> for Entity {
+impl Related<Object> for Entity {
     fn to() -> RelationDef {
-        Relation::Upload.def()
+        Relation::Object.def()
     }
 }
 
-impl Related<Version> for Entity {
+impl Related<Part> for Entity {
     fn to() -> RelationDef {
-        Relation::Version.def()
-    }
-}
-
-impl Related<Chunk> for Entity {
-    fn to() -> RelationDef {
-        Relation::Chunk.def()
+        Relation::Part.def()
     }
 }
 

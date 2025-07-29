@@ -8,33 +8,14 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
-    #[sea_orm(unique, indexed)]
+    #[sea_orm(indexed, unique)]
     pub bucket_id: Uuid,
 
-    #[sea_orm(unique, indexed)]
+    #[sea_orm(indexed, unique)]
     pub key: String,
 
-    pub mime: String,
-
-    pub size: i64,
-
-    #[sea_orm(column_type = "Binary(4)")]
-    pub crc32: Vec<u8>,
-
-    #[sea_orm(column_type = "Binary(4)")]
-    pub crc32c: Vec<u8>,
-
-    #[sea_orm(column_type = "Binary(8)")]
-    pub crc64nvme: Vec<u8>,
-
-    #[sea_orm(column_type = "Binary(20)")]
-    pub sha1: Vec<u8>,
-
-    #[sea_orm(column_type = "Binary(32)")]
-    pub sha256: Vec<u8>,
-
-    #[sea_orm(column_type = "Binary(16)")]
-    pub md5: Vec<u8>,
+    #[sea_orm(indexed, unique)]
+    pub version_id: Uuid,
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
@@ -50,11 +31,27 @@ pub enum Relation {
         to = "super::bucket::Column::Id"
     )]
     Bucket,
+
+    #[sea_orm(has_many = "Version")]
+    Version,
+
+    #[sea_orm(
+        has_one = "Version",
+        from = "Column::VersionId",
+        to = "super::version::Column::Id"
+    )]
+    LatestVersion,
 }
 
 impl Related<Bucket> for Entity {
     fn to() -> RelationDef {
         Relation::Bucket.def()
+    }
+}
+
+impl Related<Version> for Entity {
+    fn to() -> RelationDef {
+        Relation::Version.def()
     }
 }
 

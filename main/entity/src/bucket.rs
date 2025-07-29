@@ -8,16 +8,20 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
-    #[sea_orm(unique, indexed)]
+    #[sea_orm(indexed, unique)]
     pub owner_id: Uuid,
 
-    #[sea_orm(unique, indexed)]
+    #[sea_orm(indexed, unique)]
     pub name: String,
 
-    pub region: String,
+    pub mfa_delete: Option<bool>,
+
+    pub versioning: Option<bool>,
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
+
+    pub updated_at: Option<DateTimeUtc>,
 }
 
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
@@ -29,11 +33,11 @@ pub enum Relation {
     )]
     Owner,
 
-    #[sea_orm(has_many = "Object")]
-    Object,
-
     #[sea_orm(has_many = "Upload")]
     Upload,
+
+    #[sea_orm(has_many = "Object")]
+    Object,
 }
 
 impl Related<Owner> for Entity {
@@ -42,15 +46,15 @@ impl Related<Owner> for Entity {
     }
 }
 
-impl Related<Object> for Entity {
-    fn to() -> RelationDef {
-        Relation::Object.def()
-    }
-}
-
 impl Related<Upload> for Entity {
     fn to() -> RelationDef {
         Relation::Upload.def()
+    }
+}
+
+impl Related<Object> for Entity {
+    fn to() -> RelationDef {
+        Relation::Object.def()
     }
 }
 
