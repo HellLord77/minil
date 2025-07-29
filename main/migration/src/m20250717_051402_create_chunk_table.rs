@@ -12,7 +12,6 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Chunk::Table)
                     .col(pk_uuid(Chunk::Id))
-                    .col(uuid_null(Chunk::ObjectId))
                     .col(uuid_null(Chunk::PartId))
                     .col(big_unsigned(Chunk::Index))
                     .col(big_unsigned(Chunk::Start))
@@ -24,38 +23,11 @@ impl MigrationTrait for Migration {
                     )
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk_chunk_object")
-                            .from(Chunk::Table, Chunk::ObjectId)
-                            .to(Object::Table, Object::Id)
-                            .on_delete(ForeignKeyAction::Cascade),
-                    )
-                    .foreign_key(
-                        ForeignKey::create()
                             .name("fk_chunk_part")
                             .from(Chunk::Table, Chunk::PartId)
                             .to(Part::Table, Part::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
-                    .check(
-                        Expr::expr(
-                            Expr::col(Chunk::ObjectId)
-                                .is_not_null()
-                                .and(Expr::col(Chunk::PartId).is_null()),
-                        )
-                        .or(Expr::col(Chunk::ObjectId)
-                            .is_null()
-                            .and(Expr::col(Chunk::PartId).is_not_null())),
-                    )
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_index(
-                Index::create()
-                    .name("idx_chunk_object_id")
-                    .table(Chunk::Table)
-                    .col(Chunk::ObjectId)
                     .to_owned(),
             )
             .await?;
@@ -83,9 +55,8 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_chunk_object_id_part_id_index")
+                    .name("idx_chunk_part_id_index")
                     .table(Chunk::Table)
-                    .col(Chunk::ObjectId)
                     .col(Chunk::PartId)
                     .col(Chunk::Index)
                     .unique()
@@ -93,10 +64,10 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        manager // https://github.com/SeaQL/sea-query/pull/589
+        manager
             .get_connection()
             .execute_unprepared(include_str!(
-                "../sql/m20250717_051402_create_chunk_table/up.sql"
+                "../sql/m20250717_051402_create_chunk_table.sql"
             ))
             .await?;
 
@@ -104,10 +75,6 @@ impl MigrationTrait for Migration {
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_index(Index::drop().name("idx_chunk_object_id").to_owned())
-            .await?;
-
         manager
             .drop_index(Index::drop().name("idx_chunk_part_id").to_owned())
             .await?;
@@ -117,11 +84,7 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
-            .drop_index(
-                Index::drop()
-                    .name("idx_chunk_object_id_part_id_index")
-                    .to_owned(),
-            )
+            .drop_index(Index::drop().name("idx_chunk_part_id_index").to_owned())
             .await?;
 
         manager
@@ -130,12 +93,6 @@ impl MigrationTrait for Migration {
 
         Ok(())
     }
-}
-
-#[derive(DeriveIden)]
-enum Object {
-    Table,
-    Id,
 }
 
 #[derive(DeriveIden)]
@@ -148,7 +105,6 @@ enum Part {
 enum Chunk {
     Table,
     Id,
-    ObjectId,
     PartId,
     Index,
     Start,

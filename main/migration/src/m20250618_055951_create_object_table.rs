@@ -14,14 +14,7 @@ impl MigrationTrait for Migration {
                     .col(pk_uuid(Object::Id))
                     .col(uuid(Object::BucketId))
                     .col(string(Object::Key))
-                    .col(string(Object::Mime))
-                    .col(big_unsigned(Object::Size))
-                    .col(binary_len(Object::Crc32, 4))
-                    .col(binary_len(Object::Crc32c, 4))
-                    .col(binary_len(Object::Crc64nvme, 8))
-                    .col(binary_len(Object::Sha1, 20))
-                    .col(binary_len(Object::Sha256, 32))
-                    .col(binary_len(Object::Md5, 16))
+                    .col(uuid(Object::VersionId))
                     .col(
                         timestamp_with_time_zone(Object::CreatedAt)
                             .default(Expr::current_timestamp()),
@@ -70,6 +63,17 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_object_version_id")
+                    .table(Object::Table)
+                    .col(Object::VersionId)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
         Ok(())
     }
 
@@ -84,6 +88,10 @@ impl MigrationTrait for Migration {
 
         manager
             .drop_index(Index::drop().name("idx_object_bucket_id_key").to_owned())
+            .await?;
+
+        manager
+            .drop_index(Index::drop().name("idx_object_version_id").to_owned())
             .await?;
 
         manager
@@ -106,14 +114,7 @@ enum Object {
     Id,
     BucketId,
     Key,
-    Mime,
-    Size,
-    Crc32,
-    Crc32c,
-    Crc64nvme,
-    Sha1,
-    Sha256,
-    Md5,
+    VersionId,
     CreatedAt,
     UpdatedAt,
 }
