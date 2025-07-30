@@ -5,8 +5,8 @@ edition.workspace = true
 
 [features]
 default = []
-part-number-with-range = []
-full = ["part-number-with-range"]
+ranged-part = []
+full = ["ranged-part"]
 
 [dependencies]
 base64 = "0.22.1"

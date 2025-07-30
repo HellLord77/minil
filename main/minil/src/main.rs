@@ -999,7 +999,7 @@ async fn head_object(
     }
     let (size, e_tag, last_modified) = match input.query.part_number {
         Some(part_number) => {
-            #[cfg(not(feature = "part-number-with-range"))]
+            #[cfg(not(feature = "ranged-part"))]
             if input.header.range.is_some() {
                 Err(AppError::InternalError)?
             }

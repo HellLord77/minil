@@ -45,12 +45,11 @@ impl ObjectQuery {
         bucket_id: Uuid,
         key: &str,
     ) -> DbRes<Option<(object::Model, version::Model)>> {
-        let mut query = Object::find()
+        Ok(Object::find()
             .join(JoinType::InnerJoin, object::Relation::LatestVersion.def())
             .select_also(Version)
             .filter(object::Column::BucketId.eq(bucket_id))
-            .filter(object::Column::Key.eq(key));
-        Ok(query
+            .filter(object::Column::Key.eq(key))
             .one(db)
             .await?
             .map(|(object, version)| (object, version.unwrap_or_else(|| unreachable!()))))
