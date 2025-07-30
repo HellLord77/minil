@@ -27,7 +27,7 @@ pub struct Part {
 
     pub last_modified: Option<DateTime<Utc>>,
 
-    pub part_number: u16,
+    pub part_number: Option<u16>,
 
     pub size: Option<u64>,
 }

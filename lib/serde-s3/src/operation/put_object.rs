@@ -130,7 +130,7 @@ pub struct PutObjectInputHeader {
 #[derive(Debug, Builder, Serialize)]
 pub struct PutObjectOutputHeader {
     #[serde_rename_chain(convert_case = "pascal")]
-    pub e_tag: String,
+    pub e_tag: Option<String>,
 
     #[serde(rename = "x-amz-checksum-crc32")]
     pub checksum_crc32: Option<String>,
