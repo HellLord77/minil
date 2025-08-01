@@ -41,8 +41,6 @@ pub struct Model {
     #[sea_orm(column_type = "Binary(16)")]
     pub md5: Vec<u8>,
 
-    pub e_tag: String,
-
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
 

@@ -11,36 +11,38 @@ pub struct Model {
     #[sea_orm(indexed)]
     pub object_id: Uuid,
 
-    pub mime: String,
+    pub versioning: bool,
 
-    pub size: i64,
+    pub part_count: Option<i16>,
+
+    pub mime: Option<String>,
+
+    pub size: Option<i64>,
 
     #[sea_orm(column_type = "Binary(4)")]
-    pub crc32: Vec<u8>,
+    pub crc32: Option<Vec<u8>>,
 
     #[sea_orm(column_type = "Binary(4)")]
-    pub crc32c: Vec<u8>,
+    pub crc32c: Option<Vec<u8>>,
 
     #[sea_orm(column_type = "Binary(8)")]
-    pub crc64nvme: Vec<u8>,
+    pub crc64nvme: Option<Vec<u8>>,
 
     #[sea_orm(column_type = "Binary(20)")]
-    pub sha1: Vec<u8>,
+    pub sha1: Option<Vec<u8>>,
 
     #[sea_orm(column_type = "Binary(32)")]
-    pub sha256: Vec<u8>,
+    pub sha256: Option<Vec<u8>>,
 
     #[sea_orm(column_type = "Binary(16)")]
-    pub md5: Vec<u8>,
+    pub md5: Option<Vec<u8>>,
 
-    pub e_tag: String,
+    pub e_tag: Option<String>,
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
 
     pub updated_at: Option<DateTimeUtc>,
-
-    pub deleted_at: Option<DateTimeUtc>,
 }
 
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
