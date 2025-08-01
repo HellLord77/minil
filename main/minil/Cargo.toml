@@ -1,12 +1,13 @@
 [package]
 name = "minil"
-version = "0.2.0"
+version = "0.2.1"
 edition.workspace = true
 
 [features]
 default = []
+put-delete = []
 ranged-part = []
-full = ["ranged-part"]
+full = ["put-delete", "ranged-part"]
 
 [dependencies]
 base64 = "0.22.1"
@@ -23,6 +24,7 @@ cap.workspace = true
 derive_more.workspace = true
 digest.workspace = true
 futures.workspace = true
+hex.workspace = true
 http-content-range.workspace = true
 indexmap.workspace = true
 paste.workspace = true

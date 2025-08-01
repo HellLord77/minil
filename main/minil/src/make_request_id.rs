@@ -12,7 +12,7 @@ impl MakeRequestId for AppMakeRequestId {
             Uuid::new_v4()
                 .to_string()
                 .parse()
-                .unwrap_or_else(|_err| unreachable!()),
+                .unwrap_or_else(|_| unreachable!()),
         ))
     }
 }
