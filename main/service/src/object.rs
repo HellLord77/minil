@@ -18,11 +18,12 @@ use tokio_util::io::StreamReader;
 use uuid::Uuid;
 
 use crate::InsRes;
-use crate::PartMutation;
 use crate::VersionMutation;
+use crate::VersionQuery;
 use crate::error::DbRes;
 use crate::utils::ChunkDecoder;
 use crate::utils::DeleteManyExt;
+use crate::utils::UpdateManyExt;
 use crate::utils::get_mime;
 
 pub struct ObjectQuery;
@@ -40,7 +41,37 @@ impl ObjectQuery {
             .await
     }
 
-    pub async fn find_version(
+    pub async fn find_also_version(
+        db: &impl ConnectionTrait,
+        bucket_id: Uuid,
+        key: &str,
+        version_id: Uuid,
+    ) -> DbRes<Option<(object::Model, Option<version::Model>)>> {
+        Object::find()
+            .find_also_related(Version)
+            .filter(object::Column::BucketId.eq(bucket_id))
+            .filter(object::Column::Key.eq(key))
+            .filter(version::Column::Id.eq(version_id))
+            .one(db)
+            .await
+    }
+
+    pub async fn find_also_null_version(
+        db: &impl ConnectionTrait,
+        bucket_id: Uuid,
+        key: &str,
+    ) -> DbRes<Option<(object::Model, Option<version::Model>)>> {
+        Object::find()
+            .find_also_related(Version)
+            .filter(object::Column::BucketId.eq(bucket_id))
+            .filter(object::Column::Key.eq(key))
+            .filter(version::Column::Versioning.eq(false))
+            .order_by_desc(version::Column::CreatedAt)
+            .one(db)
+            .await
+    }
+
+    pub async fn find_also_latest_version(
         db: &impl ConnectionTrait,
         bucket_id: Uuid,
         key: &str,
@@ -52,10 +83,10 @@ impl ObjectQuery {
             .filter(object::Column::Key.eq(key))
             .one(db)
             .await?
-            .map(|(object, version)| (object, version.unwrap_or_else(|| unreachable!()))))
+            .map(|(object, version)| (object, version.unwrap())))
     }
 
-    pub async fn find_version_by_bucket_id(
+    pub async fn find_also_latest_version_by_bucket_id(
         db: &(impl ConnectionTrait + StreamTrait),
         bucket_id: Uuid,
         prefix: Option<&str>,
@@ -73,36 +104,96 @@ impl ObjectQuery {
             query = query.filter(object::Column::Key.gt(continuation_token));
         }
         Ok(query
-            .filter(version::Column::DeletedAt.is_null())
+            .filter(version::Column::PartCount.is_not_null())
             .order_by_asc(object::Column::Key)
             .limit(limit)
             .stream(db)
             .await?
-            .map(|res| {
-                res.map(|(object, version)| (object, version.unwrap_or_else(|| unreachable!())))
-            }))
+            .map(|res| res.map(|(object, version)| (object, version.unwrap()))))
     }
 }
 
 pub struct ObjectMutation;
 
 impl ObjectMutation {
-    pub async fn insert_version(
+    async fn insert_also_delete_marker(
+        db: &impl ConnectionTrait,
+        bucket_id: Uuid,
+        key: String,
+        versioning: bool,
+    ) -> DbRes<(object::Model, version::Model)> {
+        let version =
+            VersionMutation::upsert_delete_marker_also_part(db, None, Uuid::new_v4(), versioning)
+                .await?;
+
+        let object = object::ActiveModel {
+            id: Set(version.object_id),
+            bucket_id: Set(bucket_id),
+            key: Set(key),
+            version_id: Set(version.id),
+            ..Default::default()
+        };
+
+        let object = Object::insert(object).exec_with_returning(db).await?;
+
+        Ok((object, version))
+    }
+
+    async fn update_version_id(
+        db: &(impl ConnectionTrait + StreamTrait),
+        id: Uuid,
+        version_id: Uuid,
+    ) -> DbRes<Option<object::Model>> {
+        let object = object::ActiveModel {
+            version_id: Set(version_id),
+            ..Default::default()
+        };
+
+        Object::update_many()
+            .filter(object::Column::Id.eq(id))
+            .set(object)
+            .col_expr(object::Column::UpdatedAt, Expr::current_timestamp().into())
+            .exec_with_streaming(db)
+            .await?
+            .try_next()
+            .await
+    }
+
+    pub async fn update_also_delete_marker(
+        db: &(impl ConnectionTrait + StreamTrait),
+        bucket_id: Uuid,
+        key: &str,
+        versioning: bool,
+    ) -> DbRes<Option<(object::Model, version::Model)>> {
+        if let Some((object, version)) =
+            ObjectQuery::find_also_latest_version(db, bucket_id, key).await?
+        {
+            let version_id = (!versioning && !version.versioning).then_some(version.id);
+
+            let version = VersionMutation::upsert_delete_marker_also_part(
+                db, version_id, object.id, versioning,
+            )
+            .await?;
+            let object = ObjectMutation::update_version_id(db, object.id, version.id).await?;
+
+            return Ok(object.map(|object| (object, version)));
+        }
+
+        Ok(None)
+    }
+
+    pub async fn upsert_also_version(
         db: &(impl ConnectionTrait + StreamTrait),
         bucket_id: Uuid,
         key: String,
-        version_id: Option<Uuid>,
+        versioning: bool,
         mime: Option<Mime>,
         read: impl Unpin + AsyncRead,
     ) -> InsRes<(object::Model, version::Model)> {
-        let version_id = match version_id {
-            Some(version_id) => {
-                PartMutation::delete_by_version_id(db, version_id).await?;
-
-                version_id
-            }
-            None => Uuid::new_v4(),
-        };
+        let version_id = ObjectQuery::find_also_latest_version(db, bucket_id, &key)
+            .await?
+            .and_then(|(_, version)| (!versioning && !version.versioning).then_some(version.id))
+            .unwrap_or_else(Uuid::new_v4);
 
         let decode = ChunkDecoder::with_capacity(ByteSize::kib(4).as_u64() as usize);
         let read = FramedRead::new(read, decode);
@@ -124,11 +215,17 @@ impl ObjectMutation {
             }
         };
 
+        let read = StreamReader::new(stream);
+        let version = VersionMutation::upsert_version_also_part(
+            db, None, version_id, versioning, &mime, read,
+        )
+        .await?;
+
         let object = object::ActiveModel {
-            id: Set(Uuid::new_v4()),
+            id: Set(version.object_id),
             bucket_id: Set(bucket_id),
-            key: Set(key.clone()),
-            version_id: Set(version_id),
+            key: Set(key),
+            version_id: Set(version.id),
             ..Default::default()
         };
 
@@ -142,10 +239,19 @@ impl ObjectMutation {
             .exec_with_returning(db)
             .await?;
 
-        let read = StreamReader::new(stream);
-        let version = VersionMutation::insert(db, object.version_id, object.id, mime, read).await?;
-
         Ok((object, version))
+    }
+
+    pub async fn upsert_also_delete_marker(
+        db: &(impl ConnectionTrait + StreamTrait),
+        bucket_id: Uuid,
+        key: String,
+        versioning: bool,
+    ) -> DbRes<(object::Model, version::Model)> {
+        match ObjectMutation::update_also_delete_marker(db, bucket_id, &key, versioning).await? {
+            Some(object_version) => Ok(object_version),
+            None => ObjectMutation::insert_also_delete_marker(db, bucket_id, key, versioning).await,
+        }
     }
 
     pub async fn delete(
@@ -160,5 +266,41 @@ impl ObjectMutation {
             .await?
             .try_next()
             .await
+    }
+
+    pub async fn delete_also_version_nullable(
+        db: &(impl ConnectionTrait + StreamTrait),
+        bucket_id: Uuid,
+        key: &str,
+        version_id: Uuid,
+    ) -> DbRes<Option<(object::Model, Option<version::Model>)>> {
+        let mut object_version = if version_id.is_nil() {
+            ObjectQuery::find_also_null_version(db, bucket_id, key).await?
+        } else {
+            ObjectQuery::find_also_version(db, bucket_id, key, version_id).await?
+        };
+
+        if let Some((object, Some(version))) = object_version {
+            if object.version_id == version.id {
+                if let Some(version) =
+                    VersionQuery::find_by_object_id(db, object.id, Some(1), Some(1))
+                        .await?
+                        .try_next()
+                        .await?
+                {
+                    if ObjectMutation::update_version_id(db, object.id, version.id)
+                        .await?
+                        .is_none()
+                    {
+                        todo!()
+                    }
+                }
+            }
+
+            let version = VersionMutation::delete(db, version_id).await?;
+            object_version = Some((object, version));
+        }
+
+        Ok(object_version)
     }
 }

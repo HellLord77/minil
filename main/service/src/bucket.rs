@@ -85,16 +85,16 @@ impl BucketMutation {
         mfa_delete: Option<bool>,
         versioning: Option<bool>,
     ) -> DbRes<Option<bucket::Model>> {
-        let mut query = Bucket::update_many()
+        let bucket = bucket::ActiveModel {
+            mfa_delete: mfa_delete.map(Set).unwrap_or_default().into(),
+            versioning: versioning.map(Set).unwrap_or_default().into(),
+            ..Default::default()
+        };
+
+        Bucket::update_many()
             .filter(bucket::Column::OwnerId.eq(owner_id))
-            .filter(bucket::Column::Name.eq(name));
-        if let Some(mfa_delete) = mfa_delete {
-            query = query.col_expr(bucket::Column::MfaDelete, mfa_delete.into());
-        }
-        if let Some(versioning) = versioning {
-            query = query.col_expr(bucket::Column::Versioning, versioning.into());
-        }
-        query
+            .filter(bucket::Column::Name.eq(name))
+            .set(bucket)
             .col_expr(bucket::Column::UpdatedAt, Expr::current_timestamp().into())
             .exec_with_streaming(db)
             .await?

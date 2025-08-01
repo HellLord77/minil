@@ -43,46 +43,37 @@ impl PartQuery {
         query.filter(part::Column::Number.eq(number)).one(db).await
     }
 
-    #[deprecated]
-    pub async fn find_by_unique_id(
+    pub async fn find_by_version_id(
         db: &(impl ConnectionTrait + StreamTrait),
-        upload_id: Option<Uuid>,
-        version_id: Option<Uuid>,
-        number_marker: Option<u64>,
-        limit: Option<u64>,
+        version_id: Uuid,
+        range: &Option<std::ops::RangeInclusive<u64>>,
     ) -> DbRes<impl Stream<Item = DbRes<part::Model>>> {
-        let mut query = Part::find()
-            .filter(part::Column::UploadId.eq(upload_id))
-            .filter(part::Column::VersionId.eq(version_id));
-        if let Some(number_marker) = number_marker {
-            query = query.filter(part::Column::Number.gt(number_marker));
+        let mut query = Part::find().filter(part::Column::VersionId.eq(version_id));
+        if let Some(range) = range {
+            query = query
+                .filter(part::Column::Start.lte(*range.end()))
+                .filter(part::Column::End.gte(*range.start()));
         }
-        query
-            .order_by_asc(part::Column::Number)
-            .limit(limit)
-            .stream(db)
-            .await
+        query.order_by_asc(part::Column::Number).stream(db).await
     }
 }
 
 pub struct PartMutation;
 
 impl PartMutation {
-    pub async fn insert(
-        db: &(impl ConnectionTrait + StreamTrait),
+    pub async fn upsert_with_chunk(
+        db: &impl ConnectionTrait,
         upload_id: Option<Uuid>,
         version_id: Option<Uuid>,
         number: u16,
         start: Option<u64>,
         read: impl Unpin + AsyncRead,
     ) -> InsRes<part::Model> {
-        let id = match PartQuery::find(db, upload_id, version_id, number).await? {
-            Some(part) => {
-                ChunkMutation::delete_by_part_id(db, part.id).await?;
-                part.id
-            }
-            None => Uuid::new_v4(),
-        };
+        let id = PartQuery::find(db, upload_id, version_id, number)
+            .await?
+            .map(|part| part.id)
+            .unwrap_or_else(Uuid::new_v4);
+        ChunkMutation::delete_by_part_id(db, id).await?;
 
         let decode = ChunkDecoder::with_capacity(ByteSize::mib(4).as_u64() as usize);
         let read = FramedRead::new(read, decode)
@@ -125,7 +116,6 @@ impl PartMutation {
             ChunkMutation::insert(db, id, index, start, end, chunk.to_vec()).await?;
         }
 
-        let md5 = md5.finalize_fixed();
         let part = part::ActiveModel {
             id: Set(id),
             upload_id: Set(upload_id),
@@ -139,8 +129,7 @@ impl PartMutation {
             crc64nvme: Set(Box::new(crc64nvme).finalize().to_vec()),
             sha1: Set(sha1.finalize_fixed().to_vec()),
             sha256: Set(sha256.finalize_fixed().to_vec()),
-            md5: Set(md5.to_vec()),
-            e_tag: Set(format!("\"{}\"", hex::encode(md5))),
+            md5: Set(md5.finalize_fixed().to_vec()),
             ..Default::default()
         };
 
@@ -159,7 +148,6 @@ impl PartMutation {
                     part::Column::Sha1,
                     part::Column::Sha256,
                     part::Column::Md5,
-                    part::Column::ETag,
                 ])
                 .value(object::Column::UpdatedAt, Expr::current_timestamp())
                 .to_owned(),

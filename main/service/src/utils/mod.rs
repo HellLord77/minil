@@ -17,7 +17,7 @@ pub(super) fn get_mime(path: &str, bytes: &[u8]) -> Mime {
     let mime_sig = infer::get(bytes).map(|mime| {
         mime.mime_type()
             .parse::<Mime>()
-            .unwrap_or_else(|_err| unreachable!())
+            .unwrap_or_else(|_| unreachable!())
     });
 
     mime_sig.unwrap_or_else(|| mimes_ext.first_or_octet_stream())

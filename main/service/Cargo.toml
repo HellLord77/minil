@@ -1,11 +1,10 @@
 [package]
 name = "minil-service"
-version = "0.3.1"
+version = "0.4.0"
 edition.workspace = true
 
 [dependencies]
 async-stream = "0.3.6"
-hex = "0.4.3"
 infer = "0.19.0"
 
 bytes.workspace = true
