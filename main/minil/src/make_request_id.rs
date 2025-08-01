@@ -8,11 +8,6 @@ pub(crate) struct AppMakeRequestId;
 
 impl MakeRequestId for AppMakeRequestId {
     fn make_request_id<B>(&mut self, _request: &Request<B>) -> Option<RequestId> {
-        Some(RequestId::new(
-            Uuid::new_v4()
-                .to_string()
-                .parse()
-                .unwrap_or_else(|_| unreachable!()),
-        ))
+        Some(RequestId::new(Uuid::new_v4().to_string().parse().unwrap()))
     }
 }

@@ -5,7 +5,7 @@ mod make_request_id;
 mod service_builder_ext;
 mod state;
 
-use std::convert::identity;
+use std::convert;
 use std::env;
 use std::future;
 use std::io;
@@ -130,6 +130,7 @@ static ALLOCATOR: cap::Cap<std::alloc::System> = cap::Cap::new(
 );
 
 const NODE_NAME: &str = "minil";
+const NODE_REGION: &str = "us-east-1";
 const PROCESS_TIME: &str = "x-process-time";
 
 const NODE_ID_HEADER: HeaderName = HeaderName::from_static("x-amz-id-2");
@@ -508,7 +509,7 @@ async fn list_objects_v2(
             EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
         }
     } else {
-        identity
+        convert::identity
     };
 
     Ok(ListObjectsV2Output::builder()
@@ -530,11 +531,9 @@ async fn list_objects_v2(
                         .into_iter()
                         .map(|(object, version)| {
                             Object::builder()
-                                .e_tag(version.e_tag.unwrap_or_else(|| {
-                                    format!("\"{}\"", hex::encode(version.md5.unwrap()))
-                                }))
+                                .e_tag(version.e_tag())
                                 .key(encode(object.key))
-                                .last_modified(version.updated_at.unwrap_or(version.created_at))
+                                .last_modified(version.last_modified())
                                 .maybe_owner(input.query.fetch_owner.unwrap_or_default().then(
                                     || {
                                         Owner::builder()
@@ -612,7 +611,7 @@ async fn list_objects(
             EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
         }
     } else {
-        identity
+        convert::identity
     };
 
     Ok(ListObjectsOutput::builder()
@@ -634,11 +633,9 @@ async fn list_objects(
                         .into_iter()
                         .map(|(object, version)| {
                             Object::builder()
-                                .e_tag(version.e_tag.unwrap_or_else(|| {
-                                    format!("\"{}\"", hex::encode(version.md5.unwrap()))
-                                }))
+                                .e_tag(version.e_tag())
                                 .key(encode(object.key))
-                                .last_modified(version.updated_at.unwrap_or(version.created_at))
+                                .last_modified(version.last_modified())
                                 .owner(
                                     Owner::builder()
                                         .display_name(owner.name.clone())
@@ -720,13 +717,11 @@ async fn head_bucket(
     BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    let region = serde_plain::to_string(&BucketLocationConstraint::UsEast1)
-        .unwrap_or_else(|_| unreachable!());
 
     Ok(HeadBucketOutput::builder()
         .header(
             HeadBucketOutputHeader::builder()
-                .bucket_region(region)
+                .bucket_region(NODE_REGION.to_owned())
                 .build(),
         )
         .build())
@@ -762,7 +757,7 @@ async fn create_bucket(
         .build())
 }
 
-#[instrument(skip(db), ret)] // todo silently handle err
+#[instrument(skip(db), ret)] // todo silence err
 async fn delete_object(
     Extension(db): Extension<DbTxn>,
     input: DeleteObjectInput,
@@ -902,9 +897,12 @@ async fn get_object(
             })
             .header(
                 GetObjectOutputHeader::builder()
-                    .maybe_last_modified(input.query.version_id.map(|_| {
-                        SystemTime::from(version.updated_at.unwrap_or(version.created_at))
-                    }))
+                    .maybe_last_modified(
+                        input
+                            .query
+                            .version_id
+                            .map(|_| SystemTime::from(version.last_modified())),
+                    )
                     .delete_marker(true)
                     .build(),
             )
@@ -924,20 +922,15 @@ async fn get_object(
             (
                 Some(part.id),
                 part.size as u64,
-                format!("\"{}\"", hex::encode(part.md5)),
-                part.updated_at.unwrap_or(part.created_at),
+                part.e_tag(),
+                part.last_modified(),
             )
         }
         None => (
             None,
             version.size.unwrap() as u64,
-            version.e_tag.unwrap_or_else(|| {
-                format!(
-                    "\"{}\"",
-                    hex::encode(version.md5.unwrap_or_else(|| unreachable!()))
-                )
-            }),
-            version.updated_at.unwrap_or(version.created_at),
+            version.e_tag(),
+            version.last_modified(),
         ),
     };
     let range = input
@@ -946,7 +939,7 @@ async fn get_object(
         .map(|ranges| {
             ranges
                 .validate(size)
-                .map(|mut ranges| ranges.pop().unwrap_or_else(|| unreachable!()))
+                .map(|mut ranges| ranges.pop().unwrap())
                 .map_err(|_| AppError::InvalidRange)
         })
         .transpose()?;
@@ -1044,9 +1037,12 @@ async fn head_object(
             })
             .header(
                 HeadObjectOutputHeader::builder()
-                    .maybe_last_modified(input.query.version_id.map(|_version_id| {
-                        SystemTime::from(version.updated_at.unwrap_or(version.created_at))
-                    }))
+                    .maybe_last_modified(
+                        input
+                            .query
+                            .version_id
+                            .map(|_version_id| SystemTime::from(version.last_modified())),
+                    )
                     .delete_marker(true)
                     .build(),
             )
@@ -1062,21 +1058,12 @@ async fn head_object(
                 .await?
                 .ok_or(AppError::InvalidPart)?;
 
-            (
-                part.size as u64,
-                format!("\"{}\"", hex::encode(part.md5)),
-                part.updated_at.unwrap_or(part.created_at),
-            )
+            (part.size as u64, part.e_tag(), part.last_modified())
         }
         None => (
             version.size.unwrap() as u64,
-            version.e_tag.unwrap_or_else(|| {
-                format!(
-                    "\"{}\"",
-                    hex::encode(version.md5.unwrap_or_else(|| unreachable!()))
-                )
-            }),
-            version.updated_at.unwrap_or(version.created_at),
+            version.e_tag(),
+            version.last_modified(),
         ),
     };
     let range = input
@@ -1085,7 +1072,7 @@ async fn head_object(
         .map(|ranges| {
             ranges
                 .validate(size)
-                .map(|mut ranges| ranges.pop().unwrap_or_else(|| unreachable!()))
+                .map(|mut ranges| ranges.pop().unwrap())
                 .map_err(|_| AppError::InvalidRange)
         })
         .transpose()?;
@@ -1189,12 +1176,7 @@ async fn put_object(
     Ok(PutObjectOutput::builder()
         .header(
             PutObjectOutputHeader::builder()
-                .e_tag(version.e_tag.unwrap_or_else(|| {
-                    format!(
-                        "\"{}\"",
-                        hex::encode(version.md5.unwrap_or_else(|| unreachable!()))
-                    )
-                }))
+                .e_tag(version.e_tag())
                 .maybe_version_id((!versioning && !version.versioning).then_some(version.id))
                 .build(),
         )

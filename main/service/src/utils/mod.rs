@@ -14,11 +14,7 @@ pub(super) use update_many_ext::UpdateManyExt;
 
 pub(super) fn get_mime(path: &str, bytes: &[u8]) -> Mime {
     let mimes_ext = mime_guess::from_path(path);
-    let mime_sig = infer::get(bytes).map(|mime| {
-        mime.mime_type()
-            .parse::<Mime>()
-            .unwrap_or_else(|_| unreachable!())
-    });
+    let mime_sig = infer::get(bytes).map(|mime| mime.mime_type().parse::<Mime>().unwrap());
 
     mime_sig.unwrap_or_else(|| mimes_ext.first_or_octet_stream())
 }
