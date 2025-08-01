@@ -6,7 +6,7 @@ use mime::Mime;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
 use serde_with::serde_as;
-use serde_with_extra::DisplayFromUtf8;
+use serde_with_extra::DisplayFromBytes;
 use serdev::Deserialize;
 use uuid::Uuid;
 use validator::Validate;
@@ -50,11 +50,11 @@ pub struct PutObjectInputHeader {
     #[serde(rename = "Content-MD5")]
     pub content_md5: Option<String>,
 
-    #[serde_as(as = "Option<DisplayFromUtf8>")]
+    #[serde_as(as = "Option<DisplayFromBytes>")]
     #[serde_rename_chain(convert_case = "train")]
     pub content_type: Option<Mime>,
 
-    #[serde_as(as = "Option<DisplayFromUtf8>")]
+    #[serde_as(as = "Option<DisplayFromBytes>")]
     #[serde_rename_chain(convert_case = "train")]
     pub expires: Option<HttpDate>,
 
