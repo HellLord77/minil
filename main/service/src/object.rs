@@ -104,7 +104,7 @@ impl ObjectQuery {
             query = query.filter(object::Column::Key.gt(continuation_token));
         }
         Ok(query
-            .filter(version::Column::PartCount.is_not_null())
+            .filter(version::Column::PartsCount.is_not_null())
             .order_by_asc(object::Column::Key)
             .limit(limit)
             .stream(db)
@@ -165,21 +165,23 @@ impl ObjectMutation {
         key: &str,
         versioning: bool,
     ) -> DbRes<Option<(object::Model, version::Model)>> {
-        if let Some((object, version)) =
-            ObjectQuery::find_also_latest_version(db, bucket_id, key).await?
-        {
-            let version_id = (!versioning && !version.versioning).then_some(version.id);
+        Ok(
+            match ObjectQuery::find_also_latest_version(db, bucket_id, key).await? {
+                Some((object, version)) => {
+                    let version_id = (!versioning && !version.versioning).then_some(version.id);
 
-            let version = VersionMutation::upsert_delete_marker_also_part(
-                db, version_id, object.id, versioning,
-            )
-            .await?;
-            let object = ObjectMutation::update_version_id(db, object.id, version.id).await?;
+                    let version = VersionMutation::upsert_delete_marker_also_part(
+                        db, version_id, object.id, versioning,
+                    )
+                    .await?;
+                    let object =
+                        ObjectMutation::update_version_id(db, object.id, version.id).await?;
 
-            return Ok(object.map(|object| (object, version)));
-        }
-
-        Ok(None)
+                    object.map(|object| (object, version))
+                }
+                None => None,
+            },
+        )
     }
 
     pub async fn upsert_also_version(
@@ -190,10 +192,15 @@ impl ObjectMutation {
         mime: Option<Mime>,
         read: impl Unpin + AsyncRead,
     ) -> InsRes<(object::Model, version::Model)> {
-        let version_id = ObjectQuery::find_also_latest_version(db, bucket_id, &key)
-            .await?
-            .and_then(|(_, version)| (!versioning && !version.versioning).then_some(version.id))
-            .unwrap_or_else(Uuid::new_v4);
+        let (id, version_id) =
+            match ObjectQuery::find_also_latest_version(db, bucket_id, &key).await? {
+                Some((object, version)) => {
+                    let version_id = (!versioning && !version.versioning).then_some(version.id);
+
+                    (object.id, version_id)
+                }
+                None => (Uuid::new_v4(), None),
+            };
 
         let decode = ChunkDecoder::with_capacity(ByteSize::kib(4).as_u64() as usize);
         let read = FramedRead::new(read, decode);
@@ -216,13 +223,12 @@ impl ObjectMutation {
         };
 
         let read = StreamReader::new(stream);
-        let version = VersionMutation::upsert_version_also_part(
-            db, None, version_id, versioning, &mime, read,
-        )
-        .await?;
+        let version =
+            VersionMutation::upsert_version_also_part(db, version_id, id, versioning, &mime, read)
+                .await?;
 
         let object = object::ActiveModel {
-            id: Set(version.object_id),
+            id: Set(id),
             bucket_id: Set(bucket_id),
             key: Set(key),
             version_id: Set(version.id),
