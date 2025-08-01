@@ -45,6 +45,18 @@ pub struct Model {
     pub updated_at: Option<DateTimeUtc>,
 }
 
+impl Model {
+    pub fn e_tag(&self) -> String {
+        self.e_tag
+            .clone()
+            .unwrap_or_else(|| format!("\"{}\"", hex::encode(self.md5.as_ref().unwrap())))
+    }
+
+    pub fn last_modified(&self) -> DateTimeUtc {
+        self.updated_at.unwrap_or(self.created_at)
+    }
+}
+
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
