@@ -5,6 +5,7 @@ use serde::Deserializer;
 use serde::de::IntoDeserializer;
 use serde_with::DeserializeAs;
 
+#[deprecated]
 pub struct AsString<D>(PhantomData<D>);
 
 impl<'de, T, TD> DeserializeAs<'de, T> for AsString<TD>
