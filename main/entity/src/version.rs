@@ -13,7 +13,7 @@ pub struct Model {
 
     pub versioning: bool,
 
-    pub part_count: Option<i16>,
+    pub parts_count: Option<i16>,
 
     pub mime: Option<String>,
 
@@ -46,6 +46,23 @@ pub struct Model {
 }
 
 impl Model {
+    pub fn id(&self) -> Uuid {
+        if self.versioning {
+            self.id
+        } else {
+            Uuid::nil()
+        }
+    }
+
+    pub fn mp_parts_count(&self) -> Option<u16> {
+        let parts_count = self.parts_count.unwrap() as u16;
+        (parts_count != 0).then_some(parts_count)
+    }
+
+    pub fn size(&self) -> u64 {
+        self.size.unwrap() as u64
+    }
+
     pub fn e_tag(&self) -> String {
         self.e_tag
             .clone()

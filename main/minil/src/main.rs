@@ -542,7 +542,7 @@ async fn list_objects_v2(
                                             .build()
                                     },
                                 ))
-                                .size(version.size.unwrap() as u64)
+                                .size(version.size())
                                 .build()
                         })
                         .collect(),
@@ -642,7 +642,7 @@ async fn list_objects(
                                         .id(owner.id)
                                         .build(),
                                 )
-                                .size(version.size.unwrap() as u64)
+                                .size(version.size())
                                 .build()
                         })
                         .collect(),
@@ -653,11 +653,7 @@ async fn list_objects(
                 .marker(input.query.marker.map(encode).unwrap_or_default())
                 .max_keys(input.query.max_keys)
                 .name(bucket.name)
-                .maybe_next_marker(
-                    next_marker
-                        .filter(|_next_marker| delimiter_is_some)
-                        .map(encode),
-                )
+                .maybe_next_marker(next_marker.filter(|_| delimiter_is_some).map(encode))
                 .prefix(input.query.prefix.map(encode).unwrap_or_default())
                 .build(),
         )
@@ -787,7 +783,7 @@ async fn delete_object(
             .ok_or(AppError::NoSuchKey)?
             .1
             .ok_or(AppError::NoSuchVersion)?
-            .part_count
+            .parts_count
             .is_none();
 
             (delete_marker, None)
@@ -888,7 +884,7 @@ async fn get_object(
     .ok_or(AppError::NoSuchKey)?
     .1
     .ok_or(AppError::NoSuchVersion)?;
-    if version.part_count.is_none() {
+    if version.parts_count.is_none() {
         return Ok(GetObjectOutput::builder()
             .status(if input.query.version_id.is_some() {
                 StatusCode::METHOD_NOT_ALLOWED
@@ -928,7 +924,7 @@ async fn get_object(
         }
         None => (
             None,
-            version.size.unwrap() as u64,
+            version.size(),
             version.e_tag(),
             version.last_modified(),
         ),
@@ -943,7 +939,6 @@ async fn get_object(
                 .map_err(|_| AppError::InvalidRange)
         })
         .transpose()?;
-    let part_count = version.part_count.unwrap() as u16;
     let body = match part_id {
         Some(part_id) => ChunkQuery::find_only_data_by_part_id(db_conn, part_id, range.clone())
             .await
@@ -976,11 +971,8 @@ async fn get_object(
                 .e_tag(e_tag)
                 .maybe_expires(input.query.response_expires)
                 .last_modified(SystemTime::from(last_modified))
-                .maybe_mp_parts_count((part_count != 0).then_some(part_count))
-                .maybe_version_id(
-                    (!bucket.versioning.unwrap_or_default() && !version.versioning)
-                        .then_some(version.id),
-                )
+                .maybe_mp_parts_count(version.mp_parts_count())
+                .maybe_version_id(bucket.versioning.map(|_| version.id()))
                 .build(),
         )
         .body(Body::from_stream(body))
@@ -1028,7 +1020,7 @@ async fn head_object(
     .ok_or(AppError::NoSuchKey)?
     .1
     .ok_or(AppError::NoSuchVersion)?;
-    if version.part_count.is_none() {
+    if version.parts_count.is_none() {
         return Ok(HeadObjectOutput::builder()
             .status(if input.query.version_id.is_some() {
                 StatusCode::METHOD_NOT_ALLOWED
@@ -1041,7 +1033,7 @@ async fn head_object(
                         input
                             .query
                             .version_id
-                            .map(|_version_id| SystemTime::from(version.last_modified())),
+                            .map(|_| SystemTime::from(version.last_modified())),
                     )
                     .delete_marker(true)
                     .build(),
@@ -1060,11 +1052,7 @@ async fn head_object(
 
             (part.size as u64, part.e_tag(), part.last_modified())
         }
-        None => (
-            version.size.unwrap() as u64,
-            version.e_tag(),
-            version.last_modified(),
-        ),
+        None => (version.size(), version.e_tag(), version.last_modified()),
     };
     let range = input
         .header
@@ -1076,7 +1064,6 @@ async fn head_object(
                 .map_err(|_| AppError::InvalidRange)
         })
         .transpose()?;
-    let part_count = version.part_count.unwrap() as u16;
 
     Ok(HeadObjectOutput::builder()
         .header(
@@ -1101,11 +1088,8 @@ async fn head_object(
                 .e_tag(e_tag)
                 .maybe_expires(input.query.response_expires)
                 .last_modified(SystemTime::from(last_modified))
-                .maybe_mp_parts_count((part_count != 0).then_some(part_count))
-                .maybe_version_id(
-                    (!bucket.versioning.unwrap_or_default() && !version.versioning)
-                        .then_some(version.id),
-                )
+                .maybe_mp_parts_count(version.mp_parts_count())
+                .maybe_version_id(bucket.versioning.map(|_| version.id()))
                 .build(),
         )
         .build())
@@ -1157,12 +1141,11 @@ async fn put_object(
     let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    let versioning = bucket.versioning.unwrap_or_default();
     let (_, version) = ObjectMutation::upsert_also_version(
         db.as_ref(),
         bucket.id,
         input.path.key,
-        versioning,
+        bucket.versioning.unwrap_or_default(),
         input.header.content_type,
         StreamReader::new(
             input
@@ -1177,7 +1160,7 @@ async fn put_object(
         .header(
             PutObjectOutputHeader::builder()
                 .e_tag(version.e_tag())
-                .maybe_version_id((!versioning && !version.versioning).then_some(version.id))
+                .maybe_version_id(bucket.versioning.map(|_| version.id()))
                 .build(),
         )
         .build())

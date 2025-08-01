@@ -14,7 +14,7 @@ impl MigrationTrait for Migration {
                     .col(pk_uuid(Version::Id))
                     .col(uuid(Version::ObjectId))
                     .col(boolean(Version::Versioning))
-                    .col(small_integer_null(Version::PartCount))
+                    .col(small_integer_null(Version::PartsCount))
                     .col(string_null(Version::Mime))
                     .col(big_unsigned_null(Version::Size))
                     .col(binary_len_null(Version::Crc32, 4))
@@ -112,7 +112,7 @@ enum Version {
     Id,
     ObjectId,
     Versioning,
-    PartCount,
+    PartsCount,
     Mime,
     Size,
     Crc32,

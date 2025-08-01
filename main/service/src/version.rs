@@ -86,7 +86,7 @@ impl VersionMutation {
             id: Set(Uuid::new_v4()),
             object_id: Set(object_id),
             versioning: Set(versioning),
-            part_count: Set(None),
+            parts_count: Set(None),
             mime: Set(None),
             size: Set(None),
             crc32: Set(None),
@@ -115,7 +115,7 @@ impl VersionMutation {
         let version = version::ActiveModel {
             object_id: Set(object_id),
             versioning: Set(versioning),
-            part_count: Set(None),
+            parts_count: Set(None),
             mime: Set(None),
             size: Set(None),
             crc32: Set(None),
@@ -155,7 +155,7 @@ impl VersionMutation {
             id: Set(id),
             object_id: Set(object_id),
             versioning: Set(versioning),
-            part_count: Set(0.into()),
+            parts_count: Set(0.into()),
             mime: Set(mime.to_string().into()),
             size: Set(part.size.into()),
             crc32: Set(part.crc32.into()),
@@ -173,7 +173,7 @@ impl VersionMutation {
                     .target_and_where(version::Column::Versioning.eq(false))
                     .update_columns([
                         version::Column::Versioning,
-                        version::Column::PartCount,
+                        version::Column::PartsCount,
                         version::Column::Mime,
                         version::Column::Size,
                         version::Column::Crc32,
@@ -204,7 +204,7 @@ impl VersionMutation {
             id: Set(id),
             object_id: Set(object_id),
             versioning: Set(versioning),
-            part_count: Set(None),
+            parts_count: Set(None),
             mime: Set(None),
             size: Set(None),
             crc32: Set(None),
@@ -223,7 +223,7 @@ impl VersionMutation {
                     .target_and_where(version::Column::Versioning.eq(false))
                     .update_columns([
                         version::Column::Versioning,
-                        version::Column::PartCount,
+                        version::Column::PartsCount,
                         version::Column::Mime,
                         version::Column::Size,
                         version::Column::Crc32,
