@@ -7,9 +7,8 @@ use httpdate::HttpDate;
 use mime::Mime;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
-use serde_with::DisplayFromStr;
 use serde_with::serde_as;
-use serde_with_extra::AsString;
+use serde_with_extra::DisplayFromUtf8;
 use serde_with_extra::SerdeHttpRange;
 use serdev::Deserialize;
 use uuid::Uuid;
@@ -54,10 +53,10 @@ pub struct HeadObjectInputQuery {
 
     pub response_content_language: Option<String>,
 
-    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
+    #[serde_as(as = "Option<DisplayFromUtf8>")]
     pub response_content_type: Option<Mime>,
 
-    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
+    #[serde_as(as = "Option<DisplayFromUtf8>")]
     pub response_expires: Option<HttpDate>,
 
     #[serde_rename_chain(convert_case = "camel")]
@@ -71,14 +70,14 @@ pub struct HeadObjectInputHeader {
     #[serde_rename_chain(convert_case = "train")]
     pub if_match: Option<String>,
 
-    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
+    #[serde_as(as = "Option<DisplayFromUtf8>")]
     #[serde_rename_chain(convert_case = "train")]
     pub if_modified_since: Option<HttpDate>,
 
     #[serde_rename_chain(convert_case = "train")]
     pub if_none_match: Option<String>,
 
-    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
+    #[serde_as(as = "Option<DisplayFromUtf8>")]
     #[serde_rename_chain(convert_case = "train")]
     pub if_unmodified_since: Option<HttpDate>,
 
@@ -128,19 +127,19 @@ pub struct HeadObjectOutputHeader {
 
     #[builder(into)]
     #[serde_rename_chain(convert_case = "train")]
-    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde_as(as = "Option<DisplayFromUtf8>")]
     pub content_type: Option<Mime>,
 
     #[serde_rename_chain(convert_case = "pascal")]
     pub e_tag: Option<String>,
 
     #[builder(into)]
-    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde_as(as = "Option<DisplayFromUtf8>")]
     #[serde_rename_chain(convert_case = "train")]
     pub expires: Option<HttpDate>,
 
     #[builder(into)]
-    #[serde_as(as = "Option<DisplayFromStr>")]
+    #[serde_as(as = "Option<DisplayFromUtf8>")]
     #[serde_rename_chain(convert_case = "train")]
     pub last_modified: Option<HttpDate>,
 
