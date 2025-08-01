@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use serde::Deserializer;
 use serde::Serializer;
-use serde::de::Error as DeError;
+use serde::de;
 use serde::de::Visitor;
 use serde_with::DeserializeAs;
 use serde_with::SerializeAs;
@@ -34,6 +34,7 @@ where
         D: Deserializer<'de>,
     {
         struct Helper<S>(PhantomData<S>);
+
         impl<S> Visitor<'_> for Helper<S>
         where
             S: FromStr,
@@ -47,12 +48,12 @@ where
 
             fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
             where
-                E: DeError,
+                E: de::Error,
             {
                 str::from_utf8(v)
-                    .map_err(DeError::custom)?
+                    .map_err(de::Error::custom)?
                     .parse::<Self::Value>()
-                    .map_err(DeError::custom)
+                    .map_err(de::Error::custom)
             }
         }
 

@@ -1,12 +1,13 @@
 [package]
 name = "serde-with-extra"
-version = "0.2.1"
+version = "0.2.2"
 edition.workspace = true
 
 [features]
 default = []
 http-range = ["dep:http-content-range", "dep:http-range-header"]
-full = ["http-range"]
+uuid = ["dep:uuid"]
+full = ["http-range", "uuid"]
 
 [dependencies]
 serde.workspace = true
@@ -14,3 +15,5 @@ serde_with.workspace = true
 
 http-content-range = { workspace = true, optional = true }
 http-range-header = { workspace = true, optional = true }
+
+uuid = {workspace = true, optional = true}
