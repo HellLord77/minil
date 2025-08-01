@@ -24,7 +24,6 @@ impl MigrationTrait for Migration {
                     .col(binary_len(Part::Sha1, 20))
                     .col(binary_len(Part::Sha256, 32))
                     .col(binary_len(Part::Md5, 16))
-                    .col(string(Part::ETag))
                     .col(
                         timestamp_with_time_zone(Part::CreatedAt)
                             .default(Expr::current_timestamp()),
@@ -182,7 +181,6 @@ enum Part {
     Sha1,
     Sha256,
     Md5,
-    ETag,
     CreatedAt,
     UpdatedAt,
 }
