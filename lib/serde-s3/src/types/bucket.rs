@@ -8,6 +8,8 @@ use serde_with::skip_serializing_none;
 #[derive(Debug, Builder, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Bucket {
+    pub bucket_arn: Option<String>,
+
     pub bucket_region: Option<String>,
 
     pub creation_date: Option<DateTime<Utc>>,

@@ -1,11 +1,13 @@
 use bon::Builder;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
+use uuid::Uuid;
 
 use crate::types::CommonPrefix;
 use crate::types::DeleteMarkerEntry;
 use crate::types::EncodingType;
 use crate::types::ObjectVersion;
+use crate::utils::DeleteMarkerOrVersion;
 
 #[skip_serializing_none]
 #[derive(Debug, Builder, Serialize)]
@@ -17,7 +19,7 @@ pub struct ListVersionsResult {
 
     pub common_prefixes: Vec<CommonPrefix>,
 
-    pub delete_marker: Vec<DeleteMarkerEntry>, // todo merge
+    pub delete_marker: Vec<DeleteMarkerEntry>,
 
     pub delimiter: Option<String>,
 
@@ -33,11 +35,14 @@ pub struct ListVersionsResult {
 
     pub next_key_marker: Option<String>,
 
-    pub next_version_id_marker: Option<String>,
+    pub next_version_id_marker: Option<Uuid>,
 
     pub prefix: String,
 
-    pub version: Vec<ObjectVersion>, // todo merge
+    pub version: Vec<ObjectVersion>,
 
     pub version_id_marker: String,
+
+    #[serde(rename = "$value")]
+    pub _delete_marker_or_version: Vec<DeleteMarkerOrVersion>,
 }
