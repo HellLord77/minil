@@ -19,7 +19,7 @@ pub(super) fn expand(item: ItemStruct) -> syn::Result<TokenStream> {
                 Self::builder()
                     .body(
                         #body_ty::builder()
-                            .resource(common.path.to_string())
+                            .resource(common.path.path().to_owned())
                             .request_id(common.header.request_id)
                             .build(),
                     )
