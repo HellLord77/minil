@@ -48,10 +48,15 @@ impl ObjectQuery {
         version_id: Uuid,
     ) -> DbRes<Option<(object::Model, Option<version::Model>)>> {
         Object::find()
-            .find_also_related(Version)
+            .join(
+                JoinType::LeftJoin,
+                object::Relation::Version
+                    .def()
+                    .on_condition(move |_, _| version::Column::Id.eq(version_id).into_condition()),
+            )
+            .select_also(Version)
             .filter(object::Column::BucketId.eq(bucket_id))
             .filter(object::Column::Key.eq(key))
-            .filter(version::Column::Id.eq(version_id))
             .one(db)
             .await
     }
@@ -62,10 +67,15 @@ impl ObjectQuery {
         key: &str,
     ) -> DbRes<Option<(object::Model, Option<version::Model>)>> {
         Object::find()
-            .find_also_related(Version)
+            .join(
+                JoinType::LeftJoin,
+                object::Relation::Version
+                    .def()
+                    .on_condition(|_, _| version::Column::Versioning.eq(false).into_condition()),
+            )
+            .select_also(Version)
             .filter(object::Column::BucketId.eq(bucket_id))
             .filter(object::Column::Key.eq(key))
-            .filter(version::Column::Versioning.eq(false))
             .order_by_desc(version::Column::CreatedAt)
             .one(db)
             .await
@@ -289,10 +299,7 @@ impl ObjectMutation {
         if let Some((object, Some(version))) = object_version {
             if object.version_id == version.id {
                 if let Some(version) =
-                    VersionQuery::find_by_object_id(db, object.id, Some(1), Some(1))
-                        .await?
-                        .try_next()
-                        .await?
+                    VersionQuery::find_2nd_latest_by_object_id(db, object.id).await?
                 {
                     if ObjectMutation::update_version_id(db, object.id, version.id)
                         .await?

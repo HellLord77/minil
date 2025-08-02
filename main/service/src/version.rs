@@ -20,23 +20,15 @@ use crate::utils::UpdateManyExt;
 pub struct VersionQuery;
 
 impl VersionQuery {
-    #[deprecated]
-    pub async fn find(db: &impl ConnectionTrait, id: Uuid) -> DbRes<Option<version::Model>> {
-        Version::find_by_id(id).one(db).await
-    }
-
-    pub async fn find_by_object_id(
-        db: &(impl ConnectionTrait + StreamTrait),
+    pub async fn find_2nd_latest_by_object_id(
+        db: &impl ConnectionTrait,
         object_id: Uuid,
-        offset: Option<u64>,
-        limit: Option<u64>,
-    ) -> DbRes<impl Stream<Item = DbRes<version::Model>>> {
+    ) -> DbRes<Option<version::Model>> {
         Version::find()
             .filter(version::Column::ObjectId.eq(object_id))
             .order_by_desc(version::Column::CreatedAt)
-            .offset(offset)
-            .limit(limit)
-            .stream(db)
+            .offset(Some(1))
+            .one(db)
             .await
     }
 
