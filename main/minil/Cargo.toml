@@ -5,9 +5,10 @@ edition.workspace = true
 
 [features]
 default = []
+separate-version = []
 put-delete = []
 ranged-part = []
-full = ["put-delete", "ranged-part"]
+full = ["separate-version", "put-delete", "ranged-part"]
 
 [dependencies]
 base64 = "0.22.1"

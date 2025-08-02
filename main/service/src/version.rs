@@ -32,12 +32,12 @@ impl VersionQuery {
             .await
     }
 
-    #[deprecated]
-    pub async fn find_object_by_bucket_id(
+    pub async fn find_also_object_by_bucket_id(
         db: &(impl ConnectionTrait + StreamTrait),
         bucket_id: Uuid,
         prefix: Option<&str>,
-        continuation_token: Option<(&str, Option<&str>)>,
+        key_maker: Option<&str>,
+        version_id_marker: Option<&str>,
         limit: Option<u64>,
     ) -> DbRes<impl Stream<Item = DbRes<(version::Model, object::Model)>>> {
         let mut query = Version::find()
@@ -46,13 +46,11 @@ impl VersionQuery {
         if let Some(prefix) = prefix {
             query = query.filter(object::Column::Key.starts_with(prefix));
         }
-        if let Some((key_marker, id_marker)) = continuation_token {
-            query = match id_marker {
-                Some(id_marker) => query
-                    .filter(object::Column::Key.gte(key_marker))
-                    .filter(version::Column::Id.gt(id_marker)),
-                None => query.filter(object::Column::Key.gt(key_marker)),
-            };
+        if let Some(key_marker) = key_maker {
+            query = query.filter(object::Column::Key.gte(key_marker));
+        }
+        if let Some(version_id_marker) = version_id_marker {
+            query = query.filter(version::Column::Id.gte(version_id_marker));
         }
         Ok(query
             .order_by_asc(object::Column::Key)

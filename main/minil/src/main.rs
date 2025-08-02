@@ -44,6 +44,8 @@ use axum_s3::operation::HeadObjectInput;
 use axum_s3::operation::HeadObjectOutput;
 use axum_s3::operation::ListBucketsInput;
 use axum_s3::operation::ListBucketsOutput;
+use axum_s3::operation::ListObjectVersionsInput;
+use axum_s3::operation::ListObjectVersionsOutput;
 use axum_s3::operation::ListObjectsInput;
 use axum_s3::operation::ListObjectsOutput;
 use axum_s3::operation::ListObjectsV2Input;
@@ -54,6 +56,7 @@ use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::CommonExtInput;
 use digest::Digest;
+use ensure::fixme;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use http_content_range::ContentRangeBytes;
@@ -68,6 +71,7 @@ use minil_service::ObjectMutation;
 use minil_service::ObjectQuery;
 use minil_service::OwnerQuery;
 use minil_service::PartQuery;
+use minil_service::VersionQuery;
 use sea_orm::ConnectOptions;
 use sea_orm::Database;
 use sea_orm::DbConn;
@@ -80,6 +84,8 @@ use serde_s3::operation::GetObjectOutputHeader;
 use serde_s3::operation::HeadBucketOutputHeader;
 use serde_s3::operation::HeadObjectOutputHeader;
 use serde_s3::operation::ListBucketsOutputBody;
+use serde_s3::operation::ListObjectVersionsOutputBody;
+use serde_s3::operation::ListObjectVersionsOutputHeader;
 use serde_s3::operation::ListObjectsOutputBody;
 use serde_s3::operation::ListObjectsOutputHeader;
 use serde_s3::operation::ListObjectsV2OutputBody;
@@ -89,10 +95,13 @@ use serde_s3::types::Bucket;
 use serde_s3::types::BucketLocationConstraint;
 use serde_s3::types::BucketVersioningStatus;
 use serde_s3::types::CommonPrefix;
+use serde_s3::types::DeleteMarkerEntry;
 use serde_s3::types::EncodingType;
 use serde_s3::types::MfaDeleteStatus;
 use serde_s3::types::Object;
+use serde_s3::types::ObjectVersion;
 use serde_s3::types::Owner;
+use serde_s3::utils::DeleteMarkerOrVersion;
 use sha2::Sha256;
 use tokio::net::TcpListener;
 use tokio_util::io::StreamReader;
@@ -395,6 +404,7 @@ async fn delete_bucket(
 app_define_handler!(get_bucket_handler {
     GetBucketVersioningCheck => get_bucket_versioning,
     GetBucketLocationCheck => get_bucket_location,
+    ListObjectVersionsCheck => list_object_versions,
     ListObjectsV2Check => list_objects_v2,
     _ => list_objects,
 });
@@ -457,6 +467,145 @@ async fn get_bucket_location(
 }
 
 #[instrument(skip(db), ret)]
+async fn list_object_versions(
+    Extension(db): Extension<DbTxn>,
+    input: ListObjectVersionsInput,
+) -> AppResult<ListObjectVersionsOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    fixme!();
+    dbg!(&input);
+    app_ensure_matches!(input.header.optional_object_attributes, None);
+    app_ensure_matches!(input.header.request_payer, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let limit = input.query.max_keys + 1;
+    let mut versions_objects = VersionQuery::find_also_object_by_bucket_id(
+        db.as_ref(),
+        bucket.id,
+        input.query.prefix.as_deref(),
+        input.query.key_marker.as_deref(),
+        input.query.version_id_marker.as_deref(),
+        Some(limit as u64),
+    )
+    .await?
+    .try_collect::<Vec<_>>()
+    .await?;
+    let (next_key_marker, next_version_id_marker) = (versions_objects.len() == limit as usize)
+        .then(|| {
+            let (version, object) = versions_objects.pop().unwrap();
+            (object.key, version.id)
+        })
+        .unzip();
+    let mut common_prefixes = IndexSet::new();
+    if let Some(delimiter) = &input.query.delimiter {
+        let prefix_len = input
+            .query
+            .prefix
+            .as_deref()
+            .map(str::len)
+            .unwrap_or_default();
+        let offset = prefix_len + delimiter.len();
+        versions_objects.retain(|(_, object)| {
+            if let Some(delimiter_index) = &object.key[prefix_len..].find(delimiter) {
+                common_prefixes.insert(object.key[..offset + delimiter_index].to_owned());
+
+                false
+            } else {
+                true
+            }
+        });
+    }
+    let encode = if let Some(encoding_type) = &input.query.encoding_type {
+        match encoding_type {
+            EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
+        }
+    } else {
+        convert::identity
+    };
+    let mut delete_marker = vec![];
+    let mut version = vec![];
+    let mut delete_marker_or_version = versions_objects.into_iter().map(|(version, object)| {
+        let is_latest = object.version_id == version.id;
+        let key = encode(object.key);
+        let last_modified = version.last_modified();
+        let owner = Owner::builder()
+            .display_name(owner.name.clone())
+            .id(owner.id)
+            .build();
+        let version_id = version.id();
+
+        if version.parts_count.is_none() {
+            DeleteMarkerEntry::builder()
+                .is_latest(is_latest)
+                .key(key)
+                .last_modified(version.last_modified())
+                .owner(owner)
+                .version_id(version_id)
+                .build()
+                .into()
+        } else {
+            ObjectVersion::builder()
+                .e_tag(version.e_tag())
+                .is_latest(is_latest)
+                .key(key)
+                .last_modified(last_modified)
+                .owner(owner)
+                .size(version.size())
+                .version_id(version_id)
+                .build()
+                .into()
+        }
+    });
+    if cfg!(feature = "separate-version") {
+        for delete_marker_or_version in delete_marker_or_version.by_ref() {
+            match delete_marker_or_version {
+                DeleteMarkerOrVersion::DeleteMarker(delete_marker_entry) => {
+                    delete_marker.push(delete_marker_entry);
+                }
+                DeleteMarkerOrVersion::Version(object_version) => {
+                    version.push(object_version);
+                }
+            }
+        }
+    }
+
+    Ok(ListObjectVersionsOutput::builder()
+        .header(ListObjectVersionsOutputHeader::builder().build())
+        .body(
+            ListObjectVersionsOutputBody::builder()
+                .common_prefixes(
+                    common_prefixes
+                        .into_iter()
+                        .map(|common_prefix| {
+                            CommonPrefix::builder()
+                                .prefix(encode(common_prefix))
+                                .build()
+                        })
+                        .collect(),
+                )
+                .delete_marker(delete_marker)
+                .maybe_delimiter(input.query.delimiter.map(encode))
+                .maybe_encoding_type(input.query.encoding_type)
+                .is_truncated(next_version_id_marker.is_some())
+                .key_marker(input.query.key_marker.map(encode).unwrap_or_default())
+                .max_keys(input.query.max_keys)
+                .name(bucket.name)
+                .maybe_next_key_marker(next_key_marker.map(encode))
+                .maybe_next_version_id_marker(next_version_id_marker)
+                .prefix(input.query.prefix.map(encode).unwrap_or_default())
+                .version(version)
+                .version_id_marker(input.query.version_id_marker.unwrap_or_default())
+                .delete_marker_or_version(delete_marker_or_version.collect())
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
 async fn list_objects_v2(
     Extension(db): Extension<DbTxn>,
     input: ListObjectsV2Input,
@@ -491,7 +640,12 @@ async fn list_objects_v2(
     });
     let mut common_prefixes = IndexSet::new();
     if let Some(delimiter) = &input.query.delimiter {
-        let prefix_len = input.query.prefix.as_deref().map_or(0, str::len);
+        let prefix_len = input
+            .query
+            .prefix
+            .as_deref()
+            .map(str::len)
+            .unwrap_or_default();
         let offset = prefix_len + delimiter.len();
         objects_versions.retain(|(object, _)| {
             if let Some(delimiter_index) = &object.key[prefix_len..].find(delimiter) {
@@ -593,7 +747,12 @@ async fn list_objects(
     });
     let mut common_prefixes = IndexSet::new();
     if let Some(delimiter) = &input.query.delimiter {
-        let prefix_len = input.query.prefix.as_deref().map_or(0, str::len);
+        let prefix_len = input
+            .query
+            .prefix
+            .as_deref()
+            .map(str::len)
+            .unwrap_or_default();
         let offset = prefix_len + delimiter.len();
         objects_versions.retain(|(object, _)| {
             if let Some(delimiter_index) = &object.key[prefix_len..].find(delimiter) {
