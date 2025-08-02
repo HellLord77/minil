@@ -5,10 +5,10 @@ use httpdate::HttpDate;
 use mime::Mime;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
-use serde_with::DisplayFromStr;
 use serde_with::serde_as;
-use serde_with_extra::AsString;
+use serde_with_extra::DisplayFromBytes;
 use serdev::Deserialize;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::types::ChecksumAlgorithm;
@@ -50,11 +50,11 @@ pub struct PutObjectInputHeader {
     #[serde(rename = "Content-MD5")]
     pub content_md5: Option<String>,
 
-    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
+    #[serde_as(as = "Option<DisplayFromBytes>")]
     #[serde_rename_chain(convert_case = "train")]
     pub content_type: Option<Mime>,
 
-    #[serde_as(as = "Option<AsString<DisplayFromStr>>")]
+    #[serde_as(as = "Option<DisplayFromBytes>")]
     #[serde_rename_chain(convert_case = "train")]
     pub expires: Option<HttpDate>,
 
@@ -129,7 +129,7 @@ pub struct PutObjectInputHeader {
 #[derive(Debug, Builder, Serialize)]
 pub struct PutObjectOutputHeader {
     #[serde_rename_chain(convert_case = "pascal")]
-    pub e_tag: String,
+    pub e_tag: Option<String>,
 
     #[serde(rename = "x-amz-checksum-crc32")]
     pub checksum_crc32: Option<String>,
@@ -167,5 +167,5 @@ pub struct PutObjectOutputHeader {
     #[serde(rename = "x-amz-server-side-encryption-customer-key-MD5")]
     pub server_side_encryption_customer_key_md5: Option<String>,
 
-    pub version_id: Option<String>,
+    pub version_id: Option<Uuid>,
 }

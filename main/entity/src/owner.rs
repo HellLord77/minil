@@ -8,7 +8,7 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
-    #[sea_orm(unique, indexed)]
+    #[sea_orm(indexed, unique)]
     pub name: String,
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]

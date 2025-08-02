@@ -113,18 +113,18 @@ impl Renamer {
 
             #[cfg(feature = "strfmt")]
             Self::StrFmt(fmt) => {
-                strfmt(fmt, &Self::vars(s).into()).unwrap_or_else(|_err| s.to_owned())
+                strfmt(fmt, &Self::vars(s).into()).unwrap_or_else(|_| s.to_owned())
             }
 
             #[cfg(feature = "dynfmt_python")]
             Self::DynFmtPython(fmt) => PythonFormat
                 .format(fmt, Self::vars(s).map(|(_, v)| v))
-                .map_or_else(|_err| s.to_owned(), Cow::into_owned),
+                .map_or_else(|_| s.to_owned(), Cow::into_owned),
 
             #[cfg(feature = "dynfmt_curly")]
             Self::DynFmtCurly(fmt) => SimpleCurlyFormat
                 .format(fmt, Self::vars(s).map(|(_, v)| v))
-                .map_or_else(|_err| s.to_owned(), Cow::into_owned),
+                .map_or_else(|_| s.to_owned(), Cow::into_owned),
         }
     }
 
@@ -183,7 +183,7 @@ impl TryFrom<(String, String)> for Renamer {
 impl RenamerDiscriminants {
     #[inline]
     pub(crate) fn try_new(s: String) -> TryNewResult<Self> {
-        s.parse().map_err(|_err| TryNewError::from_renamer(s))
+        s.parse().map_err(|_| TryNewError::from_renamer(s))
     }
 }
 
@@ -192,6 +192,6 @@ pub(crate) trait TryNewValue: FromStr {
 
     #[inline]
     fn try_new(s: String) -> TryNewResult<Self> {
-        s.parse().map_err(|_err| TryNewError::new(s, Self::KIND))
+        s.parse().map_err(|_| TryNewError::new(s, Self::KIND))
     }
 }

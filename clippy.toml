@@ -1,0 +1,12 @@
+disallowed-methods = [
+    # { path = "sea_query::query::on_conflict::OnConflict::column", replacement = "sea_query::query::on_conflict::OnConflict::columns" },
+    # { path = "sea_query::query::on_conflict::OnConflict::update_column", replacement = "sea_query::query::on_conflict::OnConflict::update_columns" },
+    # { path = "sea_query::query::on_conflict::OnConflict::value", replacement = "sea_query::query::on_conflict::OnConflict::values" },
+]
+
+disallowed-types = [
+    { path = "std::sync::Mutex", replacement = "parking_lot::Mutex" },
+
+    { path = "futures::AsyncRead", replacement = "tokio::io::AsyncRead" },
+    { path = "futures::AsyncWrite", replacement = "tokio::io::AsyncWrite" },
+]

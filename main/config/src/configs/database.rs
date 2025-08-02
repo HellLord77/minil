@@ -44,12 +44,9 @@ impl DatabaseConfig {
         Ok(match &self.url {
             Some(url) => url.clone(),
             None => match self.driver {
-                DatabaseDriver::Sqlite if self.host == ":memory:" => {
-                    Url::parse("sqlite::memory:").unwrap_or_else(|_err| unreachable!())
-                }
+                DatabaseDriver::Sqlite if self.host == ":memory:" => Url::parse("sqlite::memory:")?,
                 _ => {
-                    let mut url =
-                        Url::parse("sqlite:///:memory:").unwrap_or_else(|_err| unreachable!());
+                    let mut url = Url::parse("sqlite:///:memory:")?;
 
                     url.set_scheme(&self.driver.to_string())
                         .map_err(|_| UrlParseError::Scheme)?;

@@ -4,10 +4,11 @@ use axum::Extension;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
-use axum_s3::utils::ErrorParts;
+use axum_s3::utils::CommonExtInput;
 use derive_more::Display;
 use derive_more::Error;
 use derive_more::From;
+use minil_service::InsErr;
 use sea_orm::DbErr;
 use strum::EnumDiscriminants;
 
@@ -21,6 +22,7 @@ pub(crate) type AppResult<T> = Result<T, AppError>;
 #[strum_discriminants(derive(Display))]
 pub(crate) enum AppError {
     AccessDenied,
+    #[allow(dead_code)]
     BadDigest,
     #[allow(dead_code)]
     BucketAlreadyExists,
@@ -29,12 +31,12 @@ pub(crate) enum AppError {
     ConditionalRequestConflict,
     #[allow(dead_code)]
     EncryptionTypeMismatch,
-    #[allow(dead_code)]
+    #[deprecated]
     InternalError,
+    #[allow(dead_code)]
     InvalidDigest,
     #[allow(dead_code)]
     InvalidObjectState,
-    #[allow(dead_code)]
     InvalidPart,
     #[allow(dead_code)]
     InvalidPartOrder,
@@ -43,10 +45,10 @@ pub(crate) enum AppError {
     InvalidWriteOffset,
     MethodNotAllowed,
     NoSuchBucket,
-    #[allow(dead_code)]
     NoSuchKey,
     #[allow(dead_code)]
     NoSuchUpload,
+    NoSuchVersion,
     NotImplemented,
     #[allow(dead_code)]
     PreconditionFailed,
@@ -56,6 +58,15 @@ pub(crate) enum AppError {
     AxumError(axum::Error),
     DatabaseError(DbErr),
     IoError(io::Error),
+}
+
+impl From<InsErr> for AppError {
+    fn from(err: InsErr) -> Self {
+        match err {
+            InsErr::IoError(err) => Self::IoError(err),
+            InsErr::DbError(err) => Self::DatabaseError(err),
+        }
+    }
 }
 
 impl IntoResponse for AppError {
@@ -72,8 +83,8 @@ impl IntoResponse for AppError {
 
 impl AppErrorDiscriminants {
     #[inline]
-    pub(crate) fn into_response(self, parts: ErrorParts) -> Response {
-        app_response_err!((self, parts) {
+    pub(crate) fn into_response(self, common: CommonExtInput) -> Response {
+        app_response_err!((self, common) {
             AccessDenied => AccessDeniedOutput,
             BadDigest => BadDigestOutput,
             BucketAlreadyExists => BucketAlreadyExistsOutput,
@@ -92,6 +103,7 @@ impl AppErrorDiscriminants {
             NoSuchKey => NoSuchKeyOutput,
             NoSuchUpload => NoSuchUploadOutput,
             NotImplemented => NotImplementedOutput,
+            NoSuchVersion => NoSuchVersionOutput,
             PreconditionFailed => PreconditionFailedOutput,
             TooManyParts => TooManyPartsOutput,
             _ => [AxumError, DatabaseError, IoError],

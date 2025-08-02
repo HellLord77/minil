@@ -1,11 +1,11 @@
 use axum::http::StatusCode;
 use axum_derive_macros::IntoResponse;
-use axum_s3_macros::ErrorFromParts;
+use axum_s3_macros::ErrorFromCommon;
 use axum_serde::Xml;
 use bon::Builder;
 use serde_s3::types::error::NoSuchBucket;
 
-#[derive(Debug, Builder, IntoResponse, ErrorFromParts)]
+#[derive(Debug, Builder, IntoResponse, ErrorFromCommon)]
 pub struct NoSuchBucketOutput {
     #[builder(default = StatusCode::NOT_FOUND)]
     pub status: StatusCode,

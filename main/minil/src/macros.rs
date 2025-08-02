@@ -17,6 +17,23 @@ macro_rules! app_output {
     };
 }
 
+#[allow(unused_macros)]
+macro_rules! app_validate_digest {
+    ($left:expr, $right:expr) => {
+        if let (::core::option::Option::Some(left), right) = ($left, $right) {
+            let left = ::base64::prelude::BASE64_STANDARD
+                .decode(left)
+                .map_err(|_| $crate::error::AppError::InvalidDigest)?;
+            if left.len() != right.len() {
+                ::core::result::Result::Err($crate::error::AppError::InvalidDigest)?
+            }
+            if left != right {
+                ::core::result::Result::Err($crate::error::AppError::BadDigest)?
+            }
+        }
+    };
+}
+
 macro_rules! app_define_handler {
     ($handler_fn:ident {
         $($ck_ty:ident => $handler:ident,)*
@@ -94,22 +111,6 @@ macro_rules! app_response_err {
     };
 }
 
-macro_rules! app_validate_digest {
-    ($left:expr, $right:expr) => {
-        if let (::core::option::Option::Some(left), right) = ($left, $right) {
-            let left = ::base64::prelude::BASE64_STANDARD
-                .decode(left)
-                .map_err(|_err| $crate::error::AppError::InvalidDigest)?;
-            if left.len() != right.len() {
-                ::core::result::Result::Err($crate::error::AppError::InvalidDigest)?
-            }
-            if left != right {
-                ::core::result::Result::Err($crate::error::AppError::BadDigest)?
-            }
-        }
-    };
-}
-
 macro_rules! app_validate_owner {
     ($left:expr, $right:expr) => {
         if let ::core::option::Option::Some(left) = $left {
@@ -127,5 +128,4 @@ pub(crate) use app_ensure_matches;
 pub(crate) use app_log_err;
 pub(crate) use app_output_err;
 pub(crate) use app_response_err;
-pub(crate) use app_validate_digest;
 pub(crate) use app_validate_owner;

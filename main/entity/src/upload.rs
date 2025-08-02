@@ -8,10 +8,10 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
-    #[sea_orm(unique, indexed)]
+    #[sea_orm(indexed, unique)]
     pub bucket_id: Uuid,
 
-    #[sea_orm(unique, indexed)]
+    #[sea_orm(indexed, unique)]
     pub key: String,
 
     pub mime: Option<String>,

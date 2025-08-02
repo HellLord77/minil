@@ -1,13 +1,18 @@
 [package]
 name = "minil"
-version = "0.1.6"
+version = "0.2.1"
 edition.workspace = true
+
+[features]
+default = []
+separate-version = []
+put-delete = []
+ranged-part = []
+full = ["separate-version", "put-delete", "ranged-part"]
 
 [dependencies]
 base64 = "0.22.1"
 dotenvy = "0.15.7"
-hex = "0.4.3"
-serde_plain = "1.0.2" # todo
 tower = { version = "0.5.2", features = ["full"] }
 tower-http = { version = "0.6.6", features = ["full"] }
 urlencoding = "2.1.3"
@@ -30,6 +35,7 @@ tokio-util.workspace = true
 tracing.workspace = true
 tracing-appender.workspace = true
 tracing-subscriber.workspace = true
+uuid.workspace = true
 
 axum-s3.workspace = true
 ensure.workspace = true

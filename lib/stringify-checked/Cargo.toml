@@ -4,4 +4,4 @@ version = "0.2.1"
 edition.workspace = true
 
 [dev-dependencies]
-trybuild = "1.0.106"
+trybuild = "1.0.110"

@@ -1,3 +1,5 @@
-mod error_parts;
+mod common;
+mod common_ext;
 
-pub use error_parts::ErrorParts;
+pub use common::CommonInput;
+pub use common_ext::CommonExtInput;

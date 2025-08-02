@@ -1,6 +1,6 @@
 [package]
 name = "minil-service"
-version = "0.2.4"
+version = "0.4.2"
 edition.workspace = true
 
 [dependencies]
@@ -10,6 +10,7 @@ infer = "0.19.0"
 bytes.workspace = true
 bytesize.workspace = true
 crc-fast.workspace = true
+derive_more.workspace = true
 digest.workspace = true
 futures.workspace = true
 md-5.workspace = true

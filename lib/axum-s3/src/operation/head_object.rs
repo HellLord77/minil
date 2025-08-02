@@ -1,5 +1,6 @@
 use axum::extract::FromRequest;
 use axum::extract::Path;
+use axum::http::StatusCode;
 use axum_derive_macros::IntoResponse;
 use axum_extra::extract::Query;
 use axum_header::Header;
@@ -23,6 +24,9 @@ pub struct HeadObjectInput {
 
 #[derive(Debug, Builder, IntoResponse)]
 pub struct HeadObjectOutput {
+    #[builder(default = StatusCode::OK)]
+    pub status: StatusCode,
+
     #[into_response(via(Header))]
     pub header: HeadObjectOutputHeader,
 }

@@ -14,11 +14,13 @@ impl MigrationTrait for Migration {
                     .col(pk_uuid(Bucket::Id))
                     .col(uuid(Bucket::OwnerId))
                     .col(string(Bucket::Name))
-                    .col(string(Bucket::Region))
+                    .col(boolean_null(Bucket::MfaDelete))
+                    .col(boolean_null(Bucket::Versioning))
                     .col(
                         timestamp_with_time_zone(Bucket::CreatedAt)
                             .default(Expr::current_timestamp()),
                     )
+                    .col(timestamp_with_time_zone_null(Bucket::UpdatedAt))
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_bucket_owner")
@@ -98,6 +100,8 @@ enum Bucket {
     Id,
     OwnerId,
     Name,
-    Region,
+    MfaDelete,
+    Versioning,
     CreatedAt,
+    UpdatedAt,
 }

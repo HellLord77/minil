@@ -8,11 +8,18 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
-    #[sea_orm(unique, indexed)]
-    pub upload_id: Uuid,
+    #[sea_orm(indexed, unique)]
+    pub upload_id: Option<Uuid>,
 
-    #[sea_orm(unique, indexed)]
+    #[sea_orm(indexed, unique)]
+    pub version_id: Option<Uuid>,
+
+    #[sea_orm(indexed, unique)]
     pub number: i16,
+
+    pub start: Option<i64>,
+
+    pub end: Option<i64>,
 
     pub size: i64,
 
@@ -40,6 +47,16 @@ pub struct Model {
     pub updated_at: Option<DateTimeUtc>,
 }
 
+impl Model {
+    pub fn e_tag(&self) -> String {
+        format!("\"{}\"", hex::encode(&self.md5))
+    }
+
+    pub fn last_modified(&self) -> DateTimeUtc {
+        self.updated_at.unwrap_or(self.created_at)
+    }
+}
+
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
@@ -48,11 +65,33 @@ pub enum Relation {
         to = "super::upload::Column::Id"
     )]
     Upload,
+
+    #[sea_orm(
+        belongs_to = "Version",
+        from = "Column::VersionId",
+        to = "super::version::Column::Id"
+    )]
+    Version,
+
+    #[sea_orm(has_many = "Chunk")]
+    Chunk,
 }
 
 impl Related<Upload> for Entity {
     fn to() -> RelationDef {
         Relation::Upload.def()
+    }
+}
+
+impl Related<Version> for Entity {
+    fn to() -> RelationDef {
+        Relation::Version.def()
+    }
+}
+
+impl Related<Chunk> for Entity {
+    fn to() -> RelationDef {
+        Relation::Chunk.def()
     }
 }
 

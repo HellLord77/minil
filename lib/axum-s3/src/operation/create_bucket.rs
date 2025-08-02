@@ -1,4 +1,5 @@
 use axum::extract::Path;
+use axum::http::StatusCode;
 use axum_body::OptionalEmpty;
 use axum_derive_macros::IntoResponse;
 use axum_derive_macros::from_request_optional;
@@ -26,6 +27,9 @@ pub struct CreateBucketInput {
 
 #[derive(Debug, Builder, IntoResponse)]
 pub struct CreateBucketOutput {
+    #[builder(default = StatusCode::OK)]
+    pub status: StatusCode,
+
     #[into_response(via(Header))]
     pub header: CreateBucketOutputHeader,
 }

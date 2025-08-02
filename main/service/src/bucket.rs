@@ -1,10 +1,15 @@
 use futures::Stream;
+use futures::TryStreamExt;
 use minil_entity::bucket;
 use minil_entity::prelude::*;
+use sea_orm::prelude::*;
 use sea_orm::*;
+use sea_query::*;
 use uuid::Uuid;
 
 use crate::error::DbRes;
+use crate::utils::DeleteManyExt;
+use crate::utils::UpdateManyExt;
 
 pub struct BucketQuery;
 
@@ -21,19 +26,19 @@ impl BucketQuery {
             .await
     }
 
-    pub async fn find_all_by_owner_id(
+    pub async fn find_by_owner_id(
         db: &(impl ConnectionTrait + StreamTrait),
         owner_id: Uuid,
-        name_starts_with: Option<&str>,
-        name_gt: Option<&str>,
+        prefix: Option<&str>,
+        continuation_token: Option<&str>,
         limit: Option<u64>,
     ) -> DbRes<impl Stream<Item = DbRes<bucket::Model>>> {
         let mut query = Bucket::find().filter(bucket::Column::OwnerId.eq(owner_id));
-        if let Some(name_starts_with) = name_starts_with {
-            query = query.filter(bucket::Column::Name.starts_with(name_starts_with));
+        if let Some(prefix) = prefix {
+            query = query.filter(bucket::Column::Name.starts_with(prefix));
         }
-        if let Some(name_gt) = name_gt {
-            query = query.filter(bucket::Column::Name.gt(name_gt));
+        if let Some(continuation_token) = continuation_token {
+            query = query.filter(bucket::Column::Name.gt(continuation_token));
         }
         query
             .order_by_asc(bucket::Column::Name)
@@ -46,14 +51,22 @@ impl BucketQuery {
 pub struct BucketMutation;
 
 impl BucketMutation {
-    async fn insert(
+    pub async fn insert(
         db: &impl ConnectionTrait,
-        bucket: bucket::ActiveModel,
+        owner_id: Uuid,
+        name: String,
     ) -> DbRes<Option<bucket::Model>> {
+        let bucket = bucket::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            owner_id: Set(owner_id),
+            name: Set(name),
+            ..Default::default()
+        };
+
         Bucket::insert(bucket)
             .on_conflict(
-                sea_query::OnConflict::columns([bucket::Column::OwnerId, bucket::Column::Name])
-                    .do_nothing()
+                OnConflict::columns([bucket::Column::OwnerId, bucket::Column::Name])
+                    .value(bucket::Column::UpdatedAt, Expr::current_timestamp())
                     .to_owned(),
             )
             .exec_with_returning(db)
@@ -65,32 +78,41 @@ impl BucketMutation {
             })
     }
 
-    pub async fn create(
-        db: &impl ConnectionTrait,
+    pub async fn update_versioning(
+        db: &(impl ConnectionTrait + StreamTrait),
         owner_id: Uuid,
         name: &str,
-        region: &str,
+        mfa_delete: Option<bool>,
+        versioning: Option<bool>,
     ) -> DbRes<Option<bucket::Model>> {
         let bucket = bucket::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            owner_id: Set(owner_id),
-            name: Set(name.to_owned()),
-            region: Set(region.to_owned()),
+            mfa_delete: mfa_delete.map(Set).unwrap_or_default().into(),
+            versioning: versioning.map(Set).unwrap_or_default().into(),
             ..Default::default()
         };
 
-        BucketMutation::insert(db, bucket).await
+        Bucket::update_many()
+            .filter(bucket::Column::OwnerId.eq(owner_id))
+            .filter(bucket::Column::Name.eq(name))
+            .set(bucket)
+            .col_expr(bucket::Column::UpdatedAt, Expr::current_timestamp().into())
+            .exec_with_streaming(db)
+            .await?
+            .try_next()
+            .await
     }
 
     pub async fn delete(
-        db: &impl ConnectionTrait,
+        db: &(impl ConnectionTrait + StreamTrait),
         owner_id: Uuid,
         name: &str,
-    ) -> DbRes<DeleteResult> {
+    ) -> DbRes<Option<bucket::Model>> {
         Bucket::delete_many()
             .filter(bucket::Column::OwnerId.eq(owner_id))
             .filter(bucket::Column::Name.eq(name))
-            .exec(db)
+            .exec_with_streaming(db)
+            .await?
+            .try_next()
             .await
     }
 }

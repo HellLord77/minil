@@ -1,7 +1,8 @@
 [package]
 name = "minil-entity"
-version = "0.2.2"
+version = "0.3.3"
 edition.workspace = true
 
 [dependencies]
+hex.workspace = true
 sea-orm.workspace = true

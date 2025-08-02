@@ -12,9 +12,11 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Part::Table)
                     .col(pk_uuid(Part::Id))
-                    .col(uuid(Part::UploadId))
+                    .col(uuid_null(Part::UploadId))
+                    .col(uuid_null(Part::VersionId))
                     .col(small_unsigned(Part::Number))
-                    .col(string(Part::Mime))
+                    .col(big_unsigned(Part::Start))
+                    .col(big_unsigned(Part::End))
                     .col(big_unsigned(Part::Size))
                     .col(binary_len(Part::Crc32, 4))
                     .col(binary_len(Part::Crc32c, 4))
@@ -28,11 +30,42 @@ impl MigrationTrait for Migration {
                     )
                     .col(timestamp_with_time_zone_null(Part::UpdatedAt))
                     .foreign_key(
-                        ForeignKey::create()
+                        ForeignKey::create() // todo
                             .name("fk_part_upload")
                             .from(Part::Table, Part::UploadId)
                             .to(Upload::Table, Upload::Id)
                             .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_part_version")
+                            .from(Part::Table, Part::VersionId)
+                            .to(Version::Table, Version::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .check(
+                        Expr::expr(
+                            Expr::col(Part::UploadId)
+                                .is_not_null()
+                                .and(Expr::col(Part::VersionId).is_null()),
+                        )
+                        .or(Expr::col(Part::UploadId)
+                            .is_null()
+                            .and(Expr::col(Part::VersionId).is_not_null())),
+                    )
+                    .check(
+                        Expr::expr(
+                            Expr::col(Part::UploadId).is_not_null().and(
+                                Expr::col(Part::Start)
+                                    .is_null()
+                                    .and(Expr::col(Part::End).is_null()),
+                            ),
+                        )
+                        .or(Expr::col(Part::VersionId).is_not_null().and(
+                            Expr::col(Part::Start)
+                                .is_not_null()
+                                .and(Expr::col(Part::End).is_not_null()),
+                        )),
                     )
                     .to_owned(),
             )
@@ -51,6 +84,16 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
+                    .name("idx_part_version_id")
+                    .table(Part::Table)
+                    .col(Part::VersionId)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
                     .name("idx_part_number")
                     .table(Part::Table)
                     .col(Part::Number)
@@ -61,13 +104,21 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_part_upload_id_number")
+                    .name("idx_part_upload_id_version_id_number")
                     .table(Part::Table)
                     .col(Part::UploadId)
+                    .col(Part::VersionId)
                     .col(Part::Number)
                     .unique()
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .get_connection()
+            .execute_unprepared(include_str!(
+                "../sql/m20250714_045800_create_part_table.sql"
+            ))
             .await?;
 
         Ok(())
@@ -79,11 +130,19 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
+            .drop_index(Index::drop().name("idx_part_version_id").to_owned())
+            .await?;
+
+        manager
             .drop_index(Index::drop().name("idx_part_number").to_owned())
             .await?;
 
         manager
-            .drop_index(Index::drop().name("idx_part_upload_id_number").to_owned())
+            .drop_index(
+                Index::drop()
+                    .name("idx_part_upload_id_version_id_number")
+                    .to_owned(),
+            )
             .await?;
 
         manager
@@ -101,12 +160,20 @@ enum Upload {
 }
 
 #[derive(DeriveIden)]
+enum Version {
+    Table,
+    Id,
+}
+
+#[derive(DeriveIden)]
 enum Part {
     Table,
     Id,
     UploadId,
+    VersionId,
     Number,
-    Mime,
+    Start,
+    End,
     Size,
     Crc32,
     Crc32c,

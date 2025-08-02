@@ -14,13 +14,13 @@ pub(super) fn expand(item: ItemStruct) -> syn::Result<TokenStream> {
 
     Ok(quote! {
         #[automatically_derived]
-        impl ::std::convert::From<crate::utils::ErrorParts> for #ident {
-            fn from(parts: crate::utils::ErrorParts) -> Self {
+        impl ::std::convert::From<crate::utils::CommonExtInput> for #ident {
+            fn from(common: crate::utils::CommonExtInput) -> Self {
                 Self::builder()
                     .body(
                         #body_ty::builder()
-                            .resource(parts.resource)
-                            .maybe_request_id(parts.request_id)
+                            .resource(common.path.path().to_owned())
+                            .request_id(common.header.request_id)
                             .build(),
                     )
                     .build()

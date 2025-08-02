@@ -1,17 +1,6 @@
 use futures::Stream;
-use minil_entity::object;
-use sea_orm::ColumnTrait;
-use sea_orm::ConnectionTrait;
-use sea_orm::DbErr;
-use sea_orm::DeleteMany;
-use sea_orm::EntityTrait;
-use sea_orm::Iterable;
-use sea_orm::QueryTrait;
-use sea_orm::SelectModel;
-use sea_orm::SelectorRaw;
-use sea_orm::StreamTrait;
-use sea_orm::sea_query::DeleteStatement;
-use sea_orm::sea_query::Query;
+use sea_orm::*;
+use sea_query::*;
 
 pub(crate) trait DeleteManyExt<E>
 where
@@ -20,8 +9,9 @@ where
     fn exec_with_streaming<C>(
         self,
         db: &C,
-    ) -> impl Future<Output = Result<impl Stream<Item = Result<object::Model, DbErr>>, DbErr>> + '_
+    ) -> impl Future<Output = Result<impl Stream<Item = Result<E::Model, DbErr>>, DbErr>> + '_
     where
+        E: EntityTrait,
         C: ConnectionTrait + StreamTrait;
 }
 
@@ -32,8 +22,9 @@ where
     fn exec_with_streaming<C>(
         self,
         db: &C,
-    ) -> impl Future<Output = Result<impl Stream<Item = Result<object::Model, DbErr>>, DbErr>> + '_
+    ) -> impl Future<Output = Result<impl Stream<Item = Result<E::Model, DbErr>>, DbErr>> + '_
     where
+        E: EntityTrait,
         C: ConnectionTrait + StreamTrait,
     {
         exec_delete_with_streaming::<E, _>(self.into_query(), db)
@@ -43,7 +34,7 @@ where
 async fn exec_delete_with_streaming<E, C>(
     mut query: DeleteStatement,
     db: &C,
-) -> Result<impl Stream<Item = Result<object::Model, DbErr>>, DbErr>
+) -> Result<impl Stream<Item = Result<E::Model, DbErr>>, DbErr>
 where
     E: EntityTrait,
     C: ConnectionTrait + StreamTrait,

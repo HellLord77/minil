@@ -1,0 +1,5 @@
+ALTER TABLE version
+    DROP CONSTRAINT fk_version_object;
+
+ALTER TABLE version
+    ADD CONSTRAINT fk_version_object FOREIGN KEY (object_id) REFERENCES object(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;

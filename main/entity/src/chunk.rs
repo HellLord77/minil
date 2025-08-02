@@ -8,13 +8,10 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
-    #[sea_orm(unique, indexed)]
-    pub object_id: Option<Uuid>,
+    #[sea_orm(indexed, unique)]
+    pub part_id: Uuid,
 
-    #[sea_orm(unique, indexed)]
-    pub part_id: Option<Uuid>,
-
-    #[sea_orm(unique, indexed)]
+    #[sea_orm(indexed, unique)]
     pub index: i64,
 
     pub start: i64,
@@ -30,24 +27,11 @@ pub struct Model {
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "Object",
-        from = "Column::ObjectId",
-        to = "super::object::Column::Id"
-    )]
-    Object,
-
-    #[sea_orm(
         belongs_to = "Part",
         from = "Column::PartId",
         to = "super::part::Column::Id"
     )]
     Part,
-}
-
-impl Related<Object> for Entity {
-    fn to() -> RelationDef {
-        Relation::Object.def()
-    }
 }
 
 impl Related<Part> for Entity {
