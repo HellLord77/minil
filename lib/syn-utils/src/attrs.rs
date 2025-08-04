@@ -62,9 +62,9 @@ pub fn remove_derive_attribute(attrs: &mut Vec<Attribute>, name: &str) {
 
                     if filtered.is_empty() {
                         return false;
-                    } else {
-                        *attr = parse_quote!(#[derive(#(#filtered),*)]);
                     }
+
+                    *attr = parse_quote!(#[derive(#(#filtered),*)]);
                 }
             }
         }

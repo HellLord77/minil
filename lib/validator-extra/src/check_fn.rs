@@ -29,10 +29,10 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
 
     match fields {
         Fields::Named(fields) => {
-            for field in fields.named.iter_mut() {
+            for field in &mut fields.named {
                 let attrs = mem::take(&mut field.attrs);
 
-                for attr in attrs.into_iter() {
+                for attr in attrs {
                     if !attr.path().is_ident("validate_check_fn") {
                         field.attrs.push(attr);
                         continue;

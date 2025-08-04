@@ -20,7 +20,7 @@ pub(super) fn expand(item: Item, parts: bool) -> syn::Result<TokenStream> {
     match item {
         Item::Struct(item) => {
             let ItemStruct { ident, fields, .. } = item;
-            let extract_fields = extract_fields(&fields, &parts)?;
+            let extract_fields = extract_fields(&fields, parts)?;
 
             Ok(if parts {
                 quote! {
@@ -52,23 +52,22 @@ pub(super) fn expand(item: Item, parts: bool) -> syn::Result<TokenStream> {
     }
 }
 
-fn extract_fields(fields: &Fields, parts: &bool) -> syn::Result<Vec<TokenStream>> {
+fn extract_fields(fields: &Fields, parts: bool) -> syn::Result<Vec<TokenStream>> {
     fn member(field: &Field, index: usize) -> TokenStream {
-        match &field.ident {
-            Some(ident) => quote! { #ident },
-            None => {
-                let member = Member::Unnamed(Index {
-                    index: index as u32,
-                    span: field.span(),
-                });
-                quote! { #member }
-            }
+        if let Some(ident) = &field.ident {
+            quote! { #ident }
+        } else {
+            let member = Member::Unnamed(Index {
+                index: index as u32,
+                span: field.span(),
+            });
+            quote! { #member }
         }
     }
 
     fn into_inner(
-        via: &Option<(kw::via, Path)>,
-        member: TokenStream,
+        via: Option<&(kw::via, Path)>,
+        member: &TokenStream,
         ty_span: Span,
     ) -> TokenStream {
         if let Some((_, path)) = via {
@@ -93,9 +92,9 @@ fn extract_fields(fields: &Fields, parts: &bool) -> syn::Result<Vec<TokenStream>
 
             let member = member(field, index);
             let ty_span = field.ty.span();
-            let into_inner = into_inner(&via, member, ty_span);
+            let into_inner = into_inner(via.as_ref(), &member, ty_span);
 
-            let tokens = if *parts {
+            let tokens = if parts {
                 quote_spanned! {ty_span=>
                     let res = ::axum::response::IntoResponseParts::into_response_parts(#into_inner, res)
                         .map_err(::axum::response::IntoResponse::into_response)?;
@@ -114,9 +113,9 @@ fn extract_fields(fields: &Fields, parts: &bool) -> syn::Result<Vec<TokenStream>
 
         let member = member(field, fields.len() - 1);
         let ty_span = field.ty.span();
-        let into_inner = into_inner(&via, member, ty_span);
+        let into_inner = into_inner(via.as_ref(), &member, ty_span);
 
-        let tokens = if *parts {
+        let tokens = if parts {
             quote_spanned! {ty_span=>
                 ::axum::response::IntoResponseParts::into_response_parts(#into_inner, res)
                     .map_err(::axum::response::IntoResponse::into_response)
@@ -127,7 +126,7 @@ fn extract_fields(fields: &Fields, parts: &bool) -> syn::Result<Vec<TokenStream>
             }
         };
         extract_fields.push(tokens);
-    };
+    }
 
     Ok(extract_fields)
 }

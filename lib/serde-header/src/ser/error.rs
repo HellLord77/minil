@@ -30,18 +30,22 @@ impl Error {
         Err(format!("{unexp} is not supported value"))?
     }
 
+    #[must_use]
     pub fn map_no_name() -> Self {
         "map name has not yet been serialized".to_owned().into()
     }
 
+    #[must_use]
     pub fn map_no_value() -> Self {
         "map value has not yet been serialized".to_owned().into()
     }
 
+    #[must_use]
     pub fn header_done() -> Self {
         "header has already been serialized".to_owned().into()
     }
 
+    #[must_use]
     pub fn header_not_done() -> Self {
         "header has not yet been serialized".to_owned().into()
     }

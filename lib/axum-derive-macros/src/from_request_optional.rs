@@ -116,21 +116,20 @@ pub(super) fn expand(item: Item, parts: bool) -> syn::Result<TokenStream> {
 
 fn extract_fields(fields: &mut Fields) -> syn::Result<Vec<TokenStream>> {
     fn member(field: &Field, index: usize) -> TokenStream {
-        match &field.ident {
-            Some(ident) => quote! { #ident },
-            None => {
-                let member = Member::Unnamed(Index {
-                    index: index as u32,
-                    span: field.span(),
-                });
-                quote! { #member }
-            }
+        if let Some(ident) = &field.ident {
+            quote! { #ident }
+        } else {
+            let member = Member::Unnamed(Index {
+                index: index as u32,
+                span: field.span(),
+            });
+            quote! { #member }
         }
     }
 
     fn into_inner(
-        optional_via: &Option<(kw::via, Path)>,
-        via: &Option<(kw::via, Path)>,
+        optional_via: Option<&(kw::via, Path)>,
+        via: Option<&(kw::via, Path)>,
         ty_span: Span,
     ) -> TokenStream {
         if let Some((_, optional_path)) = optional_via {
@@ -151,8 +150,8 @@ fn extract_fields(fields: &mut Fields) -> syn::Result<Vec<TokenStream>> {
     }
 
     fn into_outer(
-        optional_via: &Option<(kw::via, Path)>,
-        via: &Option<(kw::via, Path)>,
+        optional_via: Option<&(kw::via, Path)>,
+        via: Option<&(kw::via, Path)>,
         ty_span: Span,
         field_ty: &Type,
     ) -> TokenStream {
@@ -191,7 +190,7 @@ fn extract_fields(fields: &mut Fields) -> syn::Result<Vec<TokenStream>> {
 
                 let inner_ty = peel_option(ty)
                     .ok_or_else(|| syn::Error::new(ty_span, "expected `Option<T>`"))?;
-                let field_ty = into_outer(&optional_via, &via, ty_span, inner_ty);
+                let field_ty = into_outer(optional_via.as_ref(), via.as_ref(), ty_span, inner_ty);
                 *ty = parse2(field_ty)?;
 
                 via
@@ -200,7 +199,7 @@ fn extract_fields(fields: &mut Fields) -> syn::Result<Vec<TokenStream>> {
             };
 
             let member = member(field, index);
-            let into_inner = into_inner(&optional_via, &via, ty_span);
+            let into_inner = into_inner(optional_via.as_ref(), via.as_ref(), ty_span);
 
             Ok(quote_spanned! {ty_span=>
                 #member: value.#member #into_inner,

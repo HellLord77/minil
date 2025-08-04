@@ -29,7 +29,7 @@ pub(super) fn expand(mut item: ItemStruct) -> syn::Result<TokenStream> {
 
     match fields {
         Fields::Named(fields) => {
-            for field in fields.named.iter_mut() {
+            for field in &mut fields.named {
                 let field_ident = field.ident.as_ref().unwrap_or_else(|| unreachable!());
                 let field_ty = peel_option(&field.ty).unwrap_or(&field.ty);
                 let attrs = mem::take(&mut field.attrs);

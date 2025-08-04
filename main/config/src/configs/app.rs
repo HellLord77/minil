@@ -26,6 +26,7 @@ impl AppConfig {
             .try_deserialize()
     }
 
+    #[must_use]
     pub fn new() -> Self {
         Self::try_new().unwrap_or_default()
     }
