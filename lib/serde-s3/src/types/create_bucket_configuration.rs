@@ -5,6 +5,7 @@ use validator_extra::validate_extra;
 use crate::types::BucketInfo;
 use crate::types::BucketLocationConstraint;
 use crate::types::LocationInfo;
+use crate::utils::Tags;
 
 #[validate_extra]
 #[derive(Debug, Validate, Deserialize)]
@@ -20,4 +21,6 @@ pub struct CreateBucketConfiguration {
     pub location: Option<LocationInfo>,
 
     pub location_constraint: Option<BucketLocationConstraint>,
+
+    pub tags: Option<Tags>,
 }
