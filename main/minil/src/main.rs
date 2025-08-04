@@ -925,12 +925,12 @@ async fn put_bucket_tagging(
         .ok_or(AppError::NoSuchBucket)?;
     let tag_count = input.body.tag_set.tag.len();
     if tag_count > 50 {
-        Err(AppError::InvalidTag)?
+        Err(AppError::InvalidTag)?;
     }
     let mut keys = IndexSet::new();
     keys.extend(input.body.tag_set.tag.iter().map(|tag| tag.key.clone()));
     if tag_count != keys.len() {
-        Err(AppError::InvalidTag)?
+        Err(AppError::InvalidTag)?;
     }
     TagSetMutation::upsert_with_tag(
         db.as_ref(),
@@ -1000,11 +1000,43 @@ async fn create_bucket(
     app_ensure_eq!(input.header.grant_write, None);
     app_ensure_eq!(input.header.grant_write_acp, None);
     app_ensure_matches!(input.header.object_ownership, None);
-    app_ensure_matches!(input.body, None);
+    app_ensure_matches!(
+        input.body.as_ref().and_then(|body| body.bucket.as_ref()),
+        None
+    );
+    app_ensure_matches!(
+        input.body.as_ref().and_then(|body| body.location.as_ref()),
+        None
+    );
+    app_ensure_matches!(
+        input
+            .body
+            .as_ref()
+            .and_then(|body| body.location_constraint.as_ref()),
+        None
+    );
 
     let bucket = BucketMutation::insert(db.as_ref(), owner.id, input.path.bucket)
         .await?
         .ok_or(AppError::BucketAlreadyOwnedByYou)?;
+    if let Some(tags) = input.body.and_then(|body| body.tags) {
+        let tag_count = tags.tag.len();
+        if tag_count > 50 {
+            Err(AppError::InvalidTag)?;
+        }
+        let mut keys = IndexSet::new();
+        keys.extend(tags.tag.iter().map(|tag| tag.key.clone()));
+        if tag_count != keys.len() {
+            Err(AppError::InvalidTag)?;
+        }
+        TagSetMutation::upsert_with_tag(
+            db.as_ref(),
+            Some(bucket.id),
+            None,
+            tags.tag.into_iter().map(|tag| (tag.key, tag.value)),
+        )
+        .await?;
+    }
 
     Ok(CreateBucketOutput::builder()
         .header(

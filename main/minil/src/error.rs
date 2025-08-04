@@ -31,6 +31,8 @@ pub(crate) enum AppError {
     ConditionalRequestConflict,
     #[allow(dead_code)]
     EncryptionTypeMismatch,
+    #[allow(dead_code)]
+    IncompleteBody,
     #[deprecated]
     InternalError,
     #[allow(dead_code)]
@@ -98,6 +100,7 @@ impl AppErrorDiscriminants {
             BucketAlreadyOwnedByYou => BucketAlreadyOwnedByYouOutput,
             ConditionalRequestConflict => ConditionalRequestConflictOutput,
             EncryptionTypeMismatch => EncryptionTypeMismatchOutput,
+            IncompleteBody => IncompleteBodyOutput,
             InternalError => InternalErrorOutput,
             InvalidDigest => InvalidDigestOutput,
             InvalidObjectState => InvalidObjectStateOutput,
