@@ -1,10 +1,10 @@
 use axum::extract::FromRequestParts;
 use axum_derive_macros::OptionalFromRequestParts;
 use axum_extra::extract::Query;
-use serde_s3::operation::check::ListObjectVersionsCheckQuery;
+use serde_s3::check::VersionsCheckQuery;
 
 #[derive(Debug, FromRequestParts, OptionalFromRequestParts)]
-pub struct ListObjectVersionsCheck {
+pub struct VersionsCheck {
     #[from_request(via(Query))]
-    pub query: ListObjectVersionsCheckQuery,
+    pub query: VersionsCheckQuery,
 }
