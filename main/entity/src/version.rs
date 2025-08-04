@@ -90,6 +90,9 @@ pub enum Relation {
 
     #[sea_orm(has_many = "Part")]
     Part,
+
+    #[sea_orm(has_one = "TagSet")]
+    TagSet,
 }
 
 impl Related<Object> for Entity {
@@ -101,6 +104,12 @@ impl Related<Object> for Entity {
 impl Related<Part> for Entity {
     fn to() -> RelationDef {
         Relation::Part.def()
+    }
+}
+
+impl Related<TagSet> for Entity {
+    fn to() -> RelationDef {
+        Relation::TagSet.def()
     }
 }
 
