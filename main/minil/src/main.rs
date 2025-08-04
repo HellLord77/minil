@@ -50,12 +50,15 @@ use axum_s3::operation::ListObjectsInput;
 use axum_s3::operation::ListObjectsOutput;
 use axum_s3::operation::ListObjectsV2Input;
 use axum_s3::operation::ListObjectsV2Output;
+use axum_s3::operation::PutBucketTaggingInput;
+use axum_s3::operation::PutBucketTaggingOutput;
 use axum_s3::operation::PutBucketVersioningInput;
 use axum_s3::operation::PutBucketVersioningOutput;
 use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::CommonExtInput;
 use digest::Digest;
+use ensure::fixme;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use http_content_range::ContentRangeBytes;
@@ -70,6 +73,7 @@ use minil_service::ObjectMutation;
 use minil_service::ObjectQuery;
 use minil_service::OwnerQuery;
 use minil_service::PartQuery;
+use minil_service::TagSetMutation;
 use minil_service::VersionQuery;
 use sea_orm::ConnectOptions;
 use sea_orm::Database;
@@ -180,14 +184,15 @@ async fn main() {
 
         delete("/{Bucket}") => delete_bucket,
         get("/{Bucket}") => {
-            query("versioning", "") => get_bucket_versioning,
-            query("location", "") => get_bucket_location,
-            query("versions", "") => list_object_versions,
             query("list-type", "2") => list_objects_v2,
+            query("location", "") => get_bucket_location,
+            query("versioning", "") => get_bucket_versioning,
+            query("versions", "") => list_object_versions,
             _ => list_objects,
         },
         head("/{Bucket}") => head_bucket,
         put("/{Bucket}") => {
+            query("tagging", "") => put_bucket_tagging,
             query("versioning", "") => put_bucket_versioning,
             _ => create_bucket,
         },
@@ -197,20 +202,8 @@ async fn main() {
         head("/{Bucket}/{*Key}") => head_object,
         put("/{Bucket}/{*Key}") => put_object,
 
-        // "/{Bucket}" => get(_get_bucket_handler),
-        // "/foo" | "/bar" => get(_get_bucket_handler),
-        // "/{Bucket}" => get {
-        //     scheme("https") => https_handler,
-        //     host("abcd") => host_handler,
-        //     port("80") => port_80_handler,
-        //     query("versioning", "") => get_bucket_versioning,
-        //     query("versioning") => contains_versioning,
-        //     header("foo", "bar") => foo_bar,
-        //     header("foo", r"bar?") => foo_ba_or_bar,
-        //     header("foo") => contains_foo,
+        // fixme "/" => get {
         //     header(r"foo?") => contains_fo_or_foo,
-        //     cookie("foo") => contains_foo,
-        //     cookie("foo", "bar") => foo_bar,
         //     scheme("http") & host("localhost") => debug_handler,
         //     scheme("http") ^ !host("localhost") => panic_handler,
         //     custom_handler => response_is_ok,
@@ -243,7 +236,7 @@ fn init_config() -> AppConfig {
                 info!("loaded env from {}", path.display());
             }
             Err(err) => {
-                debug!(%err, "DotEnvyError")
+                debug!(%err, "DotEnvyError");
             }
         },
     }
@@ -429,6 +422,138 @@ async fn delete_bucket(
 }
 
 #[instrument(skip(db), ret)]
+async fn list_objects_v2(
+    Extension(db): Extension<DbTxn>,
+    input: ListObjectsV2Input,
+) -> AppResult<ListObjectsV2Output> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_ensure_matches!(input.header.optional_object_attributes, None);
+    app_ensure_matches!(input.header.request_payer, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let limit = input.query.max_keys + 1;
+    let mut objects_versions = ObjectQuery::find_also_latest_version_by_bucket_id(
+        db.as_ref(),
+        bucket.id,
+        input.query.prefix.as_deref(),
+        input
+            .query
+            .continuation_token
+            .as_deref()
+            .or(input.query.start_after.as_deref()),
+        Some(limit as u64),
+    )
+    .await?
+    .try_collect::<Vec<_>>()
+    .await?;
+    let next_continuation_token = (objects_versions.len() == limit as usize).then(|| {
+        objects_versions.pop();
+        objects_versions.last().unwrap().0.key.clone()
+    });
+    let mut common_prefixes = IndexSet::new();
+    if let Some(delimiter) = &input.query.delimiter {
+        let prefix_len = input
+            .query
+            .prefix
+            .as_deref()
+            .map(str::len)
+            .unwrap_or_default();
+        let offset = prefix_len + delimiter.len();
+        objects_versions.retain(|(object, _)| {
+            if let Some(delimiter_index) = &object.key[prefix_len..].find(delimiter) {
+                common_prefixes.insert(object.key[..offset + delimiter_index].to_owned());
+
+                false
+            } else {
+                true
+            }
+        });
+    }
+    let key_count = objects_versions.len() + common_prefixes.len();
+    let encode = if let Some(encoding_type) = &input.query.encoding_type {
+        match encoding_type {
+            EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
+        }
+    } else {
+        convert::identity
+    };
+
+    Ok(ListObjectsV2Output::builder()
+        .header(ListObjectsV2OutputHeader::builder().build())
+        .body(
+            ListObjectsV2OutputBody::builder()
+                .common_prefixes(
+                    common_prefixes
+                        .into_iter()
+                        .map(|common_prefix| {
+                            CommonPrefix::builder()
+                                .prefix(encode(common_prefix))
+                                .build()
+                        })
+                        .collect(),
+                )
+                .contents(
+                    objects_versions
+                        .into_iter()
+                        .map(|(object, version)| {
+                            Object::builder()
+                                .e_tag(version.e_tag())
+                                .key(encode(object.key))
+                                .last_modified(version.last_modified())
+                                .maybe_owner(input.query.fetch_owner.unwrap_or_default().then(
+                                    || {
+                                        Owner::builder()
+                                            .display_name(owner.name.clone())
+                                            .id(owner.id)
+                                            .build()
+                                    },
+                                ))
+                                .size(version.size())
+                                .build()
+                        })
+                        .collect(),
+                )
+                .maybe_continuation_token(input.query.continuation_token)
+                .maybe_delimiter(input.query.delimiter.map(encode))
+                .maybe_encoding_type(input.query.encoding_type)
+                .is_truncated(next_continuation_token.is_some())
+                .key_count(key_count as u16)
+                .max_keys(input.query.max_keys)
+                .name(bucket.name)
+                .maybe_next_continuation_token(next_continuation_token)
+                .prefix(input.query.prefix.map(encode).unwrap_or_default())
+                .maybe_start_after(input.query.start_after.map(encode))
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn get_bucket_location(
+    Extension(db): Extension<DbTxn>,
+    input: GetBucketLocationInput,
+) -> AppResult<GetBucketLocationOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+
+    Ok(GetBucketLocationOutput::builder()
+        .body(
+            GetBucketLocationOutputBody::builder()
+                .content(BucketLocationConstraint::UsEast1)
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
 async fn get_bucket_versioning(
     Extension(db): Extension<DbTxn>,
     input: GetBucketVersioningInput,
@@ -459,27 +584,6 @@ async fn get_bucket_versioning(
             GetBucketVersioningOutputBody::builder()
                 .maybe_mfa_delete(mfa_delete)
                 .maybe_status(status)
-                .build(),
-        )
-        .build())
-}
-
-#[instrument(skip(db), ret)]
-async fn get_bucket_location(
-    Extension(db): Extension<DbTxn>,
-    input: GetBucketLocationInput,
-) -> AppResult<GetBucketLocationOutput> {
-    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
-
-    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
-        .await?
-        .ok_or(AppError::NoSuchBucket)?;
-
-    Ok(GetBucketLocationOutput::builder()
-        .body(
-            GetBucketLocationOutputBody::builder()
-                .content(BucketLocationConstraint::UsEast1)
                 .build(),
         )
         .build())
@@ -623,117 +727,6 @@ async fn list_object_versions(
 }
 
 #[instrument(skip(db), ret)]
-async fn list_objects_v2(
-    Extension(db): Extension<DbTxn>,
-    input: ListObjectsV2Input,
-) -> AppResult<ListObjectsV2Output> {
-    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
-
-    app_ensure_matches!(input.header.optional_object_attributes, None);
-    app_ensure_matches!(input.header.request_payer, None);
-
-    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
-        .await?
-        .ok_or(AppError::NoSuchBucket)?;
-    let limit = input.query.max_keys + 1;
-    let mut objects_versions = ObjectQuery::find_also_latest_version_by_bucket_id(
-        db.as_ref(),
-        bucket.id,
-        input.query.prefix.as_deref(),
-        input
-            .query
-            .continuation_token
-            .as_deref()
-            .or(input.query.start_after.as_deref()),
-        Some(limit as u64),
-    )
-    .await?
-    .try_collect::<Vec<_>>()
-    .await?;
-    let next_continuation_token = (objects_versions.len() == limit as usize).then(|| {
-        objects_versions.pop();
-        objects_versions.last().unwrap().0.key.clone()
-    });
-    let mut common_prefixes = IndexSet::new();
-    if let Some(delimiter) = &input.query.delimiter {
-        let prefix_len = input
-            .query
-            .prefix
-            .as_deref()
-            .map(str::len)
-            .unwrap_or_default();
-        let offset = prefix_len + delimiter.len();
-        objects_versions.retain(|(object, _)| {
-            if let Some(delimiter_index) = &object.key[prefix_len..].find(delimiter) {
-                common_prefixes.insert(object.key[..offset + delimiter_index].to_owned());
-
-                false
-            } else {
-                true
-            }
-        });
-    }
-    let key_count = objects_versions.len() + common_prefixes.len();
-    let encode = if let Some(encoding_type) = &input.query.encoding_type {
-        match encoding_type {
-            EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
-        }
-    } else {
-        convert::identity
-    };
-
-    Ok(ListObjectsV2Output::builder()
-        .header(ListObjectsV2OutputHeader::builder().build())
-        .body(
-            ListObjectsV2OutputBody::builder()
-                .common_prefixes(
-                    common_prefixes
-                        .into_iter()
-                        .map(|common_prefix| {
-                            CommonPrefix::builder()
-                                .prefix(encode(common_prefix))
-                                .build()
-                        })
-                        .collect(),
-                )
-                .contents(
-                    objects_versions
-                        .into_iter()
-                        .map(|(object, version)| {
-                            Object::builder()
-                                .e_tag(version.e_tag())
-                                .key(encode(object.key))
-                                .last_modified(version.last_modified())
-                                .maybe_owner(input.query.fetch_owner.unwrap_or_default().then(
-                                    || {
-                                        Owner::builder()
-                                            .display_name(owner.name.clone())
-                                            .id(owner.id)
-                                            .build()
-                                    },
-                                ))
-                                .size(version.size())
-                                .build()
-                        })
-                        .collect(),
-                )
-                .maybe_continuation_token(input.query.continuation_token)
-                .maybe_delimiter(input.query.delimiter.map(encode))
-                .maybe_encoding_type(input.query.encoding_type)
-                .is_truncated(next_continuation_token.is_some())
-                .key_count(key_count as u16)
-                .max_keys(input.query.max_keys)
-                .name(bucket.name)
-                .maybe_next_continuation_token(next_continuation_token)
-                .prefix(input.query.prefix.map(encode).unwrap_or_default())
-                .maybe_start_after(input.query.start_after.map(encode))
-                .build(),
-        )
-        .build())
-}
-
-#[instrument(skip(db), ret)]
 async fn list_objects(
     Extension(db): Extension<DbTxn>,
     input: ListObjectsInput,
@@ -837,6 +830,66 @@ async fn list_objects(
 }
 
 #[instrument(skip(db), ret)]
+async fn head_bucket(
+    Extension(db): Extension<DbTxn>,
+    input: HeadBucketInput,
+) -> AppResult<HeadBucketOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+
+    Ok(HeadBucketOutput::builder()
+        .header(
+            HeadBucketOutputHeader::builder()
+                .bucket_region(NODE_REGION.to_owned())
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn put_bucket_tagging(
+    Extension(db): Extension<DbTxn>,
+    input: PutBucketTaggingInput,
+) -> AppResult<PutBucketTaggingOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_ensure_eq!(input.header.content_md5, None);
+    app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let tag_count = input.body.tag_set.tag.len();
+    if tag_count > 50 {
+        Err(AppError::InvalidTag)?
+    }
+    let mut keys = IndexSet::new();
+    keys.extend(input.body.tag_set.tag.iter().map(|tag| tag.key.clone()));
+    if tag_count != keys.len() {
+        Err(AppError::InvalidTag)?
+    }
+    TagSetMutation::upsert_with_tag(
+        db.as_ref(),
+        Some(bucket.id),
+        None,
+        input
+            .body
+            .tag_set
+            .tag
+            .into_iter()
+            .map(|tag| (tag.key, tag.value)),
+    )
+    .await?;
+
+    Ok(PutBucketTaggingOutput::builder().build())
+}
+
+#[instrument(skip(db), ret)]
 async fn put_bucket_versioning(
     Extension(db): Extension<DbTxn>,
     input: PutBucketVersioningInput,
@@ -871,27 +924,6 @@ async fn put_bucket_versioning(
     .ok_or(AppError::NoSuchBucket)?;
 
     Ok(PutBucketVersioningOutput::builder().build())
-}
-
-#[instrument(skip(db), ret)]
-async fn head_bucket(
-    Extension(db): Extension<DbTxn>,
-    input: HeadBucketInput,
-) -> AppResult<HeadBucketOutput> {
-    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
-
-    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
-        .await?
-        .ok_or(AppError::NoSuchBucket)?;
-
-    Ok(HeadBucketOutput::builder()
-        .header(
-            HeadBucketOutputHeader::builder()
-                .bucket_region(NODE_REGION.to_owned())
-                .build(),
-        )
-        .build())
 }
 
 #[instrument(skip(db), ret)]
@@ -1079,7 +1111,7 @@ async fn get_object(
     let (part_id, size, e_tag, last_modified) = match input.query.part_number {
         Some(part_number) => {
             if cfg!(not(feature = "ranged-part")) && input.header.range.is_some() {
-                Err(AppError::InternalError)?
+                Err(AppError::InternalError)?;
             }
 
             let part = PartQuery::find(db.as_ref(), None, Some(version.id), part_number)
@@ -1130,8 +1162,7 @@ async fn get_object(
                 .content_length(
                     range
                         .as_ref()
-                        .map(|range| range.end() - range.start() + 1)
-                        .unwrap_or(size),
+                        .map_or(size, |range| range.end() - range.start() + 1),
                 )
                 .maybe_content_range(range.map(|range| ContentRangeBytes {
                     first_byte: *range.start(),
@@ -1214,7 +1245,7 @@ async fn head_object(
     let (size, e_tag, last_modified) = match input.query.part_number {
         Some(part_number) => {
             if cfg!(not(feature = "ranged-part")) && input.header.range.is_some() {
-                Err(AppError::InternalError)?
+                Err(AppError::InternalError)?;
             }
 
             let part = PartQuery::find(db.as_ref(), None, Some(version.id), part_number)
@@ -1247,8 +1278,7 @@ async fn head_object(
                 .content_length(
                     range
                         .as_ref()
-                        .map(|range| range.end() - range.start() + 1)
-                        .unwrap_or(size),
+                        .map_or(size, |range| range.end() - range.start() + 1),
                 )
                 .maybe_content_range(range.map(|range| ContentRangeBytes {
                     first_byte: *range.start(),

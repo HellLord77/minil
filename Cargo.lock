@@ -2025,7 +2025,7 @@ dependencies = [
 
 [[package]]
 name = "minil-service"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "async-stream",
  "bytes",
@@ -3136,7 +3136,7 @@ dependencies = [
 
 [[package]]
 name = "serde-s3"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bon",
  "chrono",
