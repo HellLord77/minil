@@ -1,6 +1,6 @@
 [package]
 name = "minil"
-version = "0.2.1"
+version = "0.2.2"
 edition.workspace = true
 
 [features]
@@ -26,7 +26,6 @@ digest.workspace = true
 futures.workspace = true
 http-content-range.workspace = true
 indexmap.workspace = true
-paste.workspace = true
 sea-orm.workspace = true
 sha2.workspace = true
 strum.workspace = true
@@ -37,6 +36,7 @@ tracing-appender.workspace = true
 tracing-subscriber.workspace = true
 uuid.workspace = true
 
+axum-filter-router.workspace = true
 axum-s3.workspace = true
 ensure.workspace = true
 serde-s3.workspace = true

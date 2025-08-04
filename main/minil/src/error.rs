@@ -42,14 +42,21 @@ pub(crate) enum AppError {
     InvalidPartOrder,
     InvalidRange,
     #[allow(dead_code)]
+    InvalidTag,
+    #[allow(dead_code)]
     InvalidWriteOffset,
+    #[allow(dead_code)]
+    MalformedXML,
     MethodNotAllowed,
     NoSuchBucket,
     NoSuchKey,
+    NoSuchTagSet,
     #[allow(dead_code)]
     NoSuchUpload,
     NoSuchVersion,
     NotImplemented,
+    #[allow(dead_code)]
+    OperationAborted,
     #[allow(dead_code)]
     PreconditionFailed,
     #[allow(dead_code)]
@@ -96,14 +103,18 @@ impl AppErrorDiscriminants {
             InvalidObjectState => InvalidObjectStateOutput,
             InvalidPart => InvalidPartOutput,
             InvalidPartOrder => InvalidPartOrderOutput,
+            InvalidTag => InvalidTagOutput,
             InvalidRange => InvalidRangeOutput,
             InvalidWriteOffset => InvalidWriteOffsetOutput,
+            MalformedXML => MalformedXMLOutput,
             MethodNotAllowed => MethodNotAllowedOutput,
             NoSuchBucket => NoSuchBucketOutput,
             NoSuchKey => NoSuchKeyOutput,
+            NoSuchTagSet => NoSuchTagSetOutput,
             NoSuchUpload => NoSuchUploadOutput,
             NotImplemented => NotImplementedOutput,
             NoSuchVersion => NoSuchVersionOutput,
+            OperationAborted => OperationAbortedOutput,
             PreconditionFailed => PreconditionFailedOutput,
             TooManyParts => TooManyPartsOutput,
             _ => [AxumError, DatabaseError, IoError],

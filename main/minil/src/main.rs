@@ -56,7 +56,6 @@ use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::CommonExtInput;
 use digest::Digest;
-use ensure::fixme;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use http_content_range::ContentRangeBytes;
@@ -122,8 +121,7 @@ use crate::database_transaction::DbTxn;
 use crate::error::AppError;
 use crate::error::AppErrorDiscriminants;
 use crate::error::AppResult;
-use crate::macros::app_define_handler;
-use crate::macros::app_define_routes;
+use crate::macros::app_define_handlers;
 use crate::macros::app_ensure_eq;
 use crate::macros::app_ensure_matches;
 use crate::macros::app_validate_owner;
@@ -177,18 +175,47 @@ async fn main() {
         .middleware_fn_with_state(state.clone(), manage_db_txn);
 
     let router = Router::new();
-    let router = app_define_routes!(router {
-        "/" => get(list_buckets),
+    let router = app_define_handlers!(router {
+        get("/") => list_buckets,
 
-        "/{Bucket}" => delete(delete_bucket),
-        "/{Bucket}" => get(get_bucket_handler),
-        "/{Bucket}" => head(head_bucket),
-        "/{Bucket}" => put(put_bucket_handler),
+        delete("/{Bucket}") => delete_bucket,
+        get("/{Bucket}") => {
+            query("versioning", "") => get_bucket_versioning,
+            query("location", "") => get_bucket_location,
+            query("versions", "") => list_object_versions,
+            query("list-type", "2") => list_objects_v2,
+            _ => list_objects,
+        },
+        head("/{Bucket}") => head_bucket,
+        put("/{Bucket}") => {
+            query("versioning", "") => put_bucket_versioning,
+            _ => create_bucket,
+        },
 
-        "/{Bucket}/{*Key}" => delete(delete_object),
-        "/{Bucket}/{*Key}" => get(get_object),
-        "/{Bucket}/{*Key}" => head(head_object),
-        "/{Bucket}/{*Key}" => put(put_object),
+        delete("/{Bucket}/{*Key}") => delete_object,
+        get("/{Bucket}/{*Key}") => get_object,
+        head("/{Bucket}/{*Key}") => head_object,
+        put("/{Bucket}/{*Key}") => put_object,
+
+        // "/{Bucket}" => get(_get_bucket_handler),
+        // "/foo" | "/bar" => get(_get_bucket_handler),
+        // "/{Bucket}" => get {
+        //     scheme("https") => https_handler,
+        //     host("abcd") => host_handler,
+        //     port("80") => port_80_handler,
+        //     query("versioning", "") => get_bucket_versioning,
+        //     query("versioning") => contains_versioning,
+        //     header("foo", "bar") => foo_bar,
+        //     header("foo", r"bar?") => foo_ba_or_bar,
+        //     header("foo") => contains_foo,
+        //     header(r"foo?") => contains_fo_or_foo,
+        //     cookie("foo") => contains_foo,
+        //     cookie("foo", "bar") => foo_bar,
+        //     scheme("http") & host("localhost") => debug_handler,
+        //     scheme("http") ^ !host("localhost") => panic_handler,
+        //     custom_handler => response_is_ok,
+        //     _ => list_objects,
+        // },
     })
     .method_not_allowed_fallback(async || AppError::MethodNotAllowed)
     .with_state(state)
@@ -201,7 +228,7 @@ async fn main() {
     let listener = TcpListener::bind(addr)
         .await
         .expect("failed to bind address");
-    info!("tcp listening on {}", addr);
+    info!("tcp listening on {addr}");
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
@@ -401,14 +428,6 @@ async fn delete_bucket(
     Ok(DeleteBucketOutput::builder().build())
 }
 
-app_define_handler!(get_bucket_handler {
-    GetBucketVersioningCheck => get_bucket_versioning,
-    GetBucketLocationCheck => get_bucket_location,
-    ListObjectVersionsCheck => list_object_versions,
-    ListObjectsV2Check => list_objects_v2,
-    _ => list_objects,
-});
-
 #[instrument(skip(db), ret)]
 async fn get_bucket_versioning(
     Extension(db): Extension<DbTxn>,
@@ -473,8 +492,6 @@ async fn list_object_versions(
 ) -> AppResult<ListObjectVersionsOutput> {
     let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
 
-    fixme!();
-    dbg!(&input);
     app_ensure_matches!(input.header.optional_object_attributes, None);
     app_ensure_matches!(input.header.request_payer, None);
 
@@ -818,11 +835,6 @@ async fn list_objects(
         )
         .build())
 }
-
-app_define_handler!(put_bucket_handler {
-    PutBucketVersioningCheck => put_bucket_versioning,
-    _ => create_bucket,
-});
 
 #[instrument(skip(db), ret)]
 async fn put_bucket_versioning(

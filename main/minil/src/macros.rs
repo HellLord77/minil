@@ -1,12 +1,10 @@
-#[allow(unused_macros)]
-macro_rules! app_db_ref {
+macro_rules! _app_db_ref {
     ($db:ident) => {
         let $db = ::std::convert::AsRef::as_ref(&$db);
     };
 }
 
-#[allow(unused_macros)]
-macro_rules! app_output {
+macro_rules! _app_output {
     ($expr:expr) => {
         match $expr {
             output => {
@@ -17,8 +15,7 @@ macro_rules! app_output {
     };
 }
 
-#[allow(unused_macros)]
-macro_rules! app_validate_digest {
+macro_rules! _app_validate_digest {
     ($left:expr, $right:expr) => {
         if let (::core::option::Option::Some(left), right) = ($left, $right) {
             let left = ::base64::prelude::BASE64_STANDARD
@@ -34,13 +31,13 @@ macro_rules! app_validate_digest {
     };
 }
 
-macro_rules! app_define_handler {
+macro_rules! _app_define_handler {
     ($handler_fn:ident {
         $($ck_ty:ident => $handler:ident,)*
         _ => $def_handler:ident $(,)?
     }) => {
         async fn $handler_fn(
-            $(::paste::paste!([<$ck_ty:snake>]): ::core::option::Option<::axum_s3::operation::check::$ck_ty>,)*
+            $(::paste::paste!([<$ck_ty:snake>]): ::core::option::Option<::axum_s3::check::$ck_ty>,)*
             ::axum::extract::State(state): ::axum::extract::State<$crate::state::AppState>,
             request: ::axum::extract::Request,
         ) -> ::axum::response::Response {
@@ -53,11 +50,23 @@ macro_rules! app_define_handler {
     };
 }
 
-macro_rules! app_define_routes {
+macro_rules! app_define_handler {
+    ($handler:path) => {
+        $handler
+    };
+    ({$($handler:tt)*}) => {
+        ::axum_filter_router::axum_filter_handler!($crate::state::AppState {$($handler)*})
+    };
+}
+
+macro_rules! app_define_handlers {
     ($router:ident {
-        $($path:expr => $method:ident($handler:expr)),* $(,)?
+        $($method:ident($path:literal) => $handler:tt),* $(,)?
     }) => {
-        $router$(.route(::axum_extra::vpath!($path), ::axum::routing::$method($handler)))*
+        $router$(.route(
+            ::axum_extra::vpath!($path),
+            ::axum::routing::$method($crate::macros::app_define_handler!($handler))
+        ))*
     };
 }
 
@@ -122,7 +131,7 @@ macro_rules! app_validate_owner {
 }
 
 pub(crate) use app_define_handler;
-pub(crate) use app_define_routes;
+pub(crate) use app_define_handlers;
 pub(crate) use app_ensure_eq;
 pub(crate) use app_ensure_matches;
 pub(crate) use app_log_err;
