@@ -2,6 +2,7 @@ use futures::Stream;
 use futures::TryStreamExt;
 use minil_entity::bucket;
 use minil_entity::prelude::*;
+use minil_entity::tag_set;
 use sea_orm::prelude::*;
 use sea_orm::*;
 use sea_query::*;
@@ -20,6 +21,19 @@ impl BucketQuery {
         name: &str,
     ) -> DbRes<Option<bucket::Model>> {
         Bucket::find()
+            .filter(bucket::Column::OwnerId.eq(owner_id))
+            .filter(bucket::Column::Name.eq(name))
+            .one(db)
+            .await
+    }
+
+    pub async fn find_also_tag_set(
+        db: &impl ConnectionTrait,
+        owner_id: Uuid,
+        name: &str,
+    ) -> DbRes<Option<(bucket::Model, Option<tag_set::Model>)>> {
+        Bucket::find()
+            .find_also_related(TagSet)
             .filter(bucket::Column::OwnerId.eq(owner_id))
             .filter(bucket::Column::Name.eq(name))
             .one(db)

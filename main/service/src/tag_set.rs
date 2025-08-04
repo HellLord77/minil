@@ -17,7 +17,7 @@ impl TagSetQuery {
         bucket_id: Option<Uuid>,
         version_id: Option<Uuid>,
     ) -> DbRes<Option<tag_set::Model>> {
-        let mut query = tag_set::Entity::find();
+        let mut query = TagSet::find();
         if let Some(bucket_id) = bucket_id {
             query = query.filter(tag_set::Column::BucketId.eq(bucket_id));
         }
@@ -61,12 +61,12 @@ impl TagSetMutation {
             .await
     }
 
-    pub async fn delete(
+    pub async fn delete_by_bucket_id(
         db: &(impl ConnectionTrait + StreamTrait),
-        id: Uuid,
+        bucket_id: Uuid,
     ) -> DbRes<Option<tag_set::Model>> {
-        tag_set::Entity::delete_many()
-            .filter(tag_set::Column::Id.eq(id))
+        TagSet::delete_many()
+            .filter(tag_set::Column::BucketId.eq(bucket_id))
             .exec_with_streaming(db)
             .await?
             .try_next()

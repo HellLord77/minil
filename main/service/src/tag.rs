@@ -1,3 +1,4 @@
+use futures::Stream;
 use minil_entity::prelude::*;
 use minil_entity::tag;
 use sea_orm::prelude::*;
@@ -7,7 +8,18 @@ use crate::error::DbRes;
 
 pub struct TagQuery;
 
-impl TagQuery {}
+impl TagQuery {
+    pub async fn find_by_tag_set_id(
+        db: &(impl ConnectionTrait + StreamTrait),
+        tag_set_id: Uuid,
+    ) -> DbRes<impl Stream<Item = DbRes<tag::Model>>> {
+        Tag::find()
+            .filter(tag::Column::TagSetId.eq(tag_set_id))
+            .order_by_asc(tag::Column::CreatedAt)
+            .stream(db)
+            .await
+    }
+}
 
 pub struct TagMutation;
 

@@ -30,10 +30,14 @@ use axum_s3::operation::CreateBucketInput;
 use axum_s3::operation::CreateBucketOutput;
 use axum_s3::operation::DeleteBucketInput;
 use axum_s3::operation::DeleteBucketOutput;
+use axum_s3::operation::DeleteBucketTaggingInput;
+use axum_s3::operation::DeleteBucketTaggingOutput;
 use axum_s3::operation::DeleteObjectInput;
 use axum_s3::operation::DeleteObjectOutput;
 use axum_s3::operation::GetBucketLocationInput;
 use axum_s3::operation::GetBucketLocationOutput;
+use axum_s3::operation::GetBucketTaggingInput;
+use axum_s3::operation::GetBucketTaggingOutput;
 use axum_s3::operation::GetBucketVersioningInput;
 use axum_s3::operation::GetBucketVersioningOutput;
 use axum_s3::operation::GetObjectInput;
@@ -58,7 +62,6 @@ use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::CommonExtInput;
 use digest::Digest;
-use ensure::fixme;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use http_content_range::ContentRangeBytes;
@@ -73,6 +76,7 @@ use minil_service::ObjectMutation;
 use minil_service::ObjectQuery;
 use minil_service::OwnerQuery;
 use minil_service::PartQuery;
+use minil_service::TagQuery;
 use minil_service::TagSetMutation;
 use minil_service::VersionQuery;
 use sea_orm::ConnectOptions;
@@ -82,6 +86,7 @@ use sea_orm::TransactionTrait;
 use serde_s3::operation::CreateBucketOutputHeader;
 use serde_s3::operation::DeleteObjectOutputHeader;
 use serde_s3::operation::GetBucketLocationOutputBody;
+use serde_s3::operation::GetBucketTaggingOutputBody;
 use serde_s3::operation::GetBucketVersioningOutputBody;
 use serde_s3::operation::GetObjectOutputHeader;
 use serde_s3::operation::HeadBucketOutputHeader;
@@ -104,6 +109,7 @@ use serde_s3::types::MfaDeleteStatus;
 use serde_s3::types::Object;
 use serde_s3::types::ObjectVersion;
 use serde_s3::types::Owner;
+use serde_s3::types::Tag;
 use serde_s3::utils::DeleteMarkerOrVersion;
 use sha2::Sha256;
 use tokio::net::TcpListener;
@@ -182,12 +188,16 @@ async fn main() {
     let router = app_define_handlers!(router {
         get("/") => list_buckets,
 
-        delete("/{Bucket}") => delete_bucket,
+        delete("/{Bucket}") => {
+            query("tagging", "") => delete_bucket_tagging,
+            _ => delete_bucket,
+        },
         get("/{Bucket}") => {
             query("list-type", "2") => list_objects_v2,
             query("location", "") => get_bucket_location,
             query("versioning", "") => get_bucket_versioning,
             query("versions", "") => list_object_versions,
+            query("tagging", "") => get_bucket_tagging,
             _ => list_objects,
         },
         head("/{Bucket}") => head_bucket,
@@ -207,7 +217,6 @@ async fn main() {
         //     scheme("http") & host("localhost") => debug_handler,
         //     scheme("http") ^ !host("localhost") => panic_handler,
         //     custom_handler => response_is_ok,
-        //     _ => list_objects,
         // },
     })
     .method_not_allowed_fallback(async || AppError::MethodNotAllowed)
@@ -404,6 +413,24 @@ async fn list_buckets(
                 .build(),
         )
         .build())
+}
+
+#[instrument(skip(db), ret)] // todo silence err
+async fn delete_bucket_tagging(
+    Extension(db): Extension<DbTxn>,
+    input: DeleteBucketTaggingInput,
+) -> AppResult<DeleteBucketTaggingOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    TagSetMutation::delete_by_bucket_id(db.as_ref(), bucket.id)
+        .await?
+        .ok_or(AppError::NoSuchTagSet)?;
+
+    Ok(DeleteBucketTaggingOutput::builder().build())
 }
 
 #[instrument(skip(db), ret)]
@@ -721,6 +748,38 @@ async fn list_object_versions(
                 .version(version)
                 .version_id_marker(input.query.version_id_marker.unwrap_or_default())
                 .delete_marker_or_version(delete_marker_or_version.collect())
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn get_bucket_tagging(
+    Extension(db): Extension<DbTxn>,
+    input: GetBucketTaggingInput,
+) -> AppResult<GetBucketTaggingOutput> {
+    let owner = OwnerQuery::find(db.as_ref(), "minil").await?.unwrap();
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let tag_set = BucketQuery::find_also_tag_set(db.as_ref(), owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?
+        .1
+        .ok_or(AppError::NoSuchTagSet)?;
+    let tag_set = TagQuery::find_by_tag_set_id(db.as_ref(), tag_set.id)
+        .await?
+        .try_collect::<Vec<_>>()
+        .await?;
+
+    Ok(GetBucketTaggingOutput::builder()
+        .body(
+            GetBucketTaggingOutputBody::builder()
+                .tag_set(
+                    tag_set
+                        .into_iter()
+                        .map(|tag| Tag::builder().key(tag.key).value(tag.value).build())
+                        .collect::<Vec<_>>(),
+                )
                 .build(),
         )
         .build())
