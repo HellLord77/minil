@@ -71,8 +71,7 @@ impl PartMutation {
     ) -> InsRes<part::Model> {
         let id = PartQuery::find(db, upload_id, version_id, number)
             .await?
-            .map(|part| part.id)
-            .unwrap_or_else(Uuid::new_v4);
+            .map_or_else(Uuid::new_v4, |part| part.id);
         ChunkMutation::delete_by_part_id(db, id).await?;
 
         let decode = ChunkDecoder::with_capacity(ByteSize::mib(4).as_u64() as usize);
@@ -135,22 +134,18 @@ impl PartMutation {
 
         Ok(Part::insert(part)
             .on_conflict(
-                OnConflict::columns([
-                    part::Column::UploadId,
-                    part::Column::VersionId,
-                    part::Column::Number,
-                ])
-                .update_columns([
-                    part::Column::Size,
-                    part::Column::Crc32,
-                    part::Column::Crc32c,
-                    part::Column::Crc64nvme,
-                    part::Column::Sha1,
-                    part::Column::Sha256,
-                    part::Column::Md5,
-                ])
-                .value(object::Column::UpdatedAt, Expr::current_timestamp())
-                .to_owned(),
+                OnConflict::column(part::Column::Id)
+                    .update_columns([
+                        part::Column::Size,
+                        part::Column::Crc32,
+                        part::Column::Crc32c,
+                        part::Column::Crc64nvme,
+                        part::Column::Sha1,
+                        part::Column::Sha256,
+                        part::Column::Md5,
+                    ])
+                    .value(object::Column::UpdatedAt, Expr::current_timestamp())
+                    .to_owned(),
             )
             .exec_with_returning(db)
             .await?)

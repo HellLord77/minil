@@ -19,7 +19,7 @@ impl ChunkQuery {
     async fn find_by_part_id(
         db: &(impl ConnectionTrait + StreamTrait),
         part_id: Uuid,
-        range: &Option<RangeInclusive<u64>>,
+        range: Option<&RangeInclusive<u64>>,
     ) -> DbRes<impl Stream<Item = DbRes<chunk::Model>>> {
         let mut query = Chunk::find().filter(chunk::Column::PartId.eq(part_id));
         if let Some(range) = range {
@@ -65,7 +65,7 @@ impl ChunkQuery {
         range: Option<RangeInclusive<u64>>,
     ) -> impl Stream<Item = DbRes<Bytes>> {
         try_stream! {
-            let chunks = ChunkQuery::find_by_part_id(&db, part_id, &range).await?;
+            let chunks = ChunkQuery::find_by_part_id(&db, part_id, range.as_ref()).await?;
             let mut stream = pin!(chunks);
 
             while let Some(chunk) = stream.try_next().await? {

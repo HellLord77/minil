@@ -4,6 +4,8 @@ mod error;
 mod object;
 mod owner;
 mod part;
+mod tag;
+mod tag_set;
 mod utils;
 mod version;
 
@@ -19,5 +21,9 @@ pub use owner::OwnerMutation;
 pub use owner::OwnerQuery;
 pub use part::PartMutation;
 pub use part::PartQuery;
+pub use tag::TagMutation;
+pub use tag::TagQuery;
+pub use tag_set::TagSetMutation;
+pub use tag_set::TagSetQuery;
 pub use version::VersionMutation;
 pub use version::VersionQuery;

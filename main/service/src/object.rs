@@ -216,20 +216,19 @@ impl ObjectMutation {
         let read = FramedRead::new(read, decode);
         let mut stream = pin!(read.peekable());
 
-        let mime = match mime {
-            Some(mime) => mime,
-            None => {
-                let chunk = match stream.as_mut().peek().await {
-                    Some(Ok(chunk)) => chunk,
-                    Some(Err(_)) => {
-                        stream.try_next().await?;
-                        unreachable!()
-                    }
-                    None => &Bytes::new(),
-                };
+        let mime = if let Some(mime) = mime {
+            mime
+        } else {
+            let chunk = match stream.as_mut().peek().await {
+                Some(Ok(chunk)) => chunk,
+                Some(Err(_)) => {
+                    stream.try_next().await?;
+                    unreachable!()
+                }
+                None => &Bytes::new(),
+            };
 
-                get_mime(&key, chunk)
-            }
+            get_mime(&key, chunk)
         };
 
         let read = StreamReader::new(stream);
