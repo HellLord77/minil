@@ -1,5 +1,3 @@
-pub mod check;
-
 mod create_bucket;
 mod delete_bucket;
 mod delete_object;
@@ -12,6 +10,7 @@ mod list_buckets;
 mod list_object_versions;
 mod list_objects;
 mod list_objects_v2;
+mod put_bucket_tagging;
 mod put_bucket_versioning;
 mod put_object;
 
@@ -59,6 +58,9 @@ pub use list_objects_v2::ListObjectsV2InputPath;
 pub use list_objects_v2::ListObjectsV2InputQuery;
 pub use list_objects_v2::ListObjectsV2OutputBody;
 pub use list_objects_v2::ListObjectsV2OutputHeader;
+pub use put_bucket_tagging::PutBucketTaggingInputBody;
+pub use put_bucket_tagging::PutBucketTaggingInputHeader;
+pub use put_bucket_tagging::PutBucketTaggingInputPath;
 pub use put_bucket_versioning::PutBucketVersioningInputBody;
 pub use put_bucket_versioning::PutBucketVersioningInputHeader;
 pub use put_bucket_versioning::PutBucketVersioningInputPath;

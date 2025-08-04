@@ -43,6 +43,8 @@ mod request_payer;
 mod restore_status;
 mod server_side_encryption;
 mod storage_class;
+mod tag;
+mod tagging;
 mod versioning_configuration;
 
 pub use archive_status::ArchiveStatus;
@@ -88,4 +90,6 @@ pub use request_payer::RequestPayer;
 pub use restore_status::RestoreStatus;
 pub use server_side_encryption::ServerSideEncryption;
 pub use storage_class::StorageClass;
+pub use tag::Tag;
+pub use tagging::Tagging;
 pub use versioning_configuration::VersioningConfiguration;

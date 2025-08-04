@@ -17,7 +17,7 @@ pub struct VersioningConfiguration {
     #[builder(default = "http://s3.amazonaws.com/doc/2006-03-01/".to_owned())]
     #[validate_extra(eq(other = "http://s3.amazonaws.com/doc/2006-03-01/"))]
     #[serde(rename = "@xmlns")]
-    pub xmlns: String, // todo &'static str
+    pub xmlns: String,
 
     pub mfa_delete: Option<MfaDeleteStatus>,
 

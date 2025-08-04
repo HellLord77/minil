@@ -13,7 +13,7 @@ use crate::types::LocationInfo;
 pub struct CreateBucketConfiguration {
     #[validate_extra(eq(other = "http://s3.amazonaws.com/doc/2006-03-01/"))]
     #[serde(rename = "@xmlns")]
-    pub xmlns: String, // todo &'static str
+    pub xmlns: String,
 
     pub bucket: Option<BucketInfo>,
 

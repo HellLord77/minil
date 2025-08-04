@@ -6,7 +6,7 @@ use validator_extra::validate_extra;
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
-pub struct GetBucketVersioningCheckQuery {
-    #[validate_extra(contains(pattern = &"".to_owned()))]
-    pub versioning: Vec<String>,
+pub struct ListType2CheckQuery {
+    #[validate_extra(contains(pattern = &2))]
+    pub list_type: Vec<u8>,
 }
