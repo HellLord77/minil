@@ -6,8 +6,8 @@ macro_rules! debug {
     ($($arg:tt)*) => {
         match ::std::format!($($arg)*) {
             tmp => {
-                ::std::eprintln!("[{}:{}:{}] {}",
-                    ::core::file!(), ::core::line!(), ::core::column!(), tmp);
+                ::std::eprintln!("[{}:{}:{}] {tmp}",
+                    ::core::file!(), ::core::line!(), ::core::column!());
                 tmp
             }
         }

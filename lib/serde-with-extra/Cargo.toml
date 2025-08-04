@@ -16,4 +16,4 @@ serde_with.workspace = true
 http-content-range = { workspace = true, optional = true }
 http-range-header = { workspace = true, optional = true }
 
-uuid = {workspace = true, optional = true}
+uuid = { workspace = true, optional = true }

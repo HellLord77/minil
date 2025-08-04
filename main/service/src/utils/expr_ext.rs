@@ -3,6 +3,7 @@ use sea_orm::*;
 use sea_query::*;
 
 pub(crate) trait ExprExt {
+    #[allow(dead_code)]
     fn null() -> Expr;
 }
 

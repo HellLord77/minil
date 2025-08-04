@@ -31,7 +31,7 @@ impl<'de> DeserializeAs<'de, Uuid> for NullAsNilUuid {
     {
         match String::deserialize(deserializer)?.as_str() {
             NULL => Ok(NIL_UUID),
-            str => Uuid::deserialize(str.into_deserializer()),
+            string => Uuid::deserialize(string.into_deserializer()),
         }
     }
 }

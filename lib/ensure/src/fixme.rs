@@ -6,7 +6,7 @@ macro_rules! fixme {
     ($($arg:tt)+) => {
         match ::std::format!($($arg)*) {
             tmp => {
-                $crate::debug!("not yet implemented: {}", tmp);
+                $crate::debug!("not yet implemented: {tmp}");
                 tmp
             }
         }

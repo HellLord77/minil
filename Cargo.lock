@@ -340,6 +340,7 @@ dependencies = [
  "axum",
  "axum-core",
  "bytes",
+ "cookie",
  "form_urlencoded",
  "futures-util",
  "http",
@@ -354,6 +355,16 @@ dependencies = [
  "tower",
  "tower-layer",
  "tower-service",
+]
+
+[[package]]
+name = "axum-filter-router"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+ "syn-utils",
 ]
 
 [[package]]
@@ -384,7 +395,7 @@ dependencies = [
 
 [[package]]
 name = "axum-s3"
-version = "0.4.11"
+version = "0.5.0"
 dependencies = [
  "axum",
  "axum-body",
@@ -865,6 +876,7 @@ version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ddef33a339a91ea89fb53151bd0a4689cfce27055c291dfa69945475d22c747"
 dependencies = [
+ "percent-encoding",
  "time",
  "version_check",
 ]
@@ -1946,10 +1958,11 @@ dependencies = [
 
 [[package]]
 name = "minil"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "axum",
  "axum-extra",
+ "axum-filter-router",
  "axum-s3",
  "base64 0.22.1",
  "bytesize",
@@ -1964,7 +1977,6 @@ dependencies = [
  "minil-config",
  "minil-migration",
  "minil-service",
- "paste",
  "sea-orm",
  "serde-s3",
  "sha2",
@@ -1996,7 +2008,7 @@ dependencies = [
 
 [[package]]
 name = "minil-entity"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "hex",
  "sea-orm",
@@ -2004,7 +2016,7 @@ dependencies = [
 
 [[package]]
 name = "minil-migration"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "sea-orm-migration",
  "tokio",
@@ -3124,7 +3136,7 @@ dependencies = [
 
 [[package]]
 name = "serde-s3"
-version = "0.4.14"
+version = "0.5.0"
 dependencies = [
  "bon",
  "chrono",
@@ -4525,7 +4537,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

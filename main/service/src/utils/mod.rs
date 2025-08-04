@@ -8,7 +8,6 @@ mod update_many_ext;
 
 pub(super) use chunk_decoder::ChunkDecoder;
 pub(super) use delete_many_ext::DeleteManyExt;
-pub(super) use expr_ext::ExprExt;
 pub(super) use select_ext::SelectExt;
 pub(super) use update_many_ext::UpdateManyExt;
 
