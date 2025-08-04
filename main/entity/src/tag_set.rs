@@ -3,43 +3,16 @@ use sea_orm::entity::prelude::*;
 use super::prelude::*;
 
 #[derive(Debug, Clone, DeriveEntityModel)]
-#[sea_orm(table_name = "part")]
+#[sea_orm(table_name = "tag_set")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
     #[sea_orm(indexed, unique)]
-    pub upload_id: Option<Uuid>,
+    pub bucket_id: Option<Uuid>,
 
     #[sea_orm(indexed, unique)]
     pub version_id: Option<Uuid>,
-
-    #[sea_orm(indexed, unique)]
-    pub number: i16,
-
-    pub start: Option<i64>,
-
-    pub end: Option<i64>,
-
-    pub size: i64,
-
-    #[sea_orm(column_type = "Binary(4)")]
-    pub crc32: Vec<u8>,
-
-    #[sea_orm(column_type = "Binary(4)")]
-    pub crc32c: Vec<u8>,
-
-    #[sea_orm(column_type = "Binary(8)")]
-    pub crc64nvme: Vec<u8>,
-
-    #[sea_orm(column_type = "Binary(20)")]
-    pub sha1: Vec<u8>,
-
-    #[sea_orm(column_type = "Binary(32)")]
-    pub sha256: Vec<u8>,
-
-    #[sea_orm(column_type = "Binary(16)")]
-    pub md5: Vec<u8>,
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
@@ -49,11 +22,6 @@ pub struct Model {
 
 impl Model {
     #[must_use]
-    pub fn e_tag(&self) -> String {
-        format!("\"{}\"", hex::encode(&self.md5))
-    }
-
-    #[must_use]
     pub fn last_modified(&self) -> DateTimeUtc {
         self.updated_at.unwrap_or(self.created_at)
     }
@@ -62,11 +30,11 @@ impl Model {
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "Upload",
-        from = "Column::UploadId",
-        to = "super::upload::Column::Id"
+        belongs_to = "Bucket",
+        from = "Column::BucketId",
+        to = "super::bucket::Column::Id"
     )]
-    Upload,
+    Bucket,
 
     #[sea_orm(
         belongs_to = "Version",
@@ -75,13 +43,13 @@ pub enum Relation {
     )]
     Version,
 
-    #[sea_orm(has_many = "Chunk")]
-    Chunk,
+    #[sea_orm(has_many = "Tag")]
+    Tag,
 }
 
-impl Related<Upload> for Entity {
+impl Related<Bucket> for Entity {
     fn to() -> RelationDef {
-        Relation::Upload.def()
+        Relation::Bucket.def()
     }
 }
 
@@ -91,9 +59,9 @@ impl Related<Version> for Entity {
     }
 }
 
-impl Related<Chunk> for Entity {
+impl Related<Tag> for Entity {
     fn to() -> RelationDef {
-        Relation::Chunk.def()
+        Relation::Tag.def()
     }
 }
 

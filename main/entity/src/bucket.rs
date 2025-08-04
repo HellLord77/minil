@@ -25,6 +25,7 @@ pub struct Model {
 }
 
 impl Model {
+    #[must_use]
     pub fn last_modified(&self) -> DateTimeUtc {
         self.updated_at.unwrap_or(self.created_at)
     }

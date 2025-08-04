@@ -46,6 +46,7 @@ pub struct Model {
 }
 
 impl Model {
+    #[must_use]
     pub fn id(&self) -> Uuid {
         if self.versioning {
             self.id
@@ -54,21 +55,25 @@ impl Model {
         }
     }
 
+    #[must_use]
     pub fn mp_parts_count(&self) -> Option<u16> {
         let parts_count = self.parts_count.unwrap() as u16;
         (parts_count != 0).then_some(parts_count)
     }
 
+    #[must_use]
     pub fn size(&self) -> u64 {
         self.size.unwrap() as u64
     }
 
+    #[must_use]
     pub fn e_tag(&self) -> String {
         self.e_tag
             .clone()
             .unwrap_or_else(|| format!("\"{}\"", hex::encode(self.md5.as_ref().unwrap())))
     }
 
+    #[must_use]
     pub fn last_modified(&self) -> DateTimeUtc {
         self.updated_at.unwrap_or(self.created_at)
     }
