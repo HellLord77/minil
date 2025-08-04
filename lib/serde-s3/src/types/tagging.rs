@@ -13,10 +13,10 @@ use crate::utils::TagSet;
 #[serde(rename_all = "PascalCase")]
 #[serde(validate = "Validate::validate")]
 pub struct Tagging {
-    #[builder(default = "http://s3.amazonaws.com/doc/2006-03-01/".to_owned())]
+    #[builder(required, default = Some("http://s3.amazonaws.com/doc/2006-03-01/".to_owned()))]
     #[validate_extra(eq(other = "http://s3.amazonaws.com/doc/2006-03-01/"))]
     #[serde(rename = "@xmlns")]
-    pub xmlns: String,
+    pub xmlns: Option<String>,
 
     #[builder(into)]
     pub tag_set: TagSet,

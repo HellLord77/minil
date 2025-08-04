@@ -14,7 +14,7 @@ use crate::utils::Tags;
 pub struct CreateBucketConfiguration {
     #[validate_extra(eq(other = "http://s3.amazonaws.com/doc/2006-03-01/"))]
     #[serde(rename = "@xmlns")]
-    pub xmlns: String,
+    pub xmlns: Option<String>,
 
     pub bucket: Option<BucketInfo>,
 

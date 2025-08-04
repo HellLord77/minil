@@ -1,6 +1,5 @@
 use serde::Deserialize;
 use serde_rename_chain::serde_rename_chain;
-use serde_with::serde_as;
 
 use crate::types::ChecksumAlgorithm;
 use crate::types::Tagging;

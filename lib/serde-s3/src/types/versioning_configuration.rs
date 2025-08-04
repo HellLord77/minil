@@ -14,10 +14,10 @@ use crate::types::MfaDeleteStatus;
 #[serde(rename_all = "PascalCase")]
 #[serde(validate = "Validate::validate")]
 pub struct VersioningConfiguration {
-    #[builder(default = "http://s3.amazonaws.com/doc/2006-03-01/".to_owned())]
+    #[builder(required, default = Some("http://s3.amazonaws.com/doc/2006-03-01/".to_owned()))]
     #[validate_extra(eq(other = "http://s3.amazonaws.com/doc/2006-03-01/"))]
     #[serde(rename = "@xmlns")]
-    pub xmlns: String,
+    pub xmlns: Option<String>,
 
     pub mfa_delete: Option<MfaDeleteStatus>,
 
