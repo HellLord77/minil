@@ -2,8 +2,8 @@ mod database_transaction;
 mod error;
 mod macros;
 mod make_request_id;
-mod service_builder_ext;
 mod state;
+mod utils;
 
 use std::convert;
 use std::env;
@@ -61,7 +61,6 @@ use axum_s3::operation::PutBucketVersioningOutput;
 use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
 use axum_s3::utils::CommonExtInput;
-use digest::Digest;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use http_content_range::ContentRangeBytes;
@@ -111,7 +110,6 @@ use serde_s3::types::ObjectVersion;
 use serde_s3::types::Owner;
 use serde_s3::types::Tag;
 use serde_s3::utils::DeleteMarkerOrVersion;
-use sha2::Sha256;
 use tokio::net::TcpListener;
 use tokio_util::io::StreamReader;
 use tower::Layer;
@@ -125,6 +123,7 @@ use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::prelude::*;
+use utils::ServiceBuilderExt as _;
 use uuid::Uuid;
 
 use crate::database_transaction::DbTxn;
@@ -136,8 +135,8 @@ use crate::macros::app_ensure_eq;
 use crate::macros::app_ensure_matches;
 use crate::macros::app_validate_owner;
 use crate::make_request_id::AppMakeRequestId;
-use crate::service_builder_ext::AppServiceBuilderExt;
 use crate::state::AppState;
+use crate::utils::UuidExt;
 
 #[cfg(debug_assertions)]
 #[global_allocator]
@@ -160,7 +159,7 @@ async fn main() {
     let db = init_db(&config).await;
 
     let state = AppState::new(db);
-    let node_id = format!("{:x}", Sha256::digest(NODE_NAME.as_bytes())); // todo Uuid::v4
+    let node_id = Uuid::v4_from_seed(NODE_NAME).to_string();
     let server = format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     let middleware = ServiceBuilder::new()
@@ -184,6 +183,16 @@ async fn main() {
         .middleware_fn(handle_app_err)
         .middleware_fn_with_state(state.clone(), manage_db_txn);
 
+    #[cfg(feature = "content-type")]
+    let put_bucket_tagging = axum::handler::Handler::layer(
+        put_bucket_tagging,
+        tower_http::set_header::SetRequestHeaderLayer::if_not_present(
+            header::CONTENT_TYPE,
+            "application/xml"
+                .parse::<HeaderValue>()
+                .expect("invalid content type header"),
+        ),
+    );
     let router = Router::new();
     let router = app_define_handlers!(router {
         get("/") => list_buckets,
@@ -1083,7 +1092,7 @@ async fn delete_object(
             (delete_marker, None)
         }
         (None, Some(versioning)) => {
-            let version = if cfg!(feature = "put-delete") {
+            let version = if cfg!(feature = "create-delete") {
                 ObjectMutation::upsert_also_delete_marker(
                     db.as_ref(),
                     bucket.id,

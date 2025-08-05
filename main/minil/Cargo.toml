@@ -1,14 +1,18 @@
 [package]
 name = "minil"
-version = "0.2.2"
+version = "0.2.3"
 edition.workspace = true
 
 [features]
 default = []
-separate-version = []
-put-delete = []
+
+create-delete = []
 ranged-part = []
-full = ["separate-version", "put-delete", "ranged-part"]
+separate-version = []
+
+content-type = []
+
+full = ["create-delete", "ranged-part", "separate-version", "content-type"]
 
 [dependencies]
 base64 = "0.22.1"
@@ -22,12 +26,12 @@ axum-extra.workspace = true
 bytesize.workspace = true
 cap.workspace = true
 derive_more.workspace = true
-digest.workspace = true
 futures.workspace = true
 http-content-range.workspace = true
 indexmap.workspace = true
+rand.workspace = true
+rand_seeder.workspace = true
 sea-orm.workspace = true
-sha2.workspace = true
 strum.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
