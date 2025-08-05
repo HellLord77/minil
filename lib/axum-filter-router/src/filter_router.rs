@@ -26,6 +26,7 @@ pub(super) fn expand(item: RouterWithState) -> syn::Result<TokenStream> {
     let mut dependency = Dependency::default();
     for router in &item.routers {
         match router.filter {
+            Filter::Default => {}
             Filter::Method(_) => {
                 dependency.method = true;
             }
@@ -68,7 +69,6 @@ pub(super) fn expand(item: RouterWithState) -> syn::Result<TokenStream> {
             Filter::Cookie(..) => {
                 dependency.cookie = true;
             }
-            _ => {}
         }
     }
 

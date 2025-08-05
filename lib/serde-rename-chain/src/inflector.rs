@@ -1,4 +1,4 @@
-use inflector::Inflector as InflectorInflector;
+use inflector::Inflector as _;
 use strum::EnumString;
 use strum::VariantNames;
 

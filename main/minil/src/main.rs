@@ -1,7 +1,6 @@
 mod database_transaction;
 mod error;
 mod macros;
-mod make_request_id;
 mod state;
 mod utils;
 
@@ -20,12 +19,14 @@ use axum::ServiceExt;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::extract::State;
+use axum::handler::Handler;
 use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::http::StatusCode;
 use axum::http::header;
 use axum::middleware::Next;
 use axum::response::Response;
+use axum_extra::middleware::option_layer;
 use axum_s3::operation::CreateBucketInput;
 use axum_s3::operation::CreateBucketOutput;
 use axum_s3::operation::DeleteBucketInput;
@@ -116,6 +117,8 @@ use tower::Layer;
 use tower::ServiceBuilder;
 use tower_http::ServiceBuilderExt;
 use tower_http::normalize_path::NormalizePathLayer;
+use tower_http::request_id::MakeRequestUuid;
+use tower_http::set_header::SetRequestHeaderLayer;
 use tracing::debug;
 use tracing::info;
 use tracing::instrument;
@@ -134,9 +137,7 @@ use crate::macros::app_define_handlers;
 use crate::macros::app_ensure_eq;
 use crate::macros::app_ensure_matches;
 use crate::macros::app_validate_owner;
-use crate::make_request_id::AppMakeRequestId;
 use crate::state::AppState;
-use crate::utils::UuidExt;
 
 #[cfg(debug_assertions)]
 #[global_allocator]
@@ -145,7 +146,7 @@ static ALLOCATOR: cap::Cap<std::alloc::System> = cap::Cap::new(
     bytesize::ByteSize::mib(64).as_u64() as usize,
 );
 
-const NODE_NAME: &str = "minil";
+const NODE_NAME: &str = "     minil     \0";
 const NODE_REGION: &str = "us-east-1";
 const PROCESS_TIME: &str = "x-process-time";
 
@@ -159,9 +160,18 @@ async fn main() {
     let db = init_db(&config).await;
 
     let state = AppState::new(db);
-    let node_id = Uuid::v4_from_seed(NODE_NAME).to_string();
+    let node_id =
+        Uuid::new_v8(NODE_NAME.as_bytes().try_into().expect("invalid node name")).to_string();
     let server = format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
+    let content_type_layer = cfg!(feature = "content-type").then(|| {
+        SetRequestHeaderLayer::if_not_present(
+            header::CONTENT_TYPE,
+            "application/xml"
+                .parse::<HeaderValue>()
+                .expect("invalid content type header"),
+        )
+    });
     let middleware = ServiceBuilder::new()
         .trace_for_http()
         .decompression()
@@ -171,7 +181,7 @@ async fn main() {
             node_id.parse::<HeaderValue>().expect("invalid node id"),
         )
         .propagate_header(NODE_ID_HEADER)
-        .set_request_id(REQUEST_ID_HEADER, AppMakeRequestId)
+        .set_request_id(REQUEST_ID_HEADER, MakeRequestUuid)
         .propagate_request_id(REQUEST_ID_HEADER)
         .insert_response_header_if_not_present(
             header::SERVER,
@@ -181,18 +191,10 @@ async fn main() {
         )
         .middleware_fn(set_process_time)
         .middleware_fn(handle_app_err)
-        .middleware_fn_with_state(state.clone(), manage_db_txn);
+        .middleware_fn_with_state(state.clone(), manage_db_txn)
+        .map_request(|request| request); // fixme
 
-    #[cfg(feature = "content-type")]
-    let put_bucket_tagging = axum::handler::Handler::layer(
-        put_bucket_tagging,
-        tower_http::set_header::SetRequestHeaderLayer::if_not_present(
-            header::CONTENT_TYPE,
-            "application/xml"
-                .parse::<HeaderValue>()
-                .expect("invalid content type header"),
-        ),
-    );
+    let put_bucket_tagging_handler = put_bucket_tagging.layer(option_layer(content_type_layer));
     let router = Router::new();
     let router = app_define_handlers!(router {
         get("/") => list_buckets,
@@ -211,7 +213,7 @@ async fn main() {
         },
         head("/{Bucket}") => head_bucket,
         put("/{Bucket}") => {
-            query("tagging", "") => put_bucket_tagging,
+            query("tagging", "") => put_bucket_tagging_handler,
             query("versioning", "") => put_bucket_versioning,
             _ => create_bucket,
         },
