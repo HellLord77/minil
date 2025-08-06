@@ -19,11 +19,11 @@ pub use secure::DigestSha512;
 pub use secure::SecureDigest;
 
 pub fn from_str(s: &str) -> Result<Vec<SecureDigest>, DigestParseError> {
-    s.split(",").map(|s| s.trim().parse()).collect()
+    s.split(',').map(|s| s.trim().parse()).collect()
 }
 
 pub fn from_str_legacy(s: &str) -> Result<Vec<Digest>, DigestParseError> {
-    s.split(",").map(|s| s.trim().parse()).collect()
+    s.split(',').map(|s| s.trim().parse()).collect()
 }
 
 pub fn to_string(digests: &[SecureDigest]) -> String {

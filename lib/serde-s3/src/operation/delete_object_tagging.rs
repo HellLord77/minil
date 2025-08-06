@@ -1,3 +1,4 @@
+use bon::Builder;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
 use serdev::Deserialize;
@@ -29,7 +30,7 @@ pub struct DeleteObjectTaggingInputHeader {
 }
 
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Builder, Serialize)]
 pub struct DeleteObjectTaggingOutputHeader {
     pub version_id: Option<Uuid>,
 }

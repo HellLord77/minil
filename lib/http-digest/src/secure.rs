@@ -29,12 +29,12 @@ impl FromStr for SecureDigest {
     type Err = DigestParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (a, v) = s.split_once("=").ok_or_else(|| s.to_owned())?;
+        let (a, v) = s.split_once('=').ok_or_else(|| s.to_owned())?;
         let a = a.to_lowercase().parse()?;
-        if !v.starts_with(":") {
+        if !v.starts_with(':') {
             Err(ValueParseError::PrefixColonNotFound(v.to_owned()))?;
         }
-        if !v.ends_with(":") {
+        if !v.ends_with(':') {
             Err(ValueParseError::SuffixColonNotFound(v.to_owned()))?;
         }
 

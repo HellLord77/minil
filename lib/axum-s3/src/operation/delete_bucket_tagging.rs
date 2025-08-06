@@ -18,6 +18,6 @@ pub struct DeleteBucketTaggingInput {
 
 #[derive(Debug, Builder, IntoResponse)]
 pub struct DeleteBucketTaggingOutput {
-    #[builder(default = StatusCode::OK)]
+    #[builder(default = StatusCode::NO_CONTENT)]
     pub status: StatusCode,
 }

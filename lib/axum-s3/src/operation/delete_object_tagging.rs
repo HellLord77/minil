@@ -24,7 +24,7 @@ pub struct DeleteObjectTaggingInput {
 
 #[derive(Debug, Builder, IntoResponse)]
 pub struct DeleteObjectTaggingOutput {
-    #[builder(default = StatusCode::OK)]
+    #[builder(default = StatusCode::NO_CONTENT)]
     pub status: StatusCode,
 
     #[into_response(via(Header))]

@@ -1,3 +1,4 @@
+use bon::Builder;
 use http_digest::DigestMd5;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
@@ -47,7 +48,7 @@ pub struct PutObjectTaggingInputHeader {
 pub type PutObjectTaggingInputBody = Tagging;
 
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Builder, Serialize)]
 pub struct PutObjectTaggingOutputHeader {
     pub version_id: Option<Uuid>,
 }
