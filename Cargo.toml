@@ -7,6 +7,8 @@ resolver = "3"
 edition = "2024"
 
 [workspace.dependencies]
+async-stream = "0.3.6"
+base64 = "0.22.1"
 bon = "3.6.5"
 bytes = "1.10.1"
 bytesize = "2.0.1"
@@ -14,11 +16,6 @@ cap = "0.1.2"
 derive_more = { version = "2.0.1", features = ["full"] }
 futures = "0.3.31"
 hex = "0.4.3"
-http = "1.3.1"
-http-content-range = "0.2.3"
-http-range-header = "0.4.2"
-httparse = "1.10.1"
-httpdate = "1.0.3"
 indexmap = "2.10.0"
 strum = { version = "0.27.2", features = ["derive"] }
 unicase = "2.8.1"
@@ -35,6 +32,13 @@ digest = "0.10.7"
 md-5 = "0.10.6"
 sha1 = "0.10.6"
 sha2 = "0.10.9"
+
+http = "1.3.1"
+
+http-content-range = "0.2.3"
+http-range-header = "0.4.2"
+httparse = "1.10.1"
+httpdate = "1.0.3"
 
 darling = "0.21.0"
 paste = "1.0.15"
@@ -57,6 +61,9 @@ serde_with = "3.14.0"
 tokio = { version = "1.47.0", features = ["full", "tracing"] }
 tokio-util = { version = "0.7.15", features = ["full"] }
 
+tower = { version = "0.5.2", features = ["full"] }
+tower-http = { version = "0.6.6", features = ["full"] }
+
 tracing = { version = "0.1.41", features = ["log", "max_level_trace", "release_max_level_info"] }
 tracing-appender = "0.2.3"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
@@ -68,6 +75,7 @@ axum-header = { path = "lib/axum-header" }
 axum-s3 = { path = "lib/axum-s3" }
 axum-s3-macros = { path = "lib/axum-s3-macros" }
 ensure = { path = "lib/ensure" }
+http-digest = { path = "lib/http-digest" }
 serde-header = { path = "lib/serde-header", features = ["full"] }
 serde-rename-chain = { path = "lib/serde-rename-chain", features = ["full"] }
 serde-s3 = { path = "lib/serde-s3" }

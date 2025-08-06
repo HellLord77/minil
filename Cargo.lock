@@ -1555,6 +1555,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63f67baaf67a9ae8fae78ecee69294d552b764dbcd6f8735d0a9c9be20ab0c82"
 
 [[package]]
+name = "http-digest"
+version = "0.2.2"
+dependencies = [
+ "base64 0.22.1",
+ "derive_more",
+ "strum 0.27.2",
+]
+
+[[package]]
 name = "http-range-header"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1960,6 +1969,7 @@ dependencies = [
 name = "minil"
 version = "0.2.3"
 dependencies = [
+ "async-stream",
  "axum",
  "axum-extra",
  "axum-filter-router",
@@ -1972,7 +1982,9 @@ dependencies = [
  "ensure",
  "futures",
  "http-content-range",
+ "http-digest",
  "indexmap 2.10.0",
+ "md-5",
  "minil-config",
  "minil-migration",
  "minil-service",
@@ -3140,6 +3152,7 @@ dependencies = [
  "chrono",
  "derive_more",
  "http-content-range",
+ "http-digest",
  "http-range-header",
  "httpdate",
  "mime",
