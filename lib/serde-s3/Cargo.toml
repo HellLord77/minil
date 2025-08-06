@@ -19,6 +19,7 @@ serde-inline-default.workspace = true
 serde_with.workspace = true
 uuid.workspace = true
 
+http-digest.workspace = true
 serde-rename-chain.workspace = true
 serde-with-extra.workspace = true
 stringify-checked.workspace = true

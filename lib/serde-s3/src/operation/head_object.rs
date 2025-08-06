@@ -126,8 +126,8 @@ pub struct HeadObjectOutputHeader {
     pub content_range: Option<ContentRangeBytes>,
 
     #[builder(into)]
-    #[serde_rename_chain(convert_case = "train")]
     #[serde_as(as = "Option<DisplayFromBytes>")]
+    #[serde_rename_chain(convert_case = "train")]
     pub content_type: Option<Mime>,
 
     #[serde_rename_chain(convert_case = "pascal")]

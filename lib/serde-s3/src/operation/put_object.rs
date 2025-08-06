@@ -1,6 +1,7 @@
 use bon::Builder;
 use chrono::DateTime;
 use chrono::Utc;
+use http_digest::DigestMd5;
 use httpdate::HttpDate;
 use mime::Mime;
 use serde::Serialize;
@@ -48,7 +49,8 @@ pub struct PutObjectInputHeader {
     pub content_language: Option<String>,
 
     #[serde(rename = "Content-MD5")]
-    pub content_md5: Option<String>,
+    #[serde_as(as = "Option<DisplayFromBytes>")]
+    pub content_md5: Option<DigestMd5>,
 
     #[serde_as(as = "Option<DisplayFromBytes>")]
     #[serde_rename_chain(convert_case = "train")]
