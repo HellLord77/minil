@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::str::FromStr;
 
 use base64::prelude::*;
@@ -10,16 +9,17 @@ use strum::IntoDiscriminant;
 
 use crate::DigestParseError;
 use crate::ValueParseError;
+use crate::macros::define_digest_algorithm;
 
-pub type Md5 = [u8; 16];
-pub type Sha = [u8; 20];
-pub type UnixSum = [u8; 16];
-pub type UnixCkSum = [u8; 32];
-pub type Adler = [u8; 32];
-pub type Crc32C = [u8; 4];
+define_digest_algorithm!(Md5, 16);
+define_digest_algorithm!(Sha, 20);
+define_digest_algorithm!(UnixSum, 16);
+define_digest_algorithm!(UnixCkSum, 32);
+define_digest_algorithm!(Adler, 32);
+define_digest_algorithm!(Crc32C, 4);
 
 #[derive(Debug, Display, From, EnumDiscriminants)]
-#[display("{}=:{}:", self.discriminant(), BASE64_STANDARD.encode(_0))]
+#[display("{}=:{}:", self.discriminant(), BASE64_STANDARD.encode(_0.0))]
 #[strum_discriminants(derive(EnumString, strum::Display), strum(serialize_all = "lowercase"))]
 pub enum InsecureDigest {
     Md5(Md5),
@@ -35,21 +35,6 @@ pub enum InsecureDigest {
     Adler(Adler),
 
     Crc32C(Crc32C),
-}
-
-impl Deref for InsecureDigest {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            InsecureDigest::Md5(d) => d,
-            InsecureDigest::Sha(d) => d,
-            InsecureDigest::UnixSum(d) => d,
-            InsecureDigest::UnixCkSum(d) => d,
-            InsecureDigest::Adler(d) => d,
-            InsecureDigest::Crc32C(d) => d,
-        }
-    }
 }
 
 impl FromStr for InsecureDigest {
@@ -69,24 +54,12 @@ impl FromStr for InsecureDigest {
             .map_err(ValueParseError::from)?;
 
         Ok(match a {
-            InsecureDigestDiscriminants::Md5 => {
-                Md5::try_from(v).map_err(ValueParseError::from)?.into()
-            }
-            InsecureDigestDiscriminants::Sha => {
-                Sha::try_from(v).map_err(ValueParseError::from)?.into()
-            }
-            InsecureDigestDiscriminants::UnixSum => {
-                Self::UnixSum(UnixSum::try_from(v).map_err(ValueParseError::from)?)
-            }
-            InsecureDigestDiscriminants::UnixCkSum => UnixCkSum::try_from(v)
-                .map_err(ValueParseError::from)?
-                .into(),
-            InsecureDigestDiscriminants::Adler => {
-                Self::Adler(Adler::try_from(v).map_err(ValueParseError::from)?)
-            }
-            InsecureDigestDiscriminants::Crc32C => {
-                Crc32C::try_from(v).map_err(ValueParseError::from)?.into()
-            }
+            InsecureDigestDiscriminants::Md5 => Md5::try_from(v)?.into(),
+            InsecureDigestDiscriminants::Sha => Sha::try_from(v)?.into(),
+            InsecureDigestDiscriminants::UnixSum => Self::UnixSum(UnixSum::try_from(v)?),
+            InsecureDigestDiscriminants::UnixCkSum => UnixCkSum::try_from(v)?.into(),
+            InsecureDigestDiscriminants::Adler => Self::Adler(Adler::try_from(v)?),
+            InsecureDigestDiscriminants::Crc32C => Crc32C::try_from(v)?.into(),
         })
     }
 }

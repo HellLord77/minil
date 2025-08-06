@@ -6,6 +6,7 @@ use strum::ParseError;
 
 #[derive(Debug, Display, From, Error)]
 pub enum ValueParseError {
+    #[from(skip)]
     PrefixColonNotFound(#[error(not(source))] String),
 
     #[from(skip)]
