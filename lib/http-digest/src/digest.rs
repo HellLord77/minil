@@ -1,28 +1,15 @@
-use std::fmt;
-use std::fmt::Display;
-use std::fmt::Formatter;
-use std::ops::Deref;
 use std::str::FromStr;
+
+use derive_more::Display;
 
 use crate::DigestParseError;
 use crate::InsecureDigest;
 use crate::SecureDigest;
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum Digest {
     Secure(SecureDigest),
     Insecure(InsecureDigest),
-}
-
-impl Deref for Digest {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Digest::Secure(d) => d,
-            Digest::Insecure(d) => d,
-        }
-    }
 }
 
 impl FromStr for Digest {
@@ -34,16 +21,5 @@ impl FromStr for Digest {
             Err(DigestParseError::InvalidAlgorithm(_)) => s.parse().map(Digest::Insecure),
             Err(e) => Err(e),
         }
-    }
-}
-
-impl Display for Digest {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Digest::Secure(d) => d.to_string(),
-            Digest::Insecure(d) => d.to_string(),
-        };
-
-        write!(f, "{s}")
     }
 }

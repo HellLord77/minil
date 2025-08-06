@@ -1,12 +1,9 @@
-use std::fmt;
-use std::fmt::Display;
-use std::fmt::Formatter;
 use std::ops::Deref;
 use std::str::FromStr;
 
 use base64::prelude::*;
+use derive_more::Display;
 use derive_more::From;
-use strum::Display;
 use strum::EnumDiscriminants;
 use strum::EnumString;
 use strum::IntoDiscriminant;
@@ -21,8 +18,9 @@ pub type UnixCkSum = [u8; 32];
 pub type Adler = [u8; 32];
 pub type Crc32C = [u8; 4];
 
-#[derive(Debug, From, EnumDiscriminants)]
-#[strum_discriminants(derive(EnumString, Display), strum(serialize_all = "lowercase"))]
+#[derive(Debug, Display, From, EnumDiscriminants)]
+#[display("{}=:{}:", self.discriminant(), BASE64_STANDARD.encode(_0))]
+#[strum_discriminants(derive(EnumString, strum::Display), strum(serialize_all = "lowercase"))]
 pub enum InsecureDigest {
     Md5(Md5),
 
@@ -90,16 +88,5 @@ impl FromStr for InsecureDigest {
                 Crc32C::try_from(v).map_err(ValueParseError::from)?.into()
             }
         })
-    }
-}
-
-impl Display for InsecureDigest {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}=:{}:",
-            self.discriminant(),
-            BASE64_STANDARD.encode(self.deref())
-        )
     }
 }

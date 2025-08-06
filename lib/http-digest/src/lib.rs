@@ -15,19 +15,19 @@ pub type DigestsRef<'a> = &'a [Digest];
 pub type SecureDigests = Vec<SecureDigest>;
 pub type SecureDigestsRef<'a> = &'a [SecureDigest];
 
-pub fn from_str(s: &str) -> Result<Digests, DigestParseError> {
+pub fn from_str_legacy(s: &str) -> Result<Digests, DigestParseError> {
     s.split(",")
         .map(|s| s.trim().parse())
         .collect::<Result<Vec<_>, _>>()
 }
 
-pub fn from_str_secure(s: &str) -> Result<SecureDigests, DigestParseError> {
+pub fn from_str(s: &str) -> Result<SecureDigests, DigestParseError> {
     s.split(",")
         .map(|s| s.trim().parse())
         .collect::<Result<Vec<_>, _>>()
 }
 
-pub fn to_string(digests: DigestsRef) -> String {
+pub fn to_string_legacy(digests: DigestsRef) -> String {
     digests
         .iter()
         .map(|d| d.to_string())
@@ -35,7 +35,7 @@ pub fn to_string(digests: DigestsRef) -> String {
         .join(",")
 }
 
-pub fn to_string_secure(digests: SecureDigestsRef) -> String {
+pub fn to_string(digests: SecureDigestsRef) -> String {
     digests
         .iter()
         .map(|d| d.to_string())
