@@ -20,7 +20,7 @@ use crate::utils::UpdateManyExt;
 pub struct VersionQuery;
 
 impl VersionQuery {
-    pub async fn find_2nd_latest_by_object_id(
+    pub async fn find_2nd_latest(
         db: &impl ConnectionTrait,
         object_id: Uuid,
     ) -> DbRes<Option<version::Model>> {
@@ -32,7 +32,7 @@ impl VersionQuery {
             .await
     }
 
-    pub async fn find_also_object_by_bucket_id(
+    pub async fn find_many_also_object(
         db: &(impl ConnectionTrait + StreamTrait),
         bucket_id: Uuid,
         prefix: Option<&str>,
@@ -100,7 +100,7 @@ impl VersionMutation {
         object_id: Uuid,
         versioning: bool,
     ) -> DbRes<Option<version::Model>> {
-        PartMutation::delete_by_version_id(db, id).await?;
+        PartMutation::delete_many(db, None, Some(id)).await?;
 
         let version = version::ActiveModel {
             object_id: Set(object_id),
@@ -137,7 +137,7 @@ impl VersionMutation {
         read: impl Unpin + AsyncRead,
     ) -> InsRes<version::Model> {
         let id = id.unwrap_or_else(Uuid::new_v4);
-        PartMutation::delete_by_version_id(db, id).await?;
+        PartMutation::delete_many(db, None, Some(id)).await?;
 
         let part = PartMutation::upsert_with_chunk(db, None, Some(id), 1, Some(0), read).await?;
 
@@ -188,7 +188,7 @@ impl VersionMutation {
         versioning: bool,
     ) -> DbRes<version::Model> {
         let id = id.unwrap_or_else(Uuid::new_v4);
-        PartMutation::delete_by_version_id(db, id).await?;
+        PartMutation::delete_many(db, None, Some(id)).await?;
 
         let version = version::ActiveModel {
             id: Set(id),

@@ -9,7 +9,7 @@ use crate::error::DbRes;
 pub struct TagQuery;
 
 impl TagQuery {
-    pub async fn find_by_tag_set_id(
+    pub async fn find_many(
         db: &(impl ConnectionTrait + StreamTrait),
         tag_set_id: Uuid,
     ) -> DbRes<impl Stream<Item = DbRes<tag::Model>>> {
@@ -40,7 +40,7 @@ impl TagMutation {
         Tag::insert_many(tags).exec(db).await
     }
 
-    pub(super) async fn delete_by_tag_set_id(
+    pub(super) async fn delete_many(
         db: &impl ConnectionTrait,
         tag_set_id: Uuid,
     ) -> DbRes<DeleteResult> {

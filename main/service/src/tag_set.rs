@@ -40,7 +40,7 @@ impl TagSetMutation {
         let id = TagSetQuery::find(db, bucket_id, version_id)
             .await?
             .map_or_else(Uuid::new_v4, |model| model.id);
-        TagMutation::delete_by_tag_set_id(db, id).await?;
+        TagMutation::delete_many(db, id).await?;
 
         TagMutation::insert_many(db, id, iter).await?;
 
@@ -61,15 +61,18 @@ impl TagSetMutation {
             .await
     }
 
-    pub async fn delete_by_bucket_id(
+    pub async fn delete(
         db: &(impl ConnectionTrait + StreamTrait),
-        bucket_id: Uuid,
+        bucket_id: Option<Uuid>,
+        version_id: Option<Uuid>,
     ) -> DbRes<Option<tag_set::Model>> {
-        TagSet::delete_many()
-            .filter(tag_set::Column::BucketId.eq(bucket_id))
-            .exec_with_streaming(db)
-            .await?
-            .try_next()
-            .await
+        let mut query = TagSet::delete_many();
+        if let Some(bucket_id) = bucket_id {
+            query = query.filter(tag_set::Column::BucketId.eq(bucket_id));
+        }
+        if let Some(version_id) = version_id {
+            query = query.filter(tag_set::Column::VersionId.eq(version_id));
+        }
+        query.exec_with_streaming(db).await?.try_next().await
     }
 }

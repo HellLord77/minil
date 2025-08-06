@@ -43,12 +43,19 @@ impl PartQuery {
         query.filter(part::Column::Number.eq(number)).one(db).await
     }
 
-    pub async fn find_by_version_id(
+    pub async fn find_many(
         db: &(impl ConnectionTrait + StreamTrait),
-        version_id: Uuid,
+        upload_id: Option<Uuid>,
+        version_id: Option<Uuid>,
         range: &Option<std::ops::RangeInclusive<u64>>,
     ) -> DbRes<impl Stream<Item = DbRes<part::Model>>> {
-        let mut query = Part::find().filter(part::Column::VersionId.eq(version_id));
+        let mut query = Part::find();
+        if let Some(upload_id) = upload_id {
+            query = query.filter(part::Column::UploadId.eq(upload_id));
+        }
+        if let Some(version_id) = version_id {
+            query = query.filter(part::Column::VersionId.eq(version_id));
+        }
         if let Some(range) = range {
             query = query
                 .filter(part::Column::Start.lte(*range.end()))
@@ -72,7 +79,7 @@ impl PartMutation {
         let id = PartQuery::find(db, upload_id, version_id, number)
             .await?
             .map_or_else(Uuid::new_v4, |part| part.id);
-        ChunkMutation::delete_by_part_id(db, id).await?;
+        ChunkMutation::delete_many(db, id).await?;
 
         let decode = ChunkDecoder::with_capacity(ByteSize::mib(4).as_u64() as usize);
         let read = FramedRead::new(read, decode)
@@ -151,13 +158,18 @@ impl PartMutation {
             .await?)
     }
 
-    pub(super) async fn delete_by_version_id(
+    pub(super) async fn delete_many(
         db: &impl ConnectionTrait,
-        version_id: Uuid,
+        upload_id: Option<Uuid>,
+        version_id: Option<Uuid>,
     ) -> DbRes<DeleteResult> {
-        Part::delete_many()
-            .filter(part::Column::VersionId.eq(version_id))
-            .exec(db)
-            .await
+        let mut query = Part::delete_many();
+        if let Some(upload_id) = upload_id {
+            query = query.filter(part::Column::UploadId.eq(upload_id));
+        }
+        if let Some(version_id) = version_id {
+            query = query.filter(part::Column::VersionId.eq(version_id));
+        }
+        query.exec(db).await
     }
 }

@@ -96,7 +96,7 @@ impl ObjectQuery {
             .map(|(object, version)| (object, version.unwrap())))
     }
 
-    pub async fn find_also_latest_version_by_bucket_id(
+    pub async fn find_many_also_latest_version(
         db: &(impl ConnectionTrait + StreamTrait),
         bucket_id: Uuid,
         prefix: Option<&str>,
@@ -297,9 +297,7 @@ impl ObjectMutation {
 
         if let Some((object, Some(version))) = object_version {
             if object.version_id == version.id {
-                if let Some(version) =
-                    VersionQuery::find_2nd_latest_by_object_id(db, object.id).await?
-                {
+                if let Some(version) = VersionQuery::find_2nd_latest(db, object.id).await? {
                     if ObjectMutation::update_version_id(db, object.id, version.id)
                         .await?
                         .is_none()

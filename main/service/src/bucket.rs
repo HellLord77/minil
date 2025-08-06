@@ -40,7 +40,7 @@ impl BucketQuery {
             .await
     }
 
-    pub async fn find_by_owner_id(
+    pub async fn find_many(
         db: &(impl ConnectionTrait + StreamTrait),
         owner_id: Uuid,
         prefix: Option<&str>,

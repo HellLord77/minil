@@ -16,7 +16,7 @@ use crate::error::DbRes;
 pub struct ChunkQuery;
 
 impl ChunkQuery {
-    async fn find_by_part_id(
+    async fn find_many(
         db: &(impl ConnectionTrait + StreamTrait),
         part_id: Uuid,
         range: Option<&RangeInclusive<u64>>,
@@ -30,42 +30,14 @@ impl ChunkQuery {
         query.order_by_asc(chunk::Column::Index).stream(db).await
     }
 
-    pub async fn find_only_data_by_version_id(
-        db: impl Clone + ConnectionTrait + StreamTrait,
-        version_id: Uuid,
-        range: Option<RangeInclusive<u64>>,
-    ) -> impl Stream<Item = DbRes<Bytes>> {
-        try_stream! {
-            let parts = PartQuery::find_by_version_id(&db, version_id, &range).await?;
-            let mut stream = pin!(parts);
-
-            while let Some(part) = stream.try_next().await? {
-                let range = range.as_ref().map(|range| {
-                    let start = part.start.unwrap() as u64;
-                    let end = part.end.unwrap() as u64;
-                    let offset = start;
-
-                    let start = start.max(*range.start()) - offset;
-                    let end = end.min(*range.end()) - offset;
-                    start..=end
-                });
-
-                let chunks = ChunkQuery::find_only_data_by_part_id(db.clone(), part.id, range).await;
-                for await chunk in chunks {
-                    yield chunk?;
-                }
-            }
-        }
-    }
-
     //noinspection RsBorrowChecker
-    pub async fn find_only_data_by_part_id(
+    pub async fn find_only_data(
         db: impl ConnectionTrait + StreamTrait,
         part_id: Uuid,
         range: Option<RangeInclusive<u64>>,
     ) -> impl Stream<Item = DbRes<Bytes>> {
         try_stream! {
-            let chunks = ChunkQuery::find_by_part_id(&db, part_id, range.as_ref()).await?;
+            let chunks = ChunkQuery::find_many(&db, part_id, range.as_ref()).await?;
             let mut stream = pin!(chunks);
 
             while let Some(chunk) = stream.try_next().await? {
@@ -80,6 +52,35 @@ impl ChunkQuery {
                 });
 
                 yield Bytes::copy_from_slice(range.map_or(&chunk.data, |range| &chunk.data[range]))
+            }
+        }
+    }
+
+    pub async fn find_many_only_data(
+        db: impl Clone + ConnectionTrait + StreamTrait,
+        upload_id: Option<Uuid>,
+        version_id: Option<Uuid>,
+        range: Option<RangeInclusive<u64>>,
+    ) -> impl Stream<Item = DbRes<Bytes>> {
+        try_stream! {
+            let parts = PartQuery::find_many(&db, upload_id, version_id, &range).await?;
+            let mut stream = pin!(parts);
+
+            while let Some(part) = stream.try_next().await? {
+                let range = range.as_ref().map(|range| {
+                    let start = part.start.unwrap() as u64;
+                    let end = part.end.unwrap() as u64;
+                    let offset = start;
+
+                    let start = start.max(*range.start()) - offset;
+                    let end = end.min(*range.end()) - offset;
+                    start..=end
+                });
+
+                let chunks = ChunkQuery::find_only_data(db.clone(), part.id, range).await;
+                for await chunk in chunks {
+                    yield chunk?;
+                }
             }
         }
     }
@@ -109,7 +110,7 @@ impl ChunkMutation {
         Chunk::insert(chunk).exec(db).await
     }
 
-    pub(super) async fn delete_by_part_id(
+    pub(super) async fn delete_many(
         db: &impl ConnectionTrait,
         part_id: Uuid,
     ) -> DbRes<DeleteResult> {
