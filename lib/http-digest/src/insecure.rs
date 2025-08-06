@@ -11,28 +11,28 @@ use crate::DigestParseError;
 use crate::ValueParseError;
 use crate::macros::define_digest_algorithm;
 
-define_digest_algorithm!(Md5, 16);
-define_digest_algorithm!(Sha, 20);
-define_digest_algorithm!(UnixSum, 16);
-define_digest_algorithm!(UnixCkSum, 32);
-define_digest_algorithm!(Adler, 32);
-define_digest_algorithm!(Crc32C, 4);
+define_digest_algorithm!(DigestMd5, 16);
+define_digest_algorithm!(DigestSha, 20);
+define_digest_algorithm!(DigestUnixSum, 16);
+define_digest_algorithm!(DigestUnixCkSum, 32);
+define_digest_algorithm!(DigestAdler, 32);
+define_digest_algorithm!(DigestCrc32C, 4);
 
 #[derive(Debug, Display, From, EnumDiscriminants)]
 #[display("{}=:{}:", self.discriminant(), BASE64_STANDARD.encode(_0.0))]
 #[strum_discriminants(derive(EnumString, strum::Display), strum(serialize_all = "lowercase"))]
 pub enum InsecureDigest {
-    Md5(Md5),
+    Md5(DigestMd5),
 
-    Sha(Sha),
+    Sha(DigestSha),
 
-    UnixSum(UnixSum),
+    UnixSum(DigestUnixSum),
 
-    UnixCkSum(UnixCkSum),
+    UnixCkSum(DigestUnixCkSum),
 
-    Adler(Adler),
+    Adler(DigestAdler),
 
-    Crc32C(Crc32C),
+    Crc32C(DigestCrc32C),
 }
 
 impl FromStr for InsecureDigest {
@@ -49,12 +49,12 @@ impl FromStr for InsecureDigest {
         };
 
         Ok(match a {
-            InsecureDigestDiscriminants::Md5 => v.parse::<Md5>()?.into(),
-            InsecureDigestDiscriminants::Sha => v.parse::<Sha>()?.into(),
-            InsecureDigestDiscriminants::UnixSum => v.parse::<UnixSum>()?.into(),
-            InsecureDigestDiscriminants::UnixCkSum => v.parse::<UnixCkSum>()?.into(),
-            InsecureDigestDiscriminants::Adler => v.parse::<Adler>()?.into(),
-            InsecureDigestDiscriminants::Crc32C => v.parse::<Crc32C>()?.into(),
+            InsecureDigestDiscriminants::Md5 => v.parse::<DigestMd5>()?.into(),
+            InsecureDigestDiscriminants::Sha => v.parse::<DigestSha>()?.into(),
+            InsecureDigestDiscriminants::UnixSum => v.parse::<DigestUnixSum>()?.into(),
+            InsecureDigestDiscriminants::UnixCkSum => v.parse::<DigestUnixCkSum>()?.into(),
+            InsecureDigestDiscriminants::Adler => v.parse::<DigestAdler>()?.into(),
+            InsecureDigestDiscriminants::Crc32C => v.parse::<DigestCrc32C>()?.into(),
         })
     }
 }

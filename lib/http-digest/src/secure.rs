@@ -11,18 +11,18 @@ use crate::DigestParseError;
 use crate::ValueParseError;
 use crate::macros::define_digest_algorithm;
 
-define_digest_algorithm!(Sha256, 32);
-define_digest_algorithm!(Sha512, 64);
+define_digest_algorithm!(DigestSha256, 32);
+define_digest_algorithm!(DigestSha512, 64);
 
 #[derive(Debug, Display, From, EnumDiscriminants)]
 #[display("{}=:{}:", self.discriminant(), BASE64_STANDARD.encode(_0.0))]
 #[strum_discriminants(derive(EnumString, strum::Display), strum(serialize_all = "lowercase"))]
 pub enum SecureDigest {
     #[strum_discriminants(strum(serialize = "sha-256"))]
-    Sha256(Sha256),
+    Sha256(DigestSha256),
 
     #[strum_discriminants(strum(serialize = "sha-512"))]
-    Sha512(Sha512),
+    Sha512(DigestSha512),
 }
 
 impl FromStr for SecureDigest {
@@ -39,8 +39,8 @@ impl FromStr for SecureDigest {
         }
 
         Ok(match a {
-            SecureDigestDiscriminants::Sha256 => v.parse::<Sha256>()?.into(),
-            SecureDigestDiscriminants::Sha512 => v.parse::<Sha512>()?.into(),
+            SecureDigestDiscriminants::Sha256 => v.parse::<DigestSha256>()?.into(),
+            SecureDigestDiscriminants::Sha512 => v.parse::<DigestSha512>()?.into(),
         })
     }
 }

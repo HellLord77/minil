@@ -7,10 +7,16 @@ mod secure;
 pub use digest::Digest;
 pub use error::DigestParseError;
 pub use error::ValueParseError;
+pub use insecure::DigestAdler;
+pub use insecure::DigestCrc32C;
+pub use insecure::DigestMd5;
+pub use insecure::DigestSha;
+pub use insecure::DigestUnixCkSum;
+pub use insecure::DigestUnixSum;
 pub use insecure::InsecureDigest;
+pub use secure::DigestSha256;
+pub use secure::DigestSha512;
 pub use secure::SecureDigest;
-pub use secure::Sha256;
-pub use secure::Sha512;
 
 pub fn from_str(s: &str) -> Result<Vec<SecureDigest>, DigestParseError> {
     s.split(",").map(|s| s.trim().parse()).collect()

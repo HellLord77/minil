@@ -14,7 +14,7 @@ pub enum ValueParseError {
 
     InvalidBase64(DecodeError),
 
-    #[display("InvalidLength: {_0:?}")]
+    #[display("InvalidLength")]
     InvalidLength(#[error(not(source))] Vec<u8>),
 }
 

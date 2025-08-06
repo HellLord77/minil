@@ -1,7 +1,7 @@
 macro_rules! define_digest_algorithm {
     ($digest_algorithm:ident, $digest_size:literal) => {
         #[derive(::core::fmt::Debug)]
-        pub struct $digest_algorithm([u8; $digest_size]);
+        pub struct $digest_algorithm(pub [u8; $digest_size]);
 
         impl ::core::convert::TryFrom<::std::vec::Vec<u8>> for $digest_algorithm {
             type Error = $crate::ValueParseError;
