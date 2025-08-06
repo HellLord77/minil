@@ -26,12 +26,10 @@ pub enum InsecureDigest {
 
     Sha(Sha),
 
-    #[from(skip)]
     UnixSum(UnixSum),
 
     UnixCkSum(UnixCkSum),
 
-    #[from(skip)]
     Adler(Adler),
 
     Crc32C(Crc32C),
@@ -43,23 +41,20 @@ impl FromStr for InsecureDigest {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (a, v) = s.split_once("=").ok_or_else(|| s.to_owned())?;
         let a = a.to_lowercase().parse()?;
-        let v = v
-            .strip_prefix(":")
-            .ok_or_else(|| ValueParseError::PrefixColonNotFound(s.to_owned()))?;
-        let v = v
-            .strip_suffix(":")
-            .ok_or_else(|| ValueParseError::SuffixColonNotFound(s.to_owned()))?;
-        let v = BASE64_STANDARD
-            .decode(v.as_bytes())
-            .map_err(ValueParseError::from)?;
+        if !v.starts_with(":") {
+            Err(ValueParseError::PrefixColonNotFound(v.to_owned()))?
+        };
+        if !v.ends_with(":") {
+            Err(ValueParseError::SuffixColonNotFound(v.to_owned()))?
+        };
 
         Ok(match a {
-            InsecureDigestDiscriminants::Md5 => Md5::try_from(v)?.into(),
-            InsecureDigestDiscriminants::Sha => Sha::try_from(v)?.into(),
-            InsecureDigestDiscriminants::UnixSum => Self::UnixSum(UnixSum::try_from(v)?),
-            InsecureDigestDiscriminants::UnixCkSum => UnixCkSum::try_from(v)?.into(),
-            InsecureDigestDiscriminants::Adler => Self::Adler(Adler::try_from(v)?),
-            InsecureDigestDiscriminants::Crc32C => Crc32C::try_from(v)?.into(),
+            InsecureDigestDiscriminants::Md5 => v.parse::<Md5>()?.into(),
+            InsecureDigestDiscriminants::Sha => v.parse::<Sha>()?.into(),
+            InsecureDigestDiscriminants::UnixSum => v.parse::<UnixSum>()?.into(),
+            InsecureDigestDiscriminants::UnixCkSum => v.parse::<UnixCkSum>()?.into(),
+            InsecureDigestDiscriminants::Adler => v.parse::<Adler>()?.into(),
+            InsecureDigestDiscriminants::Crc32C => v.parse::<Crc32C>()?.into(),
         })
     }
 }

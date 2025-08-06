@@ -31,19 +31,16 @@ impl FromStr for SecureDigest {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (a, v) = s.split_once("=").ok_or_else(|| s.to_owned())?;
         let a = a.to_lowercase().parse()?;
-        let v = v
-            .strip_prefix(":")
-            .ok_or_else(|| ValueParseError::PrefixColonNotFound(s.to_owned()))?;
-        let v = v
-            .strip_suffix(":")
-            .ok_or_else(|| ValueParseError::SuffixColonNotFound(s.to_owned()))?;
-        let v = BASE64_STANDARD
-            .decode(v.as_bytes())
-            .map_err(ValueParseError::from)?;
+        if !v.starts_with(":") {
+            Err(ValueParseError::PrefixColonNotFound(v.to_owned()))?;
+        }
+        if !v.ends_with(":") {
+            Err(ValueParseError::SuffixColonNotFound(v.to_owned()))?;
+        }
 
         Ok(match a {
-            SecureDigestDiscriminants::Sha256 => Sha256::try_from(v)?.into(),
-            SecureDigestDiscriminants::Sha512 => Sha512::try_from(v)?.into(),
+            SecureDigestDiscriminants::Sha256 => v.parse::<Sha256>()?.into(),
+            SecureDigestDiscriminants::Sha512 => v.parse::<Sha512>()?.into(),
         })
     }
 }

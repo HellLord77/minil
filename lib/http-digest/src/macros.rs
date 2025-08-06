@@ -10,6 +10,21 @@ macro_rules! define_digest_algorithm {
                 ::core::result::Result::Ok(Self(value.try_into()?))
             }
         }
+
+        impl ::std::str::FromStr for $digest_algorithm {
+            type Err = $crate::ValueParseError;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Self::try_from(
+                    ::base64::prelude::BASE64_STANDARD.decode(
+                        s.strip_prefix(":")
+                            .unwrap_or(s)
+                            .strip_suffix(":")
+                            .unwrap_or(s),
+                    )?,
+                )
+            }
+        }
     };
 }
 
