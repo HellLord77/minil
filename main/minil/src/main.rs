@@ -8,7 +8,6 @@ use std::convert;
 use std::env;
 use std::future;
 use std::io;
-use std::ops::Deref;
 use std::pin::pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -38,6 +37,8 @@ use axum_s3::operation::DeleteBucketTaggingInput;
 use axum_s3::operation::DeleteBucketTaggingOutput;
 use axum_s3::operation::DeleteObjectInput;
 use axum_s3::operation::DeleteObjectOutput;
+use axum_s3::operation::DeleteObjectTaggingInput;
+use axum_s3::operation::DeleteObjectTaggingOutput;
 use axum_s3::operation::GetBucketLocationInput;
 use axum_s3::operation::GetBucketLocationOutput;
 use axum_s3::operation::GetBucketTaggingInput;
@@ -46,6 +47,8 @@ use axum_s3::operation::GetBucketVersioningInput;
 use axum_s3::operation::GetBucketVersioningOutput;
 use axum_s3::operation::GetObjectInput;
 use axum_s3::operation::GetObjectOutput;
+use axum_s3::operation::GetObjectTaggingInput;
+use axum_s3::operation::GetObjectTaggingOutput;
 use axum_s3::operation::HeadBucketInput;
 use axum_s3::operation::HeadBucketOutput;
 use axum_s3::operation::HeadObjectInput;
@@ -64,6 +67,8 @@ use axum_s3::operation::PutBucketVersioningInput;
 use axum_s3::operation::PutBucketVersioningOutput;
 use axum_s3::operation::PutObjectInput;
 use axum_s3::operation::PutObjectOutput;
+use axum_s3::operation::PutObjectTaggingInput;
+use axum_s3::operation::PutObjectTaggingOutput;
 use axum_s3::utils::CommonExtInput;
 use futures::StreamExt;
 use futures::TryStreamExt;
@@ -84,6 +89,7 @@ use minil_service::OwnerQuery;
 use minil_service::PartQuery;
 use minil_service::TagQuery;
 use minil_service::TagSetMutation;
+use minil_service::TagSetQuery;
 use minil_service::VersionQuery;
 use sea_orm::ConnectOptions;
 use sea_orm::Database;
@@ -91,10 +97,13 @@ use sea_orm::DbConn;
 use sea_orm::TransactionTrait;
 use serde_s3::operation::CreateBucketOutputHeader;
 use serde_s3::operation::DeleteObjectOutputHeader;
+use serde_s3::operation::DeleteObjectTaggingOutputHeader;
 use serde_s3::operation::GetBucketLocationOutputBody;
 use serde_s3::operation::GetBucketTaggingOutputBody;
 use serde_s3::operation::GetBucketVersioningOutputBody;
 use serde_s3::operation::GetObjectOutputHeader;
+use serde_s3::operation::GetObjectTaggingOutputBody;
+use serde_s3::operation::GetObjectTaggingOutputHeader;
 use serde_s3::operation::HeadBucketOutputHeader;
 use serde_s3::operation::HeadObjectOutputHeader;
 use serde_s3::operation::ListBucketsOutputBody;
@@ -105,6 +114,7 @@ use serde_s3::operation::ListObjectsOutputHeader;
 use serde_s3::operation::ListObjectsV2OutputBody;
 use serde_s3::operation::ListObjectsV2OutputHeader;
 use serde_s3::operation::PutObjectOutputHeader;
+use serde_s3::operation::PutObjectTaggingOutputHeader;
 use serde_s3::types::Bucket;
 use serde_s3::types::BucketLocationConstraint;
 use serde_s3::types::BucketVersioningStatus;
@@ -171,7 +181,7 @@ async fn main() {
         Uuid::new_v8(NODE_NAME.as_bytes().try_into().expect("invalid node name")).to_string();
     let server = format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
-    let content_type_layer = SetRequestHeaderLayer::if_not_present(
+    let add_content_type = SetRequestHeaderLayer::if_not_present(
         header::CONTENT_TYPE,
         "application/xml"
             .parse::<HeaderValue>()
@@ -199,7 +209,8 @@ async fn main() {
         .middleware_fn(validate_content_md5)
         .middleware_fn_with_state(state.clone(), manage_db_txn);
 
-    let put_bucket_tagging_handler = put_bucket_tagging.layer(content_type_layer);
+    let put_bucket_tagging_handler = put_bucket_tagging.layer(add_content_type.clone());
+    let put_object_tagging_handler = put_object_tagging.layer(add_content_type);
     let router = Router::new();
     let router = app_define_handlers!(router {
         get("/") => list_buckets,
@@ -223,10 +234,19 @@ async fn main() {
             _ => create_bucket,
         },
 
-        delete("/{Bucket}/{*Key}") => delete_object,
-        get("/{Bucket}/{*Key}") => get_object,
+        delete("/{Bucket}/{*Key}") => {
+            query("tagging", "") => delete_object_tagging,
+            _ => delete_object
+        },
+        get("/{Bucket}/{*Key}") => {
+            query("tagging", "") => get_object_tagging,
+            _ => get_object
+        },
         head("/{Bucket}/{*Key}") => head_object,
-        put("/{Bucket}/{*Key}") => put_object,
+        put("/{Bucket}/{*Key}") => {
+            query("tagging", "") => put_object_tagging_handler,
+            _ => put_object
+        },
 
         // fixme "/" => get {
         //     header(r"foo?") => contains_fo_or_foo,
@@ -423,11 +443,11 @@ async fn list_buckets(
     Extension(db): Extension<DbTxn>,
     input: ListBucketsInput,
 ) -> AppResult<ListBucketsOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     let limit = input.query.max_buckets + 1;
-    let mut buckets = BucketQuery::find_by_owner_id(
-        db.deref(),
+    let mut buckets = BucketQuery::find_many(
+        &*db,
         owner.id,
         input.query.prefix.as_deref(),
         input.query.continuation_token.as_deref(),
@@ -473,13 +493,13 @@ async fn delete_bucket_tagging(
     Extension(db): Extension<DbTxn>,
     input: DeleteBucketTaggingInput,
 ) -> AppResult<DeleteBucketTaggingOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    TagSetMutation::delete_by_bucket_id(db.deref(), bucket.id)
+    TagSetMutation::delete(&*db, Some(bucket.id), None)
         .await?
         .ok_or(AppError::NoSuchTagSet)?;
 
@@ -491,10 +511,10 @@ async fn delete_bucket(
     Extension(db): Extension<DbTxn>,
     input: DeleteBucketInput,
 ) -> AppResult<DeleteBucketOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    BucketMutation::delete(db.deref(), owner.id, &input.path.bucket)
+    BucketMutation::delete(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
@@ -506,18 +526,18 @@ async fn list_objects_v2(
     Extension(db): Extension<DbTxn>,
     input: ListObjectsV2Input,
 ) -> AppResult<ListObjectsV2Output> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.optional_object_attributes, None);
     app_ensure_matches!(input.header.request_payer, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let limit = input.query.max_keys + 1;
-    let mut objects_versions = ObjectQuery::find_also_latest_version_by_bucket_id(
-        db.deref(),
+    let mut objects_versions = ObjectQuery::find_many_also_latest_version(
+        &*db,
         bucket.id,
         input.query.prefix.as_deref(),
         input
@@ -617,10 +637,10 @@ async fn get_bucket_location(
     Extension(db): Extension<DbTxn>,
     input: GetBucketLocationInput,
 ) -> AppResult<GetBucketLocationOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
+    BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
@@ -638,10 +658,10 @@ async fn get_bucket_versioning(
     Extension(db): Extension<DbTxn>,
     input: GetBucketVersioningInput,
 ) -> AppResult<GetBucketVersioningOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let mfa_delete = bucket.mfa_delete.map(|mfa_delete| {
@@ -674,18 +694,18 @@ async fn list_object_versions(
     Extension(db): Extension<DbTxn>,
     input: ListObjectVersionsInput,
 ) -> AppResult<ListObjectVersionsOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.optional_object_attributes, None);
     app_ensure_matches!(input.header.request_payer, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let limit = input.query.max_keys + 1;
-    let mut versions_objects = VersionQuery::find_also_object_by_bucket_id(
-        db.deref(),
+    let mut versions_objects = VersionQuery::find_many_also_object(
+        &*db,
         bucket.id,
         input.query.prefix.as_deref(),
         input.query.key_marker.as_deref(),
@@ -811,15 +831,15 @@ async fn get_bucket_tagging(
     Extension(db): Extension<DbTxn>,
     input: GetBucketTaggingInput,
 ) -> AppResult<GetBucketTaggingOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let tag_set = BucketQuery::find_also_tag_set(db.deref(), owner.id, &input.path.bucket)
+    let tag_set = BucketQuery::find_also_tag_set(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?
         .1
         .ok_or(AppError::NoSuchTagSet)?;
-    let tag_set = TagQuery::find_by_tag_set_id(db.deref(), tag_set.id)
+    let tag_set = TagQuery::find_many(&*db, tag_set.id)
         .await?
         .try_collect::<Vec<_>>()
         .await?;
@@ -843,18 +863,18 @@ async fn list_objects(
     Extension(db): Extension<DbTxn>,
     input: ListObjectsInput,
 ) -> AppResult<ListObjectsOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.optional_object_attributes, None);
     app_ensure_matches!(input.header.request_payer, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let limit = input.query.max_keys + 1;
-    let mut objects_versions = ObjectQuery::find_also_latest_version_by_bucket_id(
-        db.deref(),
+    let mut objects_versions = ObjectQuery::find_many_also_latest_version(
+        &*db,
         bucket.id,
         input.query.prefix.as_deref(),
         input.query.marker.as_deref(),
@@ -946,10 +966,10 @@ async fn head_bucket(
     Extension(db): Extension<DbTxn>,
     input: HeadBucketInput,
 ) -> AppResult<HeadBucketOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
+    BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
@@ -967,14 +987,11 @@ async fn put_bucket_tagging(
     Extension(db): Extension<DbTxn>,
     input: PutBucketTaggingInput,
 ) -> AppResult<PutBucketTaggingOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
-        .await?
-        .ok_or(AppError::NoSuchBucket)?;
     let tag_count = input.body.tag_set.tag.len();
     if tag_count > 50 {
         Err(AppError::InvalidTag)?;
@@ -984,8 +1001,11 @@ async fn put_bucket_tagging(
     if tag_count != keys.len() {
         Err(AppError::InvalidTag)?;
     }
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
     TagSetMutation::upsert_with_tag(
-        db.deref(),
+        &*db,
         Some(bucket.id),
         None,
         input
@@ -1005,7 +1025,7 @@ async fn put_bucket_versioning(
     Extension(db): Extension<DbTxn>,
     input: PutBucketVersioningInput,
 ) -> AppResult<PutBucketVersioningOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_eq!(input.header.mfa, None);
     app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
@@ -1023,7 +1043,7 @@ async fn put_bucket_versioning(
         .body
         .status
         .map(|status| matches!(status, BucketVersioningStatus::Enabled));
-    BucketMutation::update_versioning(db.deref(), owner.id, &input.path.bucket, mfa_delete, status)
+    BucketMutation::update_versioning(&*db, owner.id, &input.path.bucket, mfa_delete, status)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
 
@@ -1035,7 +1055,7 @@ async fn create_bucket(
     Extension(db): Extension<DbTxn>,
     input: CreateBucketInput,
 ) -> AppResult<CreateBucketOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.acl, None);
     app_ensure_matches!(input.header.bucket_object_lock_enabled, None | Some(false));
@@ -1061,7 +1081,7 @@ async fn create_bucket(
         None
     );
 
-    let bucket = BucketMutation::insert(db.deref(), owner.id, input.path.bucket)
+    let bucket = BucketMutation::insert(&*db, owner.id, input.path.bucket)
         .await?
         .ok_or(AppError::BucketAlreadyOwnedByYou)?;
     if let Some(tags) = input.body.and_then(|body| body.tags) {
@@ -1075,7 +1095,7 @@ async fn create_bucket(
             Err(AppError::InvalidTag)?;
         }
         TagSetMutation::upsert_with_tag(
-            db.deref(),
+            &*db,
             Some(bucket.id),
             None,
             tags.tag.into_iter().map(|tag| (tag.key, tag.value)),
@@ -1092,12 +1112,54 @@ async fn create_bucket(
         .build())
 }
 
+#[instrument(skip(db), ret)]
+async fn delete_object_tagging(
+    Extension(db): Extension<DbTxn>,
+    input: DeleteObjectTaggingInput,
+) -> AppResult<DeleteObjectTaggingOutput> {
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
+
+    ensure::fixme!();
+    dbg!(&input);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let version = match input.query.version_id {
+        Some(version_id) => {
+            if version_id.is_nil() {
+                ObjectQuery::find_also_null_version(&*db, bucket.id, &input.path.key).await?
+            } else {
+                ObjectQuery::find_also_version(&*db, bucket.id, &input.path.key, version_id).await?
+            }
+        }
+        None => ObjectQuery::find_also_latest_version(&*db, bucket.id, &input.path.key)
+            .await?
+            .map(|(object, version)| (object, Some(version))),
+    }
+    .ok_or(AppError::NoSuchKey)?
+    .1
+    .ok_or(AppError::NoSuchVersion)?;
+    TagSetMutation::delete(&*db, None, Some(version.id))
+        .await?
+        .ok_or(AppError::NoSuchTagSet)?;
+
+    Ok(DeleteObjectTaggingOutput::builder()
+        .header(
+            DeleteObjectTaggingOutputHeader::builder()
+                .maybe_version_id(bucket.versioning.map(|_| version.id()))
+                .build(),
+        )
+        .build())
+}
+
 #[instrument(skip(db), ret)] // todo silence err
 async fn delete_object(
     Extension(db): Extension<DbTxn>,
     input: DeleteObjectInput,
 ) -> AppResult<DeleteObjectOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_eq!(input.header.if_match, None);
     app_ensure_eq!(input.header.bypass_governance_retention, None);
@@ -1107,13 +1169,13 @@ async fn delete_object(
     app_ensure_matches!(input.header.request_payer, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let (delete_marker, version_id) = match (input.query.version_id, bucket.versioning) {
         (Some(version_id), Some(_)) => {
             let delete_marker = ObjectMutation::delete_also_version_nullable(
-                db.deref(),
+                &*db,
                 bucket.id,
                 &input.path.key,
                 version_id,
@@ -1130,7 +1192,7 @@ async fn delete_object(
         (None, Some(versioning)) => {
             let version = if cfg!(feature = "create-delete") {
                 ObjectMutation::upsert_also_delete_marker(
-                    db.deref(),
+                    &*db,
                     bucket.id,
                     input.path.key,
                     versioning,
@@ -1139,7 +1201,7 @@ async fn delete_object(
                 .1
             } else {
                 ObjectMutation::update_also_delete_marker(
-                    db.deref(),
+                    &*db,
                     bucket.id,
                     &input.path.key,
                     versioning,
@@ -1157,7 +1219,7 @@ async fn delete_object(
             (true, Some(version_id))
         }
         (version_id, None) => {
-            let object = ObjectMutation::delete(db.deref(), bucket.id, &input.path.key)
+            let object = ObjectMutation::delete(&*db, bucket.id, &input.path.key)
                 .await?
                 .ok_or(AppError::NoSuchKey)?;
 
@@ -1181,13 +1243,68 @@ async fn delete_object(
         .build())
 }
 
+#[instrument(skip(db), ret)]
+async fn get_object_tagging(
+    Extension(db): Extension<DbTxn>,
+    input: GetObjectTaggingInput,
+) -> AppResult<GetObjectTaggingOutput> {
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
+
+    app_ensure_matches!(input.header.request_payer, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let version = match input.query.version_id {
+        Some(version_id) => {
+            if version_id.is_nil() {
+                ObjectQuery::find_also_null_version(&*db, bucket.id, &input.path.key).await?
+            } else {
+                ObjectQuery::find_also_version(&*db, bucket.id, &input.path.key, version_id).await?
+            }
+        }
+        None => ObjectQuery::find_also_latest_version(&*db, bucket.id, &input.path.key)
+            .await?
+            .map(|(object, version)| (object, Some(version))),
+    }
+    .ok_or(AppError::NoSuchKey)?
+    .1
+    .ok_or(AppError::NoSuchVersion)?;
+    let tag_set = TagSetQuery::find(&*db, None, Some(version.id))
+        .await?
+        .ok_or(AppError::NoSuchTagSet)?;
+    let tag_set = TagQuery::find_many(&*db, tag_set.id)
+        .await?
+        .try_collect::<Vec<_>>()
+        .await?;
+
+    Ok(GetObjectTaggingOutput::builder()
+        .header(
+            GetObjectTaggingOutputHeader::builder()
+                .maybe_version_id(bucket.versioning.map(|_| version.id()))
+                .build(),
+        )
+        .body(
+            GetObjectTaggingOutputBody::builder()
+                .tag_set(
+                    tag_set
+                        .into_iter()
+                        .map(|tag| Tag::builder().key(tag.key).value(tag.value).build())
+                        .collect::<Vec<_>>(),
+                )
+                .build(),
+        )
+        .build())
+}
+
 #[instrument(skip(db_conn, db), ret)]
 async fn get_object(
     State(db_conn): State<DbConn>,
     Extension(db): Extension<DbTxn>,
     input: GetObjectInput,
 ) -> AppResult<GetObjectOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_eq!(input.header.if_match, None);
     app_ensure_eq!(input.header.if_modified_since, None);
@@ -1204,19 +1321,18 @@ async fn get_object(
     app_ensure_matches!(input.header.server_side_encryption_customer_key_md5, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let version = match input.query.version_id {
         Some(version_id) => {
             if version_id.is_nil() {
-                ObjectQuery::find_also_null_version(db.deref(), bucket.id, &input.path.key).await?
+                ObjectQuery::find_also_null_version(&*db, bucket.id, &input.path.key).await?
             } else {
-                ObjectQuery::find_also_version(db.deref(), bucket.id, &input.path.key, version_id)
-                    .await?
+                ObjectQuery::find_also_version(&*db, bucket.id, &input.path.key, version_id).await?
             }
         }
-        None => ObjectQuery::find_also_latest_version(db.deref(), bucket.id, &input.path.key)
+        None => ObjectQuery::find_also_latest_version(&*db, bucket.id, &input.path.key)
             .await?
             .map(|(object, version)| (object, Some(version))),
     }
@@ -1250,7 +1366,7 @@ async fn get_object(
                 Err(AppError::InternalError)?;
             }
 
-            let part = PartQuery::find(db.deref(), None, Some(version.id), part_number)
+            let part = PartQuery::find(&*db, None, Some(version.id), part_number)
                 .await?
                 .ok_or(AppError::InvalidPart)?;
 
@@ -1279,10 +1395,10 @@ async fn get_object(
         })
         .transpose()?;
     let body = match part_id {
-        Some(part_id) => ChunkQuery::find_only_data_by_part_id(db_conn, part_id, range.clone())
+        Some(part_id) => ChunkQuery::find_only_data(db_conn, part_id, range.clone())
             .await
             .left_stream(),
-        None => ChunkQuery::find_only_data_by_version_id(db_conn, version.id, range.clone())
+        None => ChunkQuery::find_many_only_data(db_conn, None, Some(version.id), range.clone())
             .await
             .right_stream(),
     };
@@ -1322,7 +1438,7 @@ async fn head_object(
     Extension(db): Extension<DbTxn>,
     input: HeadObjectInput,
 ) -> AppResult<HeadObjectOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_eq!(input.header.if_match, None);
     app_ensure_eq!(input.header.if_modified_since, None);
@@ -1339,19 +1455,18 @@ async fn head_object(
     app_ensure_matches!(input.header.server_side_encryption_customer_key_md5, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let version = match input.query.version_id {
         Some(version_id) => {
             if version_id.is_nil() {
-                ObjectQuery::find_also_null_version(db.deref(), bucket.id, &input.path.key).await?
+                ObjectQuery::find_also_null_version(&*db, bucket.id, &input.path.key).await?
             } else {
-                ObjectQuery::find_also_version(db.deref(), bucket.id, &input.path.key, version_id)
-                    .await?
+                ObjectQuery::find_also_version(&*db, bucket.id, &input.path.key, version_id).await?
             }
         }
-        None => ObjectQuery::find_also_latest_version(db.deref(), bucket.id, &input.path.key)
+        None => ObjectQuery::find_also_latest_version(&*db, bucket.id, &input.path.key)
             .await?
             .map(|(object, version)| (object, Some(version))),
     }
@@ -1384,7 +1499,7 @@ async fn head_object(
                 Err(AppError::InternalError)?;
             }
 
-            let part = PartQuery::find(db.deref(), None, Some(version.id), part_number)
+            let part = PartQuery::find(&*db, None, Some(version.id), part_number)
                 .await?
                 .ok_or(AppError::InvalidPart)?;
 
@@ -1433,11 +1548,74 @@ async fn head_object(
 }
 
 #[instrument(skip(db), ret)]
+async fn put_object_tagging(
+    Extension(db): Extension<DbTxn>,
+    input: PutObjectTaggingInput,
+) -> AppResult<PutObjectTaggingOutput> {
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
+
+    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let tag_count = input.body.tag_set.tag.len();
+    if tag_count > 10 {
+        Err(AppError::InvalidTag)?;
+    }
+    let mut keys = IndexSet::new();
+    keys.extend(input.body.tag_set.tag.iter().map(|tag| tag.key.clone()));
+    if tag_count != keys.len() {
+        Err(AppError::InvalidTag)?;
+    }
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let version = match input.query.version_id {
+        Some(version_id) => {
+            if version_id.is_nil() {
+                ObjectQuery::find_also_null_version(&*db, bucket.id, &input.path.key).await?
+            } else {
+                ObjectQuery::find_also_version(&*db, bucket.id, &input.path.key, version_id).await?
+            }
+        }
+        None => ObjectQuery::find_also_latest_version(&*db, bucket.id, &input.path.key)
+            .await?
+            .map(|(object, version)| (object, Some(version))),
+    }
+    .ok_or(AppError::NoSuchKey)?
+    .1
+    .ok_or(AppError::NoSuchVersion)?;
+    if version.parts_count.is_none() {
+        Err(AppError::InternalError)?;
+    }
+    TagSetMutation::upsert_with_tag(
+        &*db,
+        None,
+        Some(version.id),
+        input
+            .body
+            .tag_set
+            .tag
+            .into_iter()
+            .map(|tag| (tag.key, tag.value)),
+    )
+    .await?;
+
+    Ok(PutObjectTaggingOutput::builder()
+        .header(
+            PutObjectTaggingOutputHeader::builder()
+                .maybe_version_id(bucket.versioning.map(|_| version.id()))
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
 async fn put_object(
     Extension(db): Extension<DbTxn>,
     input: PutObjectInput,
 ) -> AppResult<PutObjectOutput> {
-    let owner = OwnerQuery::find(db.deref(), "minil").await?.unwrap();
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_eq!(input.header.cache_control, None);
     app_ensure_eq!(input.header.content_disposition, None);
@@ -1469,16 +1647,15 @@ async fn put_object(
     app_ensure_eq!(input.header.server_side_encryption_customer_key, None);
     app_ensure_eq!(input.header.server_side_encryption_customer_key_md5, None);
     app_ensure_matches!(input.header.storage_class, None);
-    app_ensure_eq!(input.header.tagging, None);
     app_ensure_eq!(input.header.website_redirect_location, None);
     app_ensure_matches!(input.header.write_offset_bytes, None | Some(0));
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let bucket = BucketQuery::find(db.deref(), owner.id, &input.path.bucket)
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let (_, version) = ObjectMutation::upsert_also_version(
-        db.deref(),
+        &*db,
         bucket.id,
         input.path.key,
         bucket.versioning.unwrap_or_default(),
@@ -1491,6 +1668,24 @@ async fn put_object(
         ),
     )
     .await?;
+    if let Some(tagging) = input.header.tagging {
+        let tag_count = tagging.len();
+        if tag_count > 10 {
+            Err(AppError::InvalidTag)?;
+        }
+        let mut keys = IndexSet::new();
+        keys.extend(tagging.iter().map(|tag| tag.key.clone()));
+        if tag_count != keys.len() {
+            Err(AppError::InvalidTag)?;
+        }
+        TagSetMutation::upsert_with_tag(
+            &*db,
+            None,
+            Some(version.id),
+            tagging.into_iter().map(|tag| (tag.key, tag.value)),
+        )
+        .await?;
+    }
 
     Ok(PutObjectOutput::builder()
         .header(

@@ -11,4 +11,6 @@ disallowed-types = [
 
     { path = "futures::AsyncRead", replacement = "tokio::io::AsyncRead" },
     { path = "futures::AsyncWrite", replacement = "tokio::io::AsyncWrite" },
+
+    { path = "axum::extract::Query", replacement = "axum_extra::extract::Query" },
 ]

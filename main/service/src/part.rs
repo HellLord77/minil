@@ -118,7 +118,7 @@ impl PartMutation {
             sha256.update(&chunk);
             md5.update(&chunk);
 
-            let end = size - 1;
+            let end = size.saturating_sub(1);
             ChunkMutation::insert(db, id, index, start, end, chunk.to_vec()).await?;
         }
 
@@ -128,7 +128,7 @@ impl PartMutation {
             version_id: Set(version_id),
             number: Set(number as i16),
             start: Set(start.map(|start| start as i64)),
-            end: Set(start.map(|start| (start + size - 1) as i64)),
+            end: Set(start.map(|start| (start + size).saturating_sub(1) as i64)),
             size: Set(size as i64),
             crc32: Set(Box::new(crc32).finalize().to_vec()),
             crc32c: Set(Box::new(crc32c).finalize().to_vec()),

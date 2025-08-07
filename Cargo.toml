@@ -21,53 +21,72 @@ strum = { version = "0.27.2", features = ["derive"] }
 unicase = "2.8.1"
 uuid = { version = "1.17.0", features = ["fast-rng", "serde", "v4", "v7", "v8"] }
 
+# axum
 axum = { version = "0.8.4", features = ["macros"] }
 axum-core = "0.5.2"
 axum-extra = { version = "0.10.1", features = ["cookie", "query", "scheme"] }
 axum-serde = { version = "0.9.0", features = ["full"] }
 axum-test = "17.3.0"
 
+# digest
 crc-fast = "1.3.0"
 digest = "0.10.7"
 md-5 = "0.10.6"
 sha1 = "0.10.6"
 sha2 = "0.10.9"
 
+# http
 http = "1.3.1"
+http-body = "1.0.1"
+http-body-util = "0.1.3"
 
+# header
 http-content-range = "0.2.3"
 http-range-header = "0.4.2"
 httparse = "1.10.1"
 httpdate = "1.0.3"
 
+# macro
 darling = "0.21.0"
 paste = "1.0.15"
 proc-macro2 = "1.0.95"
 quote = "1.0.40"
 syn = { version = "2.0.104", features = ["extra-traits", "full"] }
 
+# mime
 mime = "0.3.17"
 mime_guess = "2.0.5"
 
+# query
+form_urlencoded = "1.2.1"
+serde_html_form = "0.2.7"
+serde_urlencoded = "0.7.1"
+
+# sea-orm
 sea-orm = { version = "1.1.14", features = ["runtime-tokio", "sqlx-postgres"] }
 sea-orm-migration = { version = "1.1.14", features = ["runtime-tokio", "sqlx-postgres", "with-uuid"] }
 
+# serde
 serde = { version = "1.0.219", features = ["derive"] }
 serde-inline-default = "0.2.3"
 serde_json = "1.0.142"
 serde_path_to_error = "0.1.17"
 serde_with = "3.14.0"
 
+# tokio
 tokio = { version = "1.47.0", features = ["full", "tracing"] }
 tokio-util = { version = "0.7.15", features = ["full"] }
 
+# tower
 tower = { version = "0.5.2", features = ["full"] }
 tower-http = { version = "0.6.6", features = ["full"] }
 
+# tracing
 tracing = { version = "0.1.41", features = ["log", "max_level_trace", "release_max_level_info"] }
 tracing-appender = "0.2.3"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
 
+# lib
 axum-body = { path = "lib/axum-body" }
 axum-derive-macros = { path = "lib/axum-derive-macros" }
 axum-filter-router = { path = "lib/axum-filter-router" }
@@ -84,6 +103,7 @@ stringify-checked = { path = "lib/stringify-checked" }
 syn-utils = { path = "lib/syn-utils" }
 validator-extra = { path = "lib/validator-extra" }
 
+# main
 minil-config = { path = "main/config" }
 minil-entity = { path = "main/entity" }
 minil-migration = { path = "main/migration" }

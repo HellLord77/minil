@@ -395,7 +395,7 @@ dependencies = [
 
 [[package]]
 name = "axum-s3"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "axum",
  "axum-body",
@@ -1967,7 +1967,7 @@ dependencies = [
 
 [[package]]
 name = "minil"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "async-stream",
  "axum",
@@ -2035,7 +2035,7 @@ dependencies = [
 
 [[package]]
 name = "minil-service"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "async-stream",
  "bytes",
@@ -3146,7 +3146,7 @@ dependencies = [
 
 [[package]]
 name = "serde-s3"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "bon",
  "chrono",
@@ -3170,11 +3170,13 @@ dependencies = [
 
 [[package]]
 name = "serde-with-extra"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "http-content-range",
  "http-range-header",
  "serde",
+ "serde_html_form",
+ "serde_urlencoded",
  "serde_with",
  "uuid",
 ]

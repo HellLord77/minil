@@ -8,6 +8,7 @@ use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
 use serde_with::serde_as;
 use serde_with_extra::DisplayFromBytes;
+use serde_with_extra::SerdeQuery;
 use serdev::Deserialize;
 use uuid::Uuid;
 use validator::Validate;
@@ -20,6 +21,7 @@ use crate::types::ObjectLockMode;
 use crate::types::RequestPayer;
 use crate::types::ServerSideEncryption;
 use crate::types::StorageClass;
+use crate::types::Tag;
 
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -120,7 +122,8 @@ pub struct PutObjectInputHeader {
 
     pub storage_class: Option<StorageClass>,
 
-    pub tagging: Option<String>,
+    #[serde_as(as = "Option<SerdeQuery>")]
+    pub tagging: Option<Vec<Tag>>,
 
     pub website_redirect_location: Option<String>,
 
