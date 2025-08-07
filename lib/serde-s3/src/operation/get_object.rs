@@ -35,9 +35,8 @@ pub struct GetObjectInputPath {
 }
 
 #[serde_as]
-#[serde_rename_chain]
+#[serde_rename_chain(convert_case = "kebab")]
 #[derive(Debug, Validate, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
 pub struct GetObjectInputQuery {
     #[validate(range(min = 1, max = 10_000))]

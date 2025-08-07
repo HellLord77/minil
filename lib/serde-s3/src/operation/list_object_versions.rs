@@ -25,8 +25,8 @@ pub struct ListObjectVersionsInputPath {
 
 #[validate_extra]
 #[serde_inline_default]
+#[serde_rename_chain(convert_case = "kebab")]
 #[derive(Debug, Validate, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
 pub struct ListObjectVersionsInputQuery {
     #[validate_extra(eq(other = "/"))]

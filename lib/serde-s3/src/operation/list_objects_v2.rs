@@ -22,8 +22,8 @@ pub struct ListObjectsV2InputPath {
 
 #[validate_extra]
 #[serde_inline_default]
+#[serde_rename_chain(convert_case = "kebab")]
 #[derive(Debug, Validate, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
 pub struct ListObjectsV2InputQuery {
     pub continuation_token: Option<String>,

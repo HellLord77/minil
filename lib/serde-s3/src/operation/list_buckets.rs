@@ -1,6 +1,7 @@
 use bon::Builder;
 use serde::Serialize;
 use serde_inline_default::serde_inline_default;
+use serde_rename_chain::serde_rename_chain;
 use serde_with::skip_serializing_none;
 use serdev::Deserialize;
 use validator::Validate;
@@ -9,8 +10,8 @@ use crate::types::Owner;
 use crate::utils::Buckets;
 
 #[serde_inline_default]
+#[serde_rename_chain(convert_case = "kebab")]
 #[derive(Debug, Validate, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 #[serde(validate = "Validate::validate")]
 pub struct ListBucketsInputQuery {
     pub bucket_region: Option<String>,

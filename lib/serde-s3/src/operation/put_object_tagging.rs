@@ -22,9 +22,8 @@ pub struct PutObjectTaggingInputPath {
     pub key: String,
 }
 
-#[serde_rename_chain]
+#[serde_rename_chain(convert_case = "kebab")]
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct PutObjectTaggingInputQuery {
     #[serde_rename_chain(convert_case = "camel")]
     pub version_id: Option<Uuid>,

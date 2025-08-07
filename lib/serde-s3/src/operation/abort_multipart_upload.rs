@@ -20,9 +20,8 @@ pub struct AbortMultipartUploadInputPath {
     pub key: String,
 }
 
-#[serde_rename_chain]
+#[serde_rename_chain(convert_case = "kebab")]
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub struct AbortMultipartUploadInputQuery {
     #[serde_rename_chain(convert_case = "camel")]
     pub upload_id: Uuid,
