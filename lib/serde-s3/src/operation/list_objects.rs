@@ -2,13 +2,16 @@ use bon::Builder;
 use serde::Serialize;
 use serde_inline_default::serde_inline_default;
 use serde_rename_chain::serde_rename_chain;
+use serde_with::skip_serializing_none;
 use serdev::Deserialize;
 use validator::Validate;
 use validator_extra::validate_extra;
 
+use crate::types::CommonPrefix;
 use crate::types::EncodingType;
-use crate::types::ListBucketResult;
+use crate::types::Object;
 use crate::types::OptionalObjectAttributes;
+use crate::types::RequestCharged;
 use crate::types::RequestPayer;
 
 #[derive(Debug, Deserialize)]
@@ -51,7 +54,34 @@ pub struct ListObjectsInputHeader {
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Builder, Serialize)]
 pub struct ListObjectsOutputHeader {
-    pub request_charged: Option<RequestPayer>,
+    pub request_charged: Option<RequestCharged>,
 }
 
-pub type ListObjectsOutputBody = ListBucketResult;
+#[skip_serializing_none]
+#[derive(Debug, Builder, Serialize)]
+#[serde(rename = "ListBucketResult", rename_all = "PascalCase")]
+pub struct ListObjectsOutputBody {
+    #[builder(default = "http://s3.amazonaws.com/doc/2006-03-01/")]
+    #[serde(rename = "@xmlns")]
+    pub xmlns: &'static str,
+
+    pub common_prefixes: Vec<CommonPrefix>,
+
+    pub contents: Vec<Object>,
+
+    pub delimiter: Option<String>,
+
+    pub encoding_type: Option<EncodingType>,
+
+    pub is_truncated: bool,
+
+    pub marker: String,
+
+    pub max_keys: u16,
+
+    pub name: String,
+
+    pub next_marker: Option<String>,
+
+    pub prefix: String,
+}

@@ -11,6 +11,7 @@ use crate::types::Owner;
 use crate::types::Part;
 use crate::types::StorageClass;
 
+#[deprecated]
 #[skip_serializing_none]
 #[derive(Debug, Builder, Serialize)]
 #[serde(rename_all = "PascalCase")]

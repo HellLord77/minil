@@ -1,12 +1,12 @@
 use bon::Builder;
 use chrono::DateTime;
 use chrono::Utc;
-use http_digest::DigestMd5;
 use httpdate::HttpDate;
 use mime::Mime;
 use serde::Serialize;
 use serde_rename_chain::serde_rename_chain;
 use serde_with::serde_as;
+use serde_with::skip_serializing_none;
 use serde_with_extra::DisplayFromBytes;
 use serde_with_extra::SerdeQuery;
 use serdev::Deserialize;
@@ -27,7 +27,7 @@ use crate::types::Tag;
 #[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 #[serde(validate = "Validate::validate")]
-pub struct PutObjectInputPath {
+pub struct CreateMultipartUploadInputPath {
     pub bucket: String,
 
     #[validate(length(min = 1))]
@@ -36,9 +36,8 @@ pub struct PutObjectInputPath {
 
 #[serde_as]
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
-#[derive(Debug, Validate, Deserialize)]
-#[serde(validate = "Validate::validate")]
-pub struct PutObjectInputHeader {
+#[derive(Debug, Deserialize)]
+pub struct CreateMultipartUploadInputHeader {
     #[serde_rename_chain(convert_case = "train")]
     pub cache_control: Option<String>,
 
@@ -51,10 +50,6 @@ pub struct PutObjectInputHeader {
     #[serde_rename_chain(convert_case = "train")]
     pub content_language: Option<String>,
 
-    #[serde(rename = "Content-MD5")]
-    #[serde_as(as = "Option<DisplayFromBytes>")]
-    pub content_md5: Option<DigestMd5>,
-
     #[serde_as(as = "Option<DisplayFromBytes>")]
     #[serde_rename_chain(convert_case = "train")]
     pub content_type: Option<Mime>,
@@ -63,28 +58,11 @@ pub struct PutObjectInputHeader {
     #[serde_rename_chain(convert_case = "train")]
     pub expires: Option<HttpDate>,
 
-    #[serde_rename_chain(convert_case = "train")]
-    pub if_match: Option<String>,
-
-    #[serde_rename_chain(convert_case = "train")]
-    pub if_none_match: Option<String>,
-
     pub acl: Option<ObjectCannedAcl>,
 
-    #[serde(rename = "x-amz-checksum-crc32")]
-    pub checksum_crc32: Option<String>,
+    pub checksum_algorithm: Option<ChecksumAlgorithm>,
 
-    #[serde(rename = "x-amz-checksum-crc32c")]
-    pub checksum_crc32c: Option<String>,
-
-    #[serde(rename = "x-amz-checksum-crc64nvme")]
-    pub checksum_crc64nvme: Option<String>,
-
-    #[serde(rename = "x-amz-checksum-sha1")]
-    pub checksum_sha1: Option<String>,
-
-    #[serde(rename = "x-amz-checksum-sha256")]
-    pub checksum_sha256: Option<String>,
+    pub checksum_type: Option<ChecksumType>,
 
     pub expected_bucket_owner: Option<String>,
 
@@ -103,8 +81,6 @@ pub struct PutObjectInputHeader {
     pub object_lock_retain_until_date: Option<DateTime<Utc>>,
 
     pub request_payer: Option<RequestPayer>,
-
-    pub sdk_checksum_algorithm: Option<ChecksumAlgorithm>,
 
     pub server_side_encryption: Option<ServerSideEncryption>,
 
@@ -127,36 +103,18 @@ pub struct PutObjectInputHeader {
     pub tagging: Option<Vec<Tag>>,
 
     pub website_redirect_location: Option<String>,
-
-    pub write_offset_bytes: Option<u64>,
 }
 
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Builder, Serialize)]
-pub struct PutObjectOutputHeader {
-    #[serde_rename_chain(convert_case = "pascal")]
-    pub e_tag: Option<String>,
+pub struct CreateMultipartUploadOutputHeader {
+    pub abort_date: Option<DateTime<Utc>>,
 
-    #[serde(rename = "x-amz-checksum-crc32")]
-    pub checksum_crc32: Option<String>,
+    pub abort_rule_id: Option<Uuid>,
 
-    #[serde(rename = "x-amz-checksum-crc32c")]
-    pub checksum_crc32c: Option<String>,
-
-    #[serde(rename = "x-amz-checksum-crc64nvme")]
-    pub checksum_crc64nvme: Option<String>,
-
-    #[serde(rename = "x-amz-checksum-sha1")]
-    pub checksum_sha1: Option<String>,
-
-    #[serde(rename = "x-amz-checksum-sha256")]
-    pub checksum_sha256: Option<String>,
+    pub checksum_algorithm: Option<ChecksumAlgorithm>,
 
     pub checksum_type: Option<ChecksumType>,
-
-    pub expiration: Option<String>,
-
-    pub object_size: Option<u64>,
 
     pub request_charged: Option<RequestCharged>,
 
@@ -172,6 +130,19 @@ pub struct PutObjectOutputHeader {
 
     #[serde(rename = "x-amz-server-side-encryption-customer-key-MD5")]
     pub server_side_encryption_customer_key_md5: Option<String>,
+}
 
-    pub version_id: Option<Uuid>,
+#[skip_serializing_none]
+#[derive(Debug, Builder, Serialize)]
+#[serde(rename = "InitiateMultipartUploadResult", rename_all = "PascalCase")]
+pub struct CreateMultipartUploadOutputBody {
+    #[builder(default = "http://s3.amazonaws.com/doc/2006-03-01/")]
+    #[serde(rename = "@xmlns")]
+    pub xmlns: &'static str,
+
+    pub bucket: String,
+
+    pub key: String,
+
+    pub upload_id: Uuid,
 }

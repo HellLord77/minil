@@ -1,21 +1,13 @@
 use bon::Builder;
-use chrono::DateTime;
-use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, PartialEq, Builder, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct Part {
-    pub part_number: Option<u16>,
-
-    pub last_modified: Option<DateTime<Utc>>,
-
+#[serde(rename = "Part", rename_all = "PascalCase")]
+pub struct CompletedPart {
     pub e_tag: Option<String>,
-
-    pub size: Option<u64>,
 
     #[serde(rename = "ChecksumCRC32")]
     pub checksum_crc32: Option<String>,
@@ -31,4 +23,6 @@ pub struct Part {
 
     #[serde(rename = "ChecksumSHA256")]
     pub checksum_sha256: Option<String>,
+
+    pub part_number: Option<u16>,
 }

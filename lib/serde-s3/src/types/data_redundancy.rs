@@ -2,6 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum BucketType {
-    Directory,
+pub enum DataRedundancy {
+    SingleAvailabilityZone,
+    SingleLocalZone,
 }

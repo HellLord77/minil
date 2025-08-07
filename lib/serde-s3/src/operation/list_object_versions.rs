@@ -2,14 +2,20 @@ use bon::Builder;
 use serde::Serialize;
 use serde_inline_default::serde_inline_default;
 use serde_rename_chain::serde_rename_chain;
+use serde_with::skip_serializing_none;
 use serdev::Deserialize;
+use uuid::Uuid;
 use validator::Validate;
 use validator_extra::validate_extra;
 
+use crate::types::CommonPrefix;
+use crate::types::DeleteMarkerEntry;
 use crate::types::EncodingType;
-use crate::types::ListVersionsResult;
+use crate::types::ObjectVersion;
 use crate::types::OptionalObjectAttributes;
+use crate::types::RequestCharged;
 use crate::types::RequestPayer;
+use crate::utils::DeleteMarkerOrVersion;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -53,7 +59,43 @@ pub struct ListObjectVersionsInputHeader {
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
 #[derive(Debug, Builder, Serialize)]
 pub struct ListObjectVersionsOutputHeader {
-    pub request_charged: Option<RequestPayer>,
+    pub request_charged: Option<RequestCharged>,
 }
 
-pub type ListObjectVersionsOutputBody = ListVersionsResult;
+#[skip_serializing_none]
+#[derive(Debug, Builder, Serialize)]
+#[serde(rename = "ListVersionsResult", rename_all = "PascalCase")]
+pub struct ListObjectVersionsOutputBody {
+    #[builder(default = "http://s3.amazonaws.com/doc/2006-03-01/")]
+    #[serde(rename = "@xmlns")]
+    pub xmlns: &'static str,
+
+    pub common_prefixes: Vec<CommonPrefix>,
+
+    pub delete_marker: Vec<DeleteMarkerEntry>,
+
+    pub delimiter: Option<String>,
+
+    pub encoding_type: Option<EncodingType>,
+
+    pub is_truncated: bool,
+
+    pub key_marker: String,
+
+    pub max_keys: u16,
+
+    pub name: String,
+
+    pub next_key_marker: Option<String>,
+
+    pub next_version_id_marker: Option<Uuid>,
+
+    pub prefix: String,
+
+    pub version: Vec<ObjectVersion>,
+
+    pub version_id_marker: String,
+
+    #[serde(rename = "$value")]
+    pub _delete_marker_or_version: Vec<DeleteMarkerOrVersion>,
+}

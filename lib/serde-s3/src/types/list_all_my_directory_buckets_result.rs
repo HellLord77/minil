@@ -4,6 +4,7 @@ use serde_with::skip_serializing_none;
 
 use crate::utils::Buckets;
 
+#[deprecated]
 #[skip_serializing_none]
 #[derive(Debug, Builder, Serialize)]
 #[serde(rename_all = "PascalCase")]

@@ -1,19 +1,13 @@
 use bon::Builder;
-use chrono::DateTime;
-use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Builder, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Builder, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct Part {
+pub struct ObjectPart {
     pub part_number: Option<u16>,
-
-    pub last_modified: Option<DateTime<Utc>>,
-
-    pub e_tag: Option<String>,
 
     pub size: Option<u64>,
 
