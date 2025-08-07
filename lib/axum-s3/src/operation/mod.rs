@@ -1,4 +1,7 @@
+mod abort_multipart_upload;
+mod complete_multipart_upload;
 mod create_bucket;
+mod create_multipart_upload;
 mod delete_bucket;
 mod delete_bucket_tagging;
 mod delete_object;
@@ -19,8 +22,14 @@ mod put_bucket_versioning;
 mod put_object;
 mod put_object_tagging;
 
+pub use abort_multipart_upload::AbortMultipartUploadInput;
+pub use abort_multipart_upload::AbortMultipartUploadOutput;
+pub use complete_multipart_upload::CompleteMultipartUploadInput;
+pub use complete_multipart_upload::CompleteMultipartUploadOutput;
 pub use create_bucket::CreateBucketInput;
 pub use create_bucket::CreateBucketOutput;
+pub use create_multipart_upload::CreateMultipartUploadInput;
+pub use create_multipart_upload::CreateMultipartUploadOutput;
 pub use delete_bucket::DeleteBucketInput;
 pub use delete_bucket::DeleteBucketOutput;
 pub use delete_bucket_tagging::DeleteBucketTaggingInput;
