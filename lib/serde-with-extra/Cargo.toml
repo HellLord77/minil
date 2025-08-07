@@ -1,13 +1,20 @@
 [package]
 name = "serde-with-extra"
-version = "0.2.2"
+version = "0.3.0"
 edition.workspace = true
 
 [features]
 default = []
+
 http-range = ["dep:http-content-range", "dep:http-range-header"]
+
+query = ["dep:serde_urlencoded"]
+query-multi = ["query", "dep:serde_html_form"]
+
 uuid = ["dep:uuid"]
-full = ["http-range", "uuid"]
+
+full-slim = ["http-range", "query", "uuid"]
+full = ["full-slim", "query-multi"]
 
 [dependencies]
 serde.workspace = true
@@ -15,5 +22,8 @@ serde_with.workspace = true
 
 http-content-range = { workspace = true, optional = true }
 http-range-header = { workspace = true, optional = true }
+
+serde_html_form = {workspace = true, optional = true}
+serde_urlencoded = { workspace = true, optional = true }
 
 uuid = { workspace = true, optional = true }
