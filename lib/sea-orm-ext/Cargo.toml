@@ -1,9 +1,10 @@
 [package]
 name = "sea-orm-ext"
-version = "0.1.0"
+version = "0.1.1"
 edition.workspace = true
 
 [dependencies]
+async-trait.workspace = true
 futures.workspace = true
 sea-orm.workspace = true
 
