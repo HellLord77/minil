@@ -15,3 +15,6 @@ axum-header.workspace = true
 serde-s3.workspace = true
 
 axum-s3-macros.workspace = true
+
+[lints]
+workspace = true

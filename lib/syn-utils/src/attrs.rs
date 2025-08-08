@@ -9,11 +9,10 @@ pub fn has_attribute(attrs: &[Attribute], namespace: &str, name: &str) -> bool {
     for attr in attrs {
         if attr.path().is_ident(namespace) {
             if let Meta::List(expr) = &attr.meta {
-                let nested = match Punctuated::<Meta, Token![,]>::parse_terminated
-                    .parse2(expr.tokens.clone())
-                {
-                    Ok(nested) => nested,
-                    Err(_) => continue,
+                let Ok(nested) =
+                    Punctuated::<Meta, Token![,]>::parse_terminated.parse2(expr.tokens.clone())
+                else {
+                    continue;
                 };
 
                 for expr in nested {
@@ -32,7 +31,7 @@ pub fn has_attribute(attrs: &[Attribute], namespace: &str, name: &str) -> bool {
                                 }
                             }
                         }
-                        _ => (),
+                        Meta::List(_) => (),
                     }
                 }
             }

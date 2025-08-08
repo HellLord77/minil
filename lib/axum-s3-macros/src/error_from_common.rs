@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::ItemStruct;
 
-pub(super) fn expand(item: ItemStruct) -> syn::Result<TokenStream> {
+pub(super) fn expand(item: ItemStruct) -> TokenStream {
     let ItemStruct { ident, fields, .. } = item;
 
     let body_ty = fields
@@ -12,7 +12,7 @@ pub(super) fn expand(item: ItemStruct) -> syn::Result<TokenStream> {
         .ty
         .clone();
 
-    Ok(quote! {
+    quote! {
         #[automatically_derived]
         impl ::std::convert::From<crate::utils::CommonExtInput> for #ident {
             fn from(common: crate::utils::CommonExtInput) -> Self {
@@ -26,5 +26,5 @@ pub(super) fn expand(item: ItemStruct) -> syn::Result<TokenStream> {
                     .build()
             }
         }
-    })
+    }
 }

@@ -29,10 +29,10 @@ where
         Ok(Both(
             L::from_request(req1, state)
                 .await
-                .map_err(|rej| BothRejectionError::from_err(RejectionError::left(rej)))?,
+                .map_err(|err| BothRejectionError::from_err(RejectionError::left(err)))?,
             R::from_request(req2, state)
                 .await
-                .map_err(|rej| BothRejectionError::from_err(RejectionError::right(rej)))?,
+                .map_err(|err| BothRejectionError::from_err(RejectionError::right(err)))?,
         ))
     }
 }

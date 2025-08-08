@@ -27,3 +27,6 @@ serde_html_form = { workspace = true, optional = true }
 serde_urlencoded = { workspace = true, optional = true }
 
 uuid = { workspace = true, optional = true }
+
+[lints]
+workspace = true

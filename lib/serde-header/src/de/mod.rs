@@ -90,7 +90,7 @@ where
 pub struct Deserializer<'de>(Box<HeaderRefSeq<'de>>);
 
 impl<'de> Deserializer<'de> {
-    #[inline]
+    #[must_use]
     pub fn new(headers: &'de HeaderRefSeq<'de>) -> Self {
         Self(headers.into())
     }
@@ -178,8 +178,11 @@ impl<'de> de::Deserializer<'de> for Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        let canonical_fields: indexmap::IndexSet<_> =
-            indexmap::IndexSet::from_iter(fields.iter().copied().map(Name));
+        let canonical_fields = fields
+            .iter()
+            .copied()
+            .map(Name)
+            .collect::<indexmap::IndexSet<_>>();
         if fields.len() > canonical_fields.len() {
             return Err(de::Error::custom(format!(
                 "duplicate caseless field {}",

@@ -24,3 +24,6 @@ serde-rename-chain.workspace = true
 serde-with-extra.workspace = true
 stringify-checked.workspace = true
 validator-extra.workspace = true
+
+[lints]
+workspace = true

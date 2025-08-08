@@ -77,7 +77,7 @@ where
 
             match T::from_request(req, state).await {
                 Ok(data) => Ok(Self(Some(data))),
-                Err(rej) => Err(NonEmptyRejectionError::from_err(RejectionError::right(rej)))?,
+                Err(err) => Err(NonEmptyRejectionError::from_err(RejectionError::right(err)))?,
             }
         }
     }

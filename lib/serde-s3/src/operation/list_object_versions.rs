@@ -96,6 +96,7 @@ pub struct ListObjectVersionsOutputBody {
 
     pub version_id_marker: String,
 
+    #[allow(clippy::pub_underscore_fields)]
     #[serde(rename = "$value")]
     pub _delete_marker_or_version: Vec<DeleteMarkerOrVersion>,
 }

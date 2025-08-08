@@ -64,7 +64,7 @@ where
     attrs
         .iter()
         .filter(|attr| attr.meta.path().is_ident(ident))
-        .map(|attr| attr.parse_args::<T>())
+        .map(Attribute::parse_args)
         .try_fold(T::default(), |out, next| out.combine(next?))
 }
 

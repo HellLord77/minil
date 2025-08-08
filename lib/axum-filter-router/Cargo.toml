@@ -12,3 +12,6 @@ quote.workspace = true
 syn.workspace = true
 
 syn-utils.workspace = true
+
+[lints]
+workspace = true

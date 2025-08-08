@@ -4,6 +4,7 @@ use quote::quote;
 use crate::filter::Filter;
 use crate::router_with_state::RouterWithState;
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Default)]
 struct Dependency {
     method: bool,
@@ -22,7 +23,7 @@ struct Dependency {
     cookie: bool,
 }
 
-pub(super) fn expand(item: RouterWithState) -> syn::Result<TokenStream> {
+pub(super) fn expand(item: RouterWithState) -> TokenStream {
     let mut dependency = Dependency::default();
     for router in &item.routers {
         match router.filter {
@@ -148,10 +149,10 @@ pub(super) fn expand(item: RouterWithState) -> syn::Result<TokenStream> {
     args.push(quote!(request: ::axum::extract::Request));
     let routers_iter = item.routers.into_iter();
 
-    Ok(quote! {
+    quote! {
         async |#(#args),*| -> ::axum::response::Response {
             #(#pre_body)*
             #(#routers_iter)*
         }
-    })
+    }
 }

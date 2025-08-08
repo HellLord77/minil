@@ -119,15 +119,15 @@ impl<'ser> ser::Serializer for Serializer<'ser> {
     }
 
     fn serialize_i8(self, v: i8) -> Result<Self::Ok, Self::Error> {
-        Error::unsupported(Unexpected::Signed(v as i64))
+        Error::unsupported(Unexpected::Signed(v.into()))
     }
 
     fn serialize_i16(self, v: i16) -> Result<Self::Ok, Self::Error> {
-        Error::unsupported(Unexpected::Signed(v as i64))
+        Error::unsupported(Unexpected::Signed(v.into()))
     }
 
     fn serialize_i32(self, v: i32) -> Result<Self::Ok, Self::Error> {
-        Error::unsupported(Unexpected::Signed(v as i64))
+        Error::unsupported(Unexpected::Signed(v.into()))
     }
 
     fn serialize_i64(self, v: i64) -> Result<Self::Ok, Self::Error> {
@@ -135,15 +135,15 @@ impl<'ser> ser::Serializer for Serializer<'ser> {
     }
 
     fn serialize_u8(self, v: u8) -> Result<Self::Ok, Self::Error> {
-        Error::unsupported(Unexpected::Unsigned(v as u64))
+        Error::unsupported(Unexpected::Unsigned(v.into()))
     }
 
     fn serialize_u16(self, v: u16) -> Result<Self::Ok, Self::Error> {
-        Error::unsupported(Unexpected::Unsigned(v as u64))
+        Error::unsupported(Unexpected::Unsigned(v.into()))
     }
 
     fn serialize_u32(self, v: u32) -> Result<Self::Ok, Self::Error> {
-        Error::unsupported(Unexpected::Unsigned(v as u64))
+        Error::unsupported(Unexpected::Unsigned(v.into()))
     }
 
     fn serialize_u64(self, v: u64) -> Result<Self::Ok, Self::Error> {
@@ -151,7 +151,7 @@ impl<'ser> ser::Serializer for Serializer<'ser> {
     }
 
     fn serialize_f32(self, v: f32) -> Result<Self::Ok, Self::Error> {
-        Error::unsupported(Unexpected::Float(v as f64))
+        Error::unsupported(Unexpected::Float(v.into()))
     }
 
     fn serialize_f64(self, v: f64) -> Result<Self::Ok, Self::Error> {

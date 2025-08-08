@@ -29,46 +29,7 @@ use axum::http::StatusCode;
 use axum::http::header;
 use axum::middleware::Next;
 use axum::response::Response;
-use axum_s3::operation::CreateBucketInput;
-use axum_s3::operation::CreateBucketOutput;
-use axum_s3::operation::DeleteBucketInput;
-use axum_s3::operation::DeleteBucketOutput;
-use axum_s3::operation::DeleteBucketTaggingInput;
-use axum_s3::operation::DeleteBucketTaggingOutput;
-use axum_s3::operation::DeleteObjectInput;
-use axum_s3::operation::DeleteObjectOutput;
-use axum_s3::operation::DeleteObjectTaggingInput;
-use axum_s3::operation::DeleteObjectTaggingOutput;
-use axum_s3::operation::GetBucketLocationInput;
-use axum_s3::operation::GetBucketLocationOutput;
-use axum_s3::operation::GetBucketTaggingInput;
-use axum_s3::operation::GetBucketTaggingOutput;
-use axum_s3::operation::GetBucketVersioningInput;
-use axum_s3::operation::GetBucketVersioningOutput;
-use axum_s3::operation::GetObjectInput;
-use axum_s3::operation::GetObjectOutput;
-use axum_s3::operation::GetObjectTaggingInput;
-use axum_s3::operation::GetObjectTaggingOutput;
-use axum_s3::operation::HeadBucketInput;
-use axum_s3::operation::HeadBucketOutput;
-use axum_s3::operation::HeadObjectInput;
-use axum_s3::operation::HeadObjectOutput;
-use axum_s3::operation::ListBucketsInput;
-use axum_s3::operation::ListBucketsOutput;
-use axum_s3::operation::ListObjectVersionsInput;
-use axum_s3::operation::ListObjectVersionsOutput;
-use axum_s3::operation::ListObjectsInput;
-use axum_s3::operation::ListObjectsOutput;
-use axum_s3::operation::ListObjectsV2Input;
-use axum_s3::operation::ListObjectsV2Output;
-use axum_s3::operation::PutBucketTaggingInput;
-use axum_s3::operation::PutBucketTaggingOutput;
-use axum_s3::operation::PutBucketVersioningInput;
-use axum_s3::operation::PutBucketVersioningOutput;
-use axum_s3::operation::PutObjectInput;
-use axum_s3::operation::PutObjectOutput;
-use axum_s3::operation::PutObjectTaggingInput;
-use axum_s3::operation::PutObjectTaggingOutput;
+use axum_s3::operation::*;
 use axum_s3::utils::CommonExtInput;
 use futures::StreamExt;
 use futures::TryStreamExt;
@@ -95,26 +56,7 @@ use sea_orm::ConnectOptions;
 use sea_orm::Database;
 use sea_orm::DbConn;
 use sea_orm::TransactionTrait;
-use serde_s3::operation::CreateBucketOutputHeader;
-use serde_s3::operation::DeleteObjectOutputHeader;
-use serde_s3::operation::DeleteObjectTaggingOutputHeader;
-use serde_s3::operation::GetBucketLocationOutputBody;
-use serde_s3::operation::GetBucketTaggingOutputBody;
-use serde_s3::operation::GetBucketVersioningOutputBody;
-use serde_s3::operation::GetObjectOutputHeader;
-use serde_s3::operation::GetObjectTaggingOutputBody;
-use serde_s3::operation::GetObjectTaggingOutputHeader;
-use serde_s3::operation::HeadBucketOutputHeader;
-use serde_s3::operation::HeadObjectOutputHeader;
-use serde_s3::operation::ListBucketsOutputBody;
-use serde_s3::operation::ListObjectVersionsOutputBody;
-use serde_s3::operation::ListObjectVersionsOutputHeader;
-use serde_s3::operation::ListObjectsOutputBody;
-use serde_s3::operation::ListObjectsOutputHeader;
-use serde_s3::operation::ListObjectsV2OutputBody;
-use serde_s3::operation::ListObjectsV2OutputHeader;
-use serde_s3::operation::PutObjectOutputHeader;
-use serde_s3::operation::PutObjectTaggingOutputHeader;
+use serde_s3::operation::*;
 use serde_s3::types::Bucket;
 use serde_s3::types::BucketLocationConstraint;
 use serde_s3::types::BucketVersioningStatus;
@@ -243,6 +185,10 @@ async fn main() {
             _ => get_object
         },
         head("/{Bucket}/{*Key}") => head_object,
+        post("/{Bucket}/{*Key}") => {
+            query("uploads", "") => create_multipart_upload,
+            _ => async || AppError::InternalError, // todo
+        },
         put("/{Bucket}/{*Key}") => {
             query("tagging", "") => put_object_tagging_handler,
             _ => put_object
@@ -290,7 +236,7 @@ fn init_config() -> AppConfig {
 }
 
 fn init_trace(config: &AppConfig) -> WorkerGuard {
-    let (writer, _guard) = config.log.stream.to_writer();
+    let (writer, guard) = config.log.stream.to_writer();
     tracing_subscriber::registry()
         .with(match EnvFilter::try_from_default_env() {
             Ok(filter) => filter.boxed(),
@@ -305,7 +251,7 @@ fn init_trace(config: &AppConfig) -> WorkerGuard {
         )
         .init();
 
-    _guard
+    guard
 }
 
 async fn init_db(config: &AppConfig) -> DbConn {
@@ -346,8 +292,8 @@ async fn shutdown_signal() {
     let terminate = future::pending::<()>();
 
     tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
+        () = ctrl_c => {},
+        () = terminate => {},
     }
 }
 
@@ -451,7 +397,7 @@ async fn list_buckets(
         owner.id,
         input.query.prefix.as_deref(),
         input.query.continuation_token.as_deref(),
-        Some(limit as u64),
+        Some(limit.into()),
     )
     .await?
     .try_collect::<Vec<_>>()
@@ -545,7 +491,7 @@ async fn list_objects_v2(
             .continuation_token
             .as_deref()
             .or(input.query.start_after.as_deref()),
-        Some(limit as u64),
+        Some(limit.into()),
     )
     .await?
     .try_collect::<Vec<_>>()
@@ -710,7 +656,7 @@ async fn list_object_versions(
         input.query.prefix.as_deref(),
         input.query.key_marker.as_deref(),
         input.query.version_id_marker.as_deref(),
-        Some(limit as u64),
+        Some(limit.into()),
     )
     .await?
     .try_collect::<Vec<_>>()
@@ -878,7 +824,7 @@ async fn list_objects(
         bucket.id,
         input.query.prefix.as_deref(),
         input.query.marker.as_deref(),
-        Some(limit as u64),
+        Some(limit.into()),
     )
     .await?
     .try_collect::<Vec<_>>()
@@ -1118,9 +1064,6 @@ async fn delete_object_tagging(
     input: DeleteObjectTaggingInput,
 ) -> AppResult<DeleteObjectTaggingOutput> {
     let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
-
-    ensure::fixme!();
-    dbg!(&input);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
@@ -1542,6 +1485,60 @@ async fn head_object(
                 .last_modified(SystemTime::from(last_modified))
                 .maybe_mp_parts_count(version.mp_parts_count())
                 .maybe_version_id(bucket.versioning.map(|_| version.id()))
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn create_multipart_upload(
+    Extension(db): Extension<DbTxn>,
+    input: CreateMultipartUploadInput,
+) -> AppResult<CreateMultipartUploadOutput> {
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
+
+    ensure::fixme!();
+    dbg!(&input);
+    app_ensure_eq!(input.header.cache_control, None);
+    app_ensure_eq!(input.header.content_disposition, None);
+    app_ensure_eq!(input.header.content_encoding, None); // todo
+    app_ensure_eq!(input.header.content_language, None);
+    app_ensure_eq!(input.header.content_type, None);
+    app_ensure_eq!(input.header.expires, None);
+    app_ensure_matches!(input.header.acl, None);
+    app_ensure_matches!(input.header.checksum_algorithm, None);
+    app_ensure_matches!(input.header.checksum_type, None);
+    app_ensure_eq!(input.header.grant_full_control, None);
+    app_ensure_eq!(input.header.grant_read, None);
+    app_ensure_eq!(input.header.grant_read_acp, None);
+    app_ensure_eq!(input.header.grant_write_acp, None);
+    app_ensure_matches!(input.header.object_lock_legal_hold, None);
+    app_ensure_matches!(input.header.object_lock_mode, None);
+    app_ensure_eq!(input.header.object_lock_retain_until_date, None);
+    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_matches!(input.header.server_side_encryption, None);
+    app_ensure_eq!(input.header.server_side_encryption_aws_kms_key_id, None);
+    app_ensure_eq!(input.header.server_side_encryption_bucket_key_enabled, None);
+    app_ensure_eq!(input.header.server_side_encryption_context, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_algorithm, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_key, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_key_md5, None);
+    app_ensure_matches!(input.header.storage_class, None);
+    app_ensure_matches!(input.header.tagging, None); // todo
+    app_ensure_eq!(input.header.website_redirect_location, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+
+    Ok(CreateMultipartUploadOutput::builder()
+        .header(CreateMultipartUploadOutputHeader::builder().build())
+        .body(
+            CreateMultipartUploadOutputBody::builder()
+                .bucket(bucket.name)
+                .key(input.path.key)
+                .upload_id(Uuid::nil())
                 .build(),
         )
         .build())

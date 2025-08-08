@@ -24,3 +24,6 @@ tokio-util.workspace = true
 uuid.workspace = true
 
 minil-entity.workspace = true
+
+[lints]
+workspace = true

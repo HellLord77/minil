@@ -29,7 +29,7 @@ pub(super) fn expand(args: SerdeRenameChainAttrs, item: Item) -> syn::Result<Tok
 
             match fields {
                 Fields::Named(fields) => {
-                    for field in fields.named.iter_mut() {
+                    for field in &mut fields.named {
                         apply(
                             &renamers,
                             field.ident.as_ref().unwrap_or_else(|| unreachable!()),

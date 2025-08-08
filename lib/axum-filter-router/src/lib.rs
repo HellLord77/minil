@@ -11,10 +11,5 @@ mod router_with_state;
 
 #[proc_macro]
 pub fn axum_filter_handler(input: TokenStream) -> TokenStream {
-    let item = parse_macro_input!(input as RouterWithState);
-
-    match filter_router::expand(item) {
-        Ok(tokens) => tokens.into(),
-        Err(err) => err.to_compile_error().into(),
-    }
+    filter_router::expand(parse_macro_input!(input as RouterWithState)).into()
 }

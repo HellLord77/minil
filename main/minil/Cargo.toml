@@ -1,6 +1,6 @@
 [package]
 name = "minil"
-version = "0.2.4"
+version = "0.2.5"
 edition.workspace = true
 
 [features]
@@ -47,3 +47,6 @@ serde-s3.workspace = true
 minil-config.workspace = true
 minil-migration.workspace = true
 minil-service.workspace = true
+
+[lints]
+workspace = true

@@ -1,4 +1,7 @@
-allowed-wildcard-imports = ["sea_orm", "sea_orm_migration", "sea_query"]
+allowed-wildcard-imports = [
+    "sea_orm", "sea_orm_migration", "sea_query",
+    "axum_s3", "serde_s3",
+]
 
 disallowed-methods = [
     # { path = "sea_query::query::on_conflict::OnConflict::column", replacement = "sea_query::query::on_conflict::OnConflict::columns" },
