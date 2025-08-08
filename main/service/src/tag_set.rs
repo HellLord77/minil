@@ -3,11 +3,11 @@ use minil_entity::prelude::*;
 use minil_entity::tag_set;
 use sea_orm::prelude::*;
 use sea_orm::*;
+use sea_orm_ext::prelude::*;
 use sea_query::*;
 
 use crate::TagMutation;
 use crate::error::DbRes;
-use crate::utils::DeleteManyExt;
 
 pub struct TagSetQuery;
 

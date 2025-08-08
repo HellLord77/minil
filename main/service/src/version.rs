@@ -1,5 +1,4 @@
 use futures::Stream;
-use futures::StreamExt;
 use futures::TryStreamExt;
 use mime::Mime;
 use minil_entity::object;
@@ -7,15 +6,13 @@ use minil_entity::prelude::*;
 use minil_entity::version;
 use sea_orm::prelude::*;
 use sea_orm::*;
+use sea_orm_ext::prelude::*;
 use sea_query::*;
 use tokio::io::AsyncRead;
 
 use crate::InsRes;
 use crate::PartMutation;
 use crate::error::DbRes;
-use crate::utils::DeleteManyExt;
-use crate::utils::SelectExt;
-use crate::utils::UpdateManyExt;
 
 pub struct VersionQuery;
 
@@ -32,7 +29,7 @@ impl VersionQuery {
             .await
     }
 
-    pub async fn find_many_also_object(
+    pub async fn find_many_both_object(
         db: &(impl ConnectionTrait + StreamTrait),
         bucket_id: Uuid,
         prefix: Option<&str>,
@@ -41,7 +38,7 @@ impl VersionQuery {
         limit: Option<u64>,
     ) -> DbRes<impl Stream<Item = DbRes<(version::Model, object::Model)>>> {
         let mut query = Version::find()
-            .find_related(Object)
+            .find_both_related(Object)
             .filter(object::Column::BucketId.eq(bucket_id));
         if let Some(prefix) = prefix {
             query = query.filter(object::Column::Key.starts_with(prefix));
@@ -52,13 +49,12 @@ impl VersionQuery {
         if let Some(version_id_marker) = version_id_marker {
             query = query.filter(version::Column::Id.gte(version_id_marker));
         }
-        Ok(query
+        query
             .order_by_asc(object::Column::Key)
             .order_by_desc(version::Column::CreatedAt)
             .limit(limit)
-            .stream(db)
-            .await?
-            .map(|res| res.map(|(version, object)| (version, object.unwrap()))))
+            .stream_both(db)
+            .await
     }
 }
 

@@ -11,6 +11,7 @@ use minil_entity::prelude::*;
 use minil_entity::version;
 use sea_orm::prelude::*;
 use sea_orm::*;
+use sea_orm_ext::prelude::*;
 use sea_query::*;
 use tokio::io::AsyncRead;
 use tokio_util::codec::FramedRead;
@@ -22,8 +23,6 @@ use crate::VersionMutation;
 use crate::VersionQuery;
 use crate::error::DbRes;
 use crate::utils::ChunkDecoder;
-use crate::utils::DeleteManyExt;
-use crate::utils::UpdateManyExt;
 use crate::utils::get_mime;
 
 pub struct ObjectQuery;
@@ -81,22 +80,21 @@ impl ObjectQuery {
             .await
     }
 
-    pub async fn find_also_latest_version(
+    pub async fn find_both_latest_version(
         db: &impl ConnectionTrait,
         bucket_id: Uuid,
         key: &str,
     ) -> DbRes<Option<(object::Model, version::Model)>> {
-        Ok(Object::find()
+        Object::find()
             .join(JoinType::InnerJoin, object::Relation::LatestVersion.def())
             .select_also(Version)
             .filter(object::Column::BucketId.eq(bucket_id))
             .filter(object::Column::Key.eq(key))
-            .one(db)
-            .await?
-            .map(|(object, version)| (object, version.unwrap())))
+            .one_both(db)
+            .await
     }
 
-    pub async fn find_many_also_latest_version(
+    pub async fn find_many_both_latest_version(
         db: &(impl ConnectionTrait + StreamTrait),
         bucket_id: Uuid,
         prefix: Option<&str>,
@@ -113,13 +111,12 @@ impl ObjectQuery {
         if let Some(continuation_token) = continuation_token {
             query = query.filter(object::Column::Key.gt(continuation_token));
         }
-        Ok(query
+        query
             .filter(version::Column::PartsCount.is_not_null())
             .order_by_asc(object::Column::Key)
             .limit(limit)
-            .stream(db)
-            .await?
-            .map(|res| res.map(|(object, version)| (object, version.unwrap()))))
+            .stream_both(db)
+            .await
     }
 }
 
@@ -176,7 +173,7 @@ impl ObjectMutation {
         versioning: bool,
     ) -> DbRes<Option<(object::Model, version::Model)>> {
         Ok(
-            match ObjectQuery::find_also_latest_version(db, bucket_id, key).await? {
+            match ObjectQuery::find_both_latest_version(db, bucket_id, key).await? {
                 Some((object, version)) => {
                     let version_id = (!versioning && !version.versioning).then_some(version.id);
 
@@ -203,7 +200,7 @@ impl ObjectMutation {
         read: impl Unpin + AsyncRead,
     ) -> InsRes<(object::Model, version::Model)> {
         let (id, version_id) =
-            match ObjectQuery::find_also_latest_version(db, bucket_id, &key).await? {
+            match ObjectQuery::find_both_latest_version(db, bucket_id, &key).await? {
                 Some((object, version)) => {
                     let version_id = (!versioning && !version.versioning).then_some(version.id);
 

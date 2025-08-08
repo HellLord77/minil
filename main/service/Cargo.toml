@@ -1,6 +1,6 @@
 [package]
 name = "minil-service"
-version = "0.4.4"
+version = "0.4.5"
 edition.workspace = true
 
 [dependencies]
@@ -23,6 +23,7 @@ tokio.workspace = true
 tokio-util.workspace = true
 uuid.workspace = true
 
+sea-orm-ext.workspace = true
 minil-entity.workspace = true
 
 [lints]
