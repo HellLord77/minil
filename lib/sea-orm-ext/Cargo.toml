@@ -1,0 +1,11 @@
+[package]
+name = "sea-orm-ext"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+futures.workspace = true
+sea-orm.workspace = true
+
+[lints]
+workspace = true
