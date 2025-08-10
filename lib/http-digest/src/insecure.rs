@@ -11,12 +11,12 @@ use crate::DigestParseError;
 use crate::ValueParseError;
 use crate::macros::define_digest_algorithm;
 
-define_digest_algorithm!(DigestMd5, 16);
-define_digest_algorithm!(DigestSha, 20);
-define_digest_algorithm!(DigestUnixSum, 16);
-define_digest_algorithm!(DigestUnixCkSum, 32);
-define_digest_algorithm!(DigestAdler, 32);
-define_digest_algorithm!(DigestCrc32C, 4);
+define_digest_algorithm!(Md5, 16);
+define_digest_algorithm!(Sha, 20);
+define_digest_algorithm!(UnixSum, 16);
+define_digest_algorithm!(UnixCkSum, 32);
+define_digest_algorithm!(Adler, 32);
+define_digest_algorithm!(Crc32C, 4);
 
 #[derive(Debug, Display, From, EnumDiscriminants)]
 #[display("{}=:{}:", self.discriminant(), BASE64_STANDARD.encode(_0.0))]

@@ -11,8 +11,8 @@ use crate::DigestParseError;
 use crate::ValueParseError;
 use crate::macros::define_digest_algorithm;
 
-define_digest_algorithm!(DigestSha256, 32);
-define_digest_algorithm!(DigestSha512, 64);
+define_digest_algorithm!(Sha256, 32);
+define_digest_algorithm!(Sha512, 64);
 
 #[derive(Debug, Display, From, EnumDiscriminants)]
 #[display("{}=:{}:", self.discriminant(), BASE64_STANDARD.encode(_0.0))]
