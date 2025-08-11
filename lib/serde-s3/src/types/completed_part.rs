@@ -5,7 +5,7 @@ use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, PartialEq, Builder, Serialize, Deserialize)]
-#[serde(rename = "Part", rename_all = "PascalCase")]
+#[serde(rename_all = "PascalCase")]
 pub struct CompletedPart {
     pub e_tag: Option<String>,
 
