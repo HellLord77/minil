@@ -1,6 +1,6 @@
 [package]
 name = "minil-service"
-version = "0.4.5"
+version = "0.5.0"
 edition.workspace = true
 
 [dependencies]
@@ -13,6 +13,7 @@ crc-fast.workspace = true
 derive_more.workspace = true
 digest.workspace = true
 futures.workspace = true
+hex.workspace = true
 md-5.workspace = true
 mime.workspace = true
 mime_guess.workspace = true
@@ -23,8 +24,8 @@ tokio.workspace = true
 tokio-util.workspace = true
 uuid.workspace = true
 
-sea-orm-ext.workspace = true
 minil-entity.workspace = true
+sea-orm-ext.workspace = true
 
 [lints]
 workspace = true

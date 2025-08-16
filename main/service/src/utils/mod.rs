@@ -4,16 +4,14 @@ mod chunk_decoder;
 
 pub(super) use chunk_decoder::ChunkDecoder;
 
-pub(super) fn get_mime(path: &str, bytes: &[u8]) -> Mime {
-    let mimes_ext = mime_guess::from_path(path);
-    let mime_sig = infer::get(bytes).map(|mime| mime.mime_type().parse::<Mime>().unwrap());
-
-    mime_sig.unwrap_or_else(|| mimes_ext.first_or_octet_stream())
+pub(super) fn get_mime(path: &str, bytes: &[u8]) -> Option<Mime> {
+    infer::get(bytes)
+        .map(|mime| mime.mime_type().parse::<Mime>().unwrap())
+        .or_else(|| mime_guess::from_path(path).first())
 }
 
 #[cfg(test)]
 mod tests {
-    use mime::APPLICATION_OCTET_STREAM;
     use mime::IMAGE_JPEG;
     use mime::TEXT_CSV;
     use mime::TEXT_PLAIN;
@@ -27,7 +25,7 @@ mod tests {
         let bytes = b"Hello, world!";
 
         let mime = get_mime(path, bytes);
-        assert_eq!(mime, TEXT_PLAIN);
+        assert_eq!(mime, Some(TEXT_PLAIN));
     }
 
     #[test]
@@ -36,7 +34,7 @@ mod tests {
         let bytes = b"Hello, world!";
 
         let mime = get_mime(path, bytes);
-        assert_eq!(mime, TEXT_CSV);
+        assert_eq!(mime, Some(TEXT_CSV));
     }
 
     #[test]
@@ -45,7 +43,7 @@ mod tests {
         let bytes = &[0xFF, 0xD8, 0xFF, 0xAA];
 
         let mime = get_mime(path, bytes);
-        assert_eq!(mime, IMAGE_JPEG);
+        assert_eq!(mime, Some(IMAGE_JPEG));
     }
 
     #[test]
@@ -54,7 +52,7 @@ mod tests {
         let bytes = b"Hello, world!";
 
         let mime = get_mime(path, bytes);
-        assert_eq!(mime, APPLICATION_OCTET_STREAM);
+        assert_eq!(mime, None);
     }
 
     #[test]
@@ -63,7 +61,7 @@ mod tests {
         let bytes = &[0xFF, 0xD8, 0xFF, 0xAA];
 
         let mime = get_mime(path, bytes);
-        assert_eq!(mime, IMAGE_JPEG);
+        assert_eq!(mime, Some(IMAGE_JPEG));
     }
 
     #[test]
@@ -72,6 +70,6 @@ mod tests {
         let bytes = b"{\"key\": \"value\"}";
 
         let mime = get_mime(path, bytes);
-        assert_eq!(mime, TEXT_XML);
+        assert_eq!(mime, Some(TEXT_XML));
     }
 }

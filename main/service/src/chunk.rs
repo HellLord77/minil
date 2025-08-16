@@ -1,46 +1,49 @@
 use std::ops::RangeInclusive;
-use std::pin::pin;
 
 use async_stream::try_stream;
 use bytes::Bytes;
 use futures::Stream;
-use futures::TryStreamExt;
 use minil_entity::chunk;
+use minil_entity::object;
 use minil_entity::prelude::*;
+use sea_orm::prelude::Expr;
 use sea_orm::*;
 use uuid::Uuid;
 
-use crate::PartQuery;
+use crate::VersionPartQuery;
 use crate::error::DbRes;
 
 pub struct ChunkQuery;
 
 impl ChunkQuery {
-    async fn find_many(
+    async fn find_many_by_version_part_id(
         db: &(impl ConnectionTrait + StreamTrait),
-        part_id: Uuid,
+        version_part_id: Uuid,
         range: Option<&RangeInclusive<u64>>,
     ) -> DbRes<impl Stream<Item = DbRes<chunk::Model>>> {
-        let mut query = Chunk::find().filter(chunk::Column::PartId.eq(part_id));
-        if let Some(range) = range {
-            query = query
-                .filter(chunk::Column::Start.lte(*range.end()))
-                .filter(chunk::Column::End.gte(*range.start()));
-        }
-        query.order_by_asc(chunk::Column::Index).stream(db).await
+        Chunk::find()
+            .filter(chunk::Column::VersionPartId.eq(version_part_id))
+            .apply_if(range, |query, range| {
+                query
+                    .filter(chunk::Column::Start.lte(*range.end()))
+                    .filter(chunk::Column::End.gte(*range.start()))
+            })
+            .order_by_asc(chunk::Column::Index)
+            .stream(db)
+            .await
     }
 
     //noinspection RsBorrowChecker
-    pub async fn find_only_data(
+    pub fn find_many_ranged_part_data_by_version_part_id(
         db: impl ConnectionTrait + StreamTrait,
-        part_id: Uuid,
+        version_part_id: Uuid,
         range: Option<RangeInclusive<u64>>,
     ) -> impl Stream<Item = DbRes<Bytes>> {
         try_stream! {
-            let chunks = ChunkQuery::find_many(&db, part_id, range.as_ref()).await?;
-            let mut stream = pin!(chunks);
+            let chunks = ChunkQuery::find_many_by_version_part_id(&db, version_part_id, range.as_ref()).await?;
+            for await chunk in chunks {
+                let chunk = chunk?;
 
-            while let Some(chunk) = stream.try_next().await? {
                 let range = range.as_ref().map(|range| {
                     let start = chunk.start as u64;
                     let end = chunk.end as u64;
@@ -56,20 +59,20 @@ impl ChunkQuery {
         }
     }
 
-    pub async fn find_many_only_data(
+    //noinspection RsBorrowChecker
+    pub fn find_many_ranged_version_data_by_version_id(
         db: impl Clone + ConnectionTrait + StreamTrait,
-        upload_id: Option<Uuid>,
-        version_id: Option<Uuid>,
+        version_id: Uuid,
         range: Option<RangeInclusive<u64>>,
     ) -> impl Stream<Item = DbRes<Bytes>> {
         try_stream! {
-            let parts = PartQuery::find_many(&db, upload_id, version_id, &range).await?;
-            let mut stream = pin!(parts);
+            let parts = VersionPartQuery::find_many_ranged(&db, version_id, range.as_ref()).await?;
+            for await part in parts {
+                let part = part?;
 
-            while let Some(part) = stream.try_next().await? {
                 let range = range.as_ref().map(|range| {
-                    let start = part.start.unwrap() as u64;
-                    let end = part.end.unwrap() as u64;
+                    let start = part.start as u64;
+                    let end = part.end as u64;
                     let offset = start;
 
                     let start = start.max(*range.start()) - offset;
@@ -77,9 +80,9 @@ impl ChunkQuery {
                     start..=end
                 });
 
-                let chunks = ChunkQuery::find_only_data(db.clone(), part.id, range).await;
+                let chunks = ChunkQuery::find_many_ranged_part_data_by_version_part_id(db.clone(), part.id, range);
                 for await chunk in chunks {
-                    yield chunk?;
+                    yield chunk?
                 }
             }
         }
@@ -91,7 +94,8 @@ pub struct ChunkMutation;
 impl ChunkMutation {
     pub(super) async fn insert(
         db: &impl ConnectionTrait,
-        part_id: Uuid,
+        upload_part_id: Option<Uuid>,
+        version_part_id: Option<Uuid>,
         index: u64,
         start: u64,
         end: u64,
@@ -99,7 +103,8 @@ impl ChunkMutation {
     ) -> DbRes<InsertResult<chunk::ActiveModel>> {
         let chunk = chunk::ActiveModel {
             id: Set(Uuid::new_v4()),
-            part_id: Set(part_id),
+            upload_part_id: Set(upload_part_id),
+            version_part_id: Set(version_part_id),
             index: Set(index as i64),
             start: Set(start as i64),
             end: Set(end as i64),
@@ -110,12 +115,31 @@ impl ChunkMutation {
         Chunk::insert(chunk).exec(db).await
     }
 
-    pub(super) async fn delete_many(
+    pub(super) async fn update_many_version_part_id_by_upload_part_id(
         db: &impl ConnectionTrait,
-        part_id: Uuid,
+        upload_part_id: Uuid,
+        version_part_id: Uuid,
+    ) -> DbRes<UpdateResult> {
+        let chunk = chunk::ActiveModel {
+            upload_part_id: Set(None),
+            version_part_id: Set(Some(version_part_id)),
+            ..Default::default()
+        };
+
+        Chunk::update_many()
+            .filter(chunk::Column::UploadPartId.eq(upload_part_id))
+            .set(chunk)
+            .col_expr(object::Column::UpdatedAt, Expr::current_timestamp().into())
+            .exec(db)
+            .await
+    }
+
+    pub(super) async fn delete_many_by_upload_part_id(
+        db: &impl ConnectionTrait,
+        upload_part_id: Uuid,
     ) -> DbRes<DeleteResult> {
         Chunk::delete_many()
-            .filter(chunk::Column::PartId.eq(part_id))
+            .filter(chunk::Column::UploadPartId.eq(upload_part_id))
             .exec(db)
             .await
     }
