@@ -12,6 +12,9 @@ pub struct Model {
     pub bucket_id: Option<Uuid>,
 
     #[sea_orm(indexed, unique)]
+    pub upload_id: Option<Uuid>,
+
+    #[sea_orm(indexed, unique)]
     pub version_id: Option<Uuid>,
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
@@ -37,6 +40,13 @@ pub enum Relation {
     Bucket,
 
     #[sea_orm(
+        belongs_to = "Upload",
+        from = "Column::UploadId",
+        to = "super::upload::Column::Id"
+    )]
+    Upload,
+
+    #[sea_orm(
         belongs_to = "Version",
         from = "Column::VersionId",
         to = "super::version::Column::Id"
@@ -50,6 +60,12 @@ pub enum Relation {
 impl Related<Bucket> for Entity {
     fn to() -> RelationDef {
         Relation::Bucket.def()
+    }
+}
+
+impl Related<Upload> for Entity {
+    fn to() -> RelationDef {
+        Relation::Upload.def()
     }
 }
 
