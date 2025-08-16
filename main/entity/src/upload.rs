@@ -8,10 +8,10 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
-    #[sea_orm(indexed, unique)]
+    #[sea_orm(indexed)]
     pub bucket_id: Uuid,
 
-    #[sea_orm(indexed, unique)]
+    #[sea_orm(indexed)]
     pub key: String,
 
     pub mime: Option<String>,
@@ -29,8 +29,11 @@ pub enum Relation {
     )]
     Bucket,
 
-    #[sea_orm(has_many = "Part")]
-    Part,
+    #[sea_orm(has_many = "UploadPart")]
+    UploadPart,
+
+    #[sea_orm(has_one = "TagSet")]
+    TagSet,
 }
 
 impl Related<Bucket> for Entity {
@@ -39,9 +42,15 @@ impl Related<Bucket> for Entity {
     }
 }
 
-impl Related<Part> for Entity {
+impl Related<UploadPart> for Entity {
     fn to() -> RelationDef {
-        Relation::Part.def()
+        Relation::UploadPart.def()
+    }
+}
+
+impl Related<TagSet> for Entity {
+    fn to() -> RelationDef {
+        Relation::TagSet.def()
     }
 }
 

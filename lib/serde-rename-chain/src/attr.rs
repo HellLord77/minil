@@ -42,12 +42,12 @@ impl Parse for SerdeRenameChainAttrs {
                                     bail_spanned!(lit_str, err);
                                 }
                             }
-                        };
+                        }
                     }
                     _ => bail_spanned!(value, "expected string literal"),
                 },
                 _ => bail_spanned!(arg, "expected name-value pair"),
-            };
+            }
         }
 
         Ok(Self { renamers })

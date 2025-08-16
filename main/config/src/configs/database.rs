@@ -49,17 +49,17 @@ impl DatabaseConfig {
                     let mut url = Url::parse("sqlite:///:memory:")?;
 
                     url.set_scheme(&self.driver.to_string())
-                        .map_err(|_| UrlParseError::Scheme)?;
+                        .map_err(|()| UrlParseError::Scheme)?;
                     url.set_host(Some(if self.host == ":memory:" {
                         "localhost"
                     } else {
                         &self.host
                     }))?;
-                    url.set_port(self.port).map_err(|_| UrlParseError::Port)?;
+                    url.set_port(self.port).map_err(|()| UrlParseError::Port)?;
                     url.set_username(&self.username)
-                        .map_err(|_| UrlParseError::Username)?;
+                        .map_err(|()| UrlParseError::Username)?;
                     url.set_password(self.password.as_deref())
-                        .map_err(|_| UrlParseError::Password)?;
+                        .map_err(|()| UrlParseError::Password)?;
                     url.set_path(&self.name);
                     url.set_query(self.params.as_deref());
 

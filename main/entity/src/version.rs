@@ -23,10 +23,10 @@ pub struct Model {
     pub crc32: Option<Vec<u8>>,
 
     #[sea_orm(column_type = "Binary(4)")]
-    pub crc32c: Option<Vec<u8>>,
+    pub crc32_c: Option<Vec<u8>>,
 
     #[sea_orm(column_type = "Binary(8)")]
-    pub crc64nvme: Option<Vec<u8>>,
+    pub crc64_nvme: Option<Vec<u8>>,
 
     #[sea_orm(column_type = "Binary(20)")]
     pub sha1: Option<Vec<u8>>,
@@ -88,8 +88,8 @@ pub enum Relation {
     )]
     Object,
 
-    #[sea_orm(has_many = "Part")]
-    Part,
+    #[sea_orm(has_many = "VersionPart")]
+    VersionPart,
 
     #[sea_orm(has_one = "TagSet")]
     TagSet,
@@ -101,9 +101,9 @@ impl Related<Object> for Entity {
     }
 }
 
-impl Related<Part> for Entity {
+impl Related<VersionPart> for Entity {
     fn to() -> RelationDef {
-        Relation::Part.def()
+        Relation::VersionPart.def()
     }
 }
 

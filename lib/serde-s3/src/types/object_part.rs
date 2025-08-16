@@ -4,7 +4,7 @@ use serde::Serialize;
 use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Builder, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Builder, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ObjectPart {
     pub part_number: Option<u16>,

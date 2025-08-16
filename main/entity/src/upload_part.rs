@@ -3,23 +3,16 @@ use sea_orm::entity::prelude::*;
 use super::prelude::*;
 
 #[derive(Debug, Clone, DeriveEntityModel)]
-#[sea_orm(table_name = "part")]
+#[sea_orm(table_name = "upload_part")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
 
     #[sea_orm(indexed, unique)]
-    pub upload_id: Option<Uuid>,
-
-    #[sea_orm(indexed, unique)]
-    pub version_id: Option<Uuid>,
+    pub upload_id: Uuid,
 
     #[sea_orm(indexed, unique)]
     pub number: i16,
-
-    pub start: Option<i64>,
-
-    pub end: Option<i64>,
 
     pub size: i64,
 
@@ -27,10 +20,10 @@ pub struct Model {
     pub crc32: Vec<u8>,
 
     #[sea_orm(column_type = "Binary(4)")]
-    pub crc32c: Vec<u8>,
+    pub crc32_c: Vec<u8>,
 
     #[sea_orm(column_type = "Binary(8)")]
-    pub crc64nvme: Vec<u8>,
+    pub crc64_nvme: Vec<u8>,
 
     #[sea_orm(column_type = "Binary(20)")]
     pub sha1: Vec<u8>,
@@ -68,13 +61,6 @@ pub enum Relation {
     )]
     Upload,
 
-    #[sea_orm(
-        belongs_to = "Version",
-        from = "Column::VersionId",
-        to = "super::version::Column::Id"
-    )]
-    Version,
-
     #[sea_orm(has_many = "Chunk")]
     Chunk,
 }
@@ -82,12 +68,6 @@ pub enum Relation {
 impl Related<Upload> for Entity {
     fn to() -> RelationDef {
         Relation::Upload.def()
-    }
-}
-
-impl Related<Version> for Entity {
-    fn to() -> RelationDef {
-        Relation::Version.def()
     }
 }
 

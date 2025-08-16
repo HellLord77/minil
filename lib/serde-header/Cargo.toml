@@ -31,4 +31,7 @@ ryu = { version = "1.0.20", optional = true }
 http = { workspace = true, optional = true }
 httparse = { workspace = true, optional = true }
 
-unicase = { workspace = true, optional = true }
+unicase = { version = "2.8.1", optional = true }
+
+[lints]
+workspace = true

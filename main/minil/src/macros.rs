@@ -1,20 +1,3 @@
-macro_rules! _app_db_ref {
-    ($db:ident) => {
-        let $db = ::std::convert::AsRef::as_ref(&$db);
-    };
-}
-
-macro_rules! _app_output {
-    ($expr:expr) => {
-        match $expr {
-            output => {
-                ::std::dbg!(&output);
-                ::core::result::Result::Ok(output)
-            }
-        }
-    };
-}
-
 macro_rules! _app_validate_digest {
     ($left:expr, $right:expr) => {
         if let (::core::option::Option::Some(left), right) = ($left, $right) {

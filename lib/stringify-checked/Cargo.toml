@@ -5,3 +5,6 @@ edition.workspace = true
 
 [dev-dependencies]
 trybuild = "1.0.110"
+
+[lints]
+workspace = true

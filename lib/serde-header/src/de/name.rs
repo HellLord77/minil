@@ -30,11 +30,11 @@ impl<'de> PartialEq for Name<'de> {
     }
 }
 
-impl<'de> Hash for Name<'de> {
+impl Hash for Name<'_> {
     #[cfg(feature = "unicase")]
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        unicase::UniCase::new(&self.0).hash(state)
+        unicase::UniCase::new(&self.0).hash(state);
     }
 
     #[cfg(not(feature = "unicase"))]

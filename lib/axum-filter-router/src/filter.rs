@@ -45,9 +45,8 @@ impl Parse for Filter {
             let content;
             parenthesized!(content in input);
             let mut args = Punctuated::<Arg, Token![,]>::parse_terminated(&content)?.into_iter();
-            let arg = match args.next() {
-                Some(arg) => arg,
-                None => bail_spanned!(filter, "unexpected end of args"),
+            let Some(arg) = args.next() else {
+                bail_spanned!(filter, "unexpected end of args")
             };
 
             match filter.to_string().as_str() {

@@ -9,8 +9,8 @@ use crate::rejection::BothRejection;
 use crate::rejection::BothRejectionError;
 use crate::utils::cloned_request;
 
-#[derive(Debug)]
 #[must_use]
+#[derive(Debug)]
 pub struct Both<L, R>(pub L, pub R);
 
 impl<L, R, S> FromRequest<S> for Both<L, R>
@@ -29,10 +29,10 @@ where
         Ok(Both(
             L::from_request(req1, state)
                 .await
-                .map_err(|rej| BothRejectionError::from_err(RejectionError::left(rej)))?,
+                .map_err(|err| BothRejectionError::from_err(RejectionError::left(err)))?,
             R::from_request(req2, state)
                 .await
-                .map_err(|rej| BothRejectionError::from_err(RejectionError::right(rej)))?,
+                .map_err(|err| BothRejectionError::from_err(RejectionError::right(err)))?,
         ))
     }
 }

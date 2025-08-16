@@ -9,8 +9,8 @@ use crate::rejection::EitherRejection;
 use crate::rejection::EitherRejectionError;
 use crate::utils::cloned_request;
 
-#[derive(Debug)]
 #[must_use]
+#[derive(Debug)]
 pub enum Either<L, R> {
     Left(L),
     Right(R),
@@ -50,9 +50,9 @@ where
 
         match L::from_request(req1, state).await {
             Ok(data) => Ok(Either::Left(data)),
-            Err(rej) => match R::from_request(req2, state).await {
+            Err(err) => match R::from_request(req2, state).await {
                 Ok(data) => Ok(Either::Right(data)),
-                Err(_) => Err(EitherRejectionError::from_err(RejectionError::left(rej)))?,
+                Err(_) => Err(EitherRejectionError::from_err(RejectionError::left(err)))?,
             },
         }
     }

@@ -16,3 +16,6 @@ serde-header.workspace = true
 axum.workspace = true
 axum-test.workspace = true
 tokio.workspace = true
+
+[lints]
+workspace = true

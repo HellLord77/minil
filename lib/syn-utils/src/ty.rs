@@ -2,10 +2,9 @@ use syn::GenericArgument;
 use syn::PathArguments;
 use syn::Type;
 
+#[must_use]
 pub fn peel_option(ty: &Type) -> Option<&Type> {
-    let type_path = if let Type::Path(type_path) = ty {
-        type_path
-    } else {
+    let Type::Path(type_path) = ty else {
         return None;
     };
 
@@ -33,10 +32,9 @@ pub fn peel_option(ty: &Type) -> Option<&Type> {
     }
 }
 
+#[must_use]
 pub fn peel_result_ok(ty: &Type) -> Option<&Type> {
-    let type_path = if let Type::Path(type_path) = ty {
-        type_path
-    } else {
+    let Type::Path(type_path) = ty else {
         return None;
     };
 

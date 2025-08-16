@@ -14,8 +14,8 @@ use crate::rejection::NonEmptyRejectionError;
 use crate::rejection::NotEmptyRejection;
 use crate::rejection::UnknownBodyError;
 
-#[derive(Debug)]
 #[must_use]
+#[derive(Debug)]
 pub struct Empty;
 
 impl<S> FromRequest<S> for Empty
@@ -41,8 +41,8 @@ where
     }
 }
 
-#[derive(Debug)]
 #[must_use]
+#[derive(Debug)]
 pub struct OptionalEmpty<T>(pub Option<T>);
 
 impl<T, S> FromRequest<S> for OptionalEmpty<T>
@@ -77,7 +77,7 @@ where
 
             match T::from_request(req, state).await {
                 Ok(data) => Ok(Self(Some(data))),
-                Err(rej) => Err(NonEmptyRejectionError::from_err(RejectionError::right(rej)))?,
+                Err(err) => Err(NonEmptyRejectionError::from_err(RejectionError::right(err)))?,
             }
         }
     }

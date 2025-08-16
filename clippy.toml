@@ -1,10 +1,15 @@
-allowed-wildcard-imports = ["sea_orm", "sea_orm_migration", "sea_query"]
+allowed-wildcard-imports = [
+    "sea_orm", "sea_orm_migration", "sea_query",
+    "axum_s3", "serde_s3",
+]
 
 disallowed-methods = [
     # { path = "sea_query::query::on_conflict::OnConflict::column", replacement = "sea_query::query::on_conflict::OnConflict::columns" },
     # { path = "sea_query::query::on_conflict::OnConflict::update_column", replacement = "sea_query::query::on_conflict::OnConflict::update_columns" },
     # { path = "sea_query::query::on_conflict::OnConflict::value", replacement = "sea_query::query::on_conflict::OnConflict::values" },
 ]
+
+disallowed-names = ["crc32c", "crc64nvme", "etag"]
 
 disallowed-types = [
     { path = "std::sync::Mutex", replacement = "parking_lot::Mutex" },

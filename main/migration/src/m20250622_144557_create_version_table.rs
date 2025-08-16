@@ -18,8 +18,8 @@ impl MigrationTrait for Migration {
                     .col(string_null(Version::Mime))
                     .col(big_unsigned_null(Version::Size))
                     .col(binary_len_null(Version::Crc32, 4))
-                    .col(binary_len_null(Version::Crc32c, 4))
-                    .col(binary_len_null(Version::Crc64nvme, 8))
+                    .col(binary_len_null(Version::Crc32C, 4))
+                    .col(binary_len_null(Version::Crc64Nvme, 8))
                     .col(binary_len_null(Version::Sha1, 20))
                     .col(binary_len_null(Version::Sha256, 32))
                     .col(binary_len_null(Version::Md5, 16))
@@ -36,7 +36,7 @@ impl MigrationTrait for Migration {
                             .to(Object::Table, Object::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
-                    // todo check option
+                    // todo check
                     .to_owned(),
             )
             .await?;
@@ -116,8 +116,8 @@ enum Version {
     Mime,
     Size,
     Crc32,
-    Crc32c,
-    Crc64nvme,
+    Crc32C,
+    Crc64Nvme,
     Sha1,
     Sha256,
     Md5,

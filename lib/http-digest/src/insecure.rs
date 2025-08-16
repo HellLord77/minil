@@ -11,12 +11,12 @@ use crate::DigestParseError;
 use crate::ValueParseError;
 use crate::macros::define_digest_algorithm;
 
-define_digest_algorithm!(DigestMd5, 16);
-define_digest_algorithm!(DigestSha, 20);
-define_digest_algorithm!(DigestUnixSum, 16);
-define_digest_algorithm!(DigestUnixCkSum, 32);
-define_digest_algorithm!(DigestAdler, 32);
-define_digest_algorithm!(DigestCrc32C, 4);
+define_digest_algorithm!(Md5, 16);
+define_digest_algorithm!(Sha, 20);
+define_digest_algorithm!(UnixSum, 16);
+define_digest_algorithm!(UnixCkSum, 32);
+define_digest_algorithm!(Adler, 32);
+define_digest_algorithm!(Crc32C, 4);
 
 #[derive(Debug, Display, From, EnumDiscriminants)]
 #[display("{}=:{}:", self.discriminant(), BASE64_STANDARD.encode(_0.0))]
@@ -42,11 +42,11 @@ impl FromStr for InsecureDigest {
         let (a, v) = s.split_once('=').ok_or_else(|| s.to_owned())?;
         let a = a.to_lowercase().parse()?;
         if !v.starts_with(':') {
-            Err(ValueParseError::PrefixColonNotFound(v.to_owned()))?
-        };
+            Err(ValueParseError::PrefixColonNotFound(v.to_owned()))?;
+        }
         if !v.ends_with(':') {
-            Err(ValueParseError::SuffixColonNotFound(v.to_owned()))?
-        };
+            Err(ValueParseError::SuffixColonNotFound(v.to_owned()))?;
+        }
 
         Ok(match a {
             InsecureDigestDiscriminants::Md5 => v.parse::<DigestMd5>()?.into(),

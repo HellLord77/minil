@@ -43,7 +43,7 @@ pub struct ListObjectVersionsInputQuery {
     #[validate(length(min = 0, max = 1_024))]
     pub prefix: Option<String>,
 
-    pub version_id_marker: Option<String>,
+    pub version_id_marker: Option<String>, // fixme
 }
 
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
@@ -94,8 +94,8 @@ pub struct ListObjectVersionsOutputBody {
 
     pub version: Vec<ObjectVersion>,
 
-    pub version_id_marker: String,
+    pub version_id_marker: String, // fixme
 
     #[serde(rename = "$value")]
-    pub _delete_marker_or_version: Vec<DeleteMarkerOrVersion>,
+    pub delete_marker_or_version: Vec<DeleteMarkerOrVersion>,
 }

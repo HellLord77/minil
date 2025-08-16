@@ -26,18 +26,20 @@ pub fn from_str_legacy(s: &str) -> Result<Vec<Digest>, DigestParseError> {
     s.split(',').map(|s| s.trim().parse()).collect()
 }
 
+#[must_use]
 pub fn to_string(digests: &[SecureDigest]) -> String {
     digests
         .iter()
-        .map(|d| d.to_string())
+        .map(ToString::to_string)
         .collect::<Vec<_>>()
         .join(",")
 }
 
+#[must_use]
 pub fn to_string_legacy(digests: &[Digest]) -> String {
     digests
         .iter()
-        .map(|d| d.to_string())
+        .map(ToString::to_string)
         .collect::<Vec<_>>()
         .join(",")
 }

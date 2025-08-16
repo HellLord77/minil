@@ -57,7 +57,6 @@ impl MigrationTrait for Migration {
                     .table(Upload::Table)
                     .col(Upload::BucketId)
                     .col(Upload::Key)
-                    .unique()
                     .to_owned(),
             )
             .await?;

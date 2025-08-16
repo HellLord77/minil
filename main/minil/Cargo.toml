@@ -1,6 +1,6 @@
 [package]
 name = "minil"
-version = "0.2.4"
+version = "0.3.0"
 edition.workspace = true
 
 [features]
@@ -24,9 +24,11 @@ bytesize.workspace = true
 cap.workspace = true
 derive_more.workspace = true
 futures.workspace = true
+hex.workspace = true
 http-content-range.workspace = true
 indexmap.workspace = true
 md-5.workspace = true
+mime.workspace = true
 sea-orm.workspace = true
 strum.workspace = true
 tokio.workspace = true
@@ -47,3 +49,6 @@ serde-s3.workspace = true
 minil-config.workspace = true
 minil-migration.workspace = true
 minil-service.workspace = true
+
+[lints]
+workspace = true

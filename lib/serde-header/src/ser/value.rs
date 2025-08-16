@@ -35,7 +35,7 @@ impl<'ser, 'name> ValueEntity<'ser, 'name> {
     }
 }
 
-impl<'ser, 'name> EntitySerializer for ValueEntity<'ser, 'name> {
+impl<'ser> EntitySerializer for ValueEntity<'ser, '_> {
     type Ok = HeaderOwnedSeqRef<'ser>;
     type Error = Error;
     type SerializeSeq = Self;
@@ -73,7 +73,7 @@ impl<'ser, 'name> EntitySerializer for ValueEntity<'ser, 'name> {
     }
 }
 
-impl<'ser, 'name> SerializeSeq for ValueEntity<'ser, 'name> {
+impl<'ser> SerializeSeq for ValueEntity<'ser, '_> {
     type Ok = HeaderOwnedSeqRef<'ser>;
     type Error = Error;
 

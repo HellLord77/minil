@@ -9,7 +9,10 @@ pub struct Model {
     pub id: Uuid,
 
     #[sea_orm(indexed, unique)]
-    pub part_id: Uuid,
+    pub upload_part_id: Option<Uuid>,
+
+    #[sea_orm(indexed, unique)]
+    pub version_part_id: Option<Uuid>,
 
     #[sea_orm(indexed, unique)]
     pub index: i64,
@@ -22,21 +25,43 @@ pub struct Model {
 
     #[sea_orm(default_expr = "Expr::current_timestamp()")]
     pub created_at: DateTimeUtc,
+
+    pub updated_at: Option<DateTimeUtc>,
+}
+
+impl Model {
+    #[must_use]
+    pub fn last_modified(&self) -> DateTimeUtc {
+        self.updated_at.unwrap_or(self.created_at)
+    }
 }
 
 #[derive(Debug, Clone, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "Part",
-        from = "Column::PartId",
-        to = "super::part::Column::Id"
+        belongs_to = "UploadPart",
+        from = "Column::UploadPartId",
+        to = "super::upload_part::Column::Id"
     )]
-    Part,
+    UploadPart,
+
+    #[sea_orm(
+        belongs_to = "VersionPart",
+        from = "Column::VersionPartId",
+        to = "super::version_part::Column::Id"
+    )]
+    VersionPart,
 }
 
-impl Related<Part> for Entity {
+impl Related<UploadPart> for Entity {
     fn to() -> RelationDef {
-        Relation::Part.def()
+        Relation::UploadPart.def()
+    }
+}
+
+impl Related<VersionPart> for Entity {
+    fn to() -> RelationDef {
+        Relation::VersionPart.def()
     }
 }
 
