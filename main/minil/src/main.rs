@@ -4,10 +4,10 @@ mod macros;
 mod state;
 mod utils;
 
+use std::collections::HashSet;
 use std::convert;
 use std::env;
 use std::future;
-use std::io;
 use std::pin::pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -38,20 +38,11 @@ use http_digest::DigestMd5;
 use indexmap::IndexSet;
 use md5::Digest;
 use md5::Md5;
+use mime::Mime;
 use minil_config::AppConfig;
 use minil_migration::Migrator;
 use minil_migration::MigratorTrait;
-use minil_service::BucketMutation;
-use minil_service::BucketQuery;
-use minil_service::ChunkQuery;
-use minil_service::ObjectMutation;
-use minil_service::ObjectQuery;
-use minil_service::OwnerQuery;
-use minil_service::PartQuery;
-use minil_service::TagQuery;
-use minil_service::TagSetMutation;
-use minil_service::TagSetQuery;
-use minil_service::VersionQuery;
+use minil_service::prelude::*;
 use sea_orm::ConnectOptions;
 use sea_orm::Database;
 use sea_orm::DbConn;
@@ -63,14 +54,16 @@ use serde_s3::types::BucketVersioningStatus;
 use serde_s3::types::CommonPrefix;
 use serde_s3::types::DeleteMarkerEntry;
 use serde_s3::types::EncodingType;
+use serde_s3::types::Initiator;
 use serde_s3::types::MfaDeleteStatus;
+use serde_s3::types::MultipartUpload;
 use serde_s3::types::Object;
 use serde_s3::types::ObjectVersion;
 use serde_s3::types::Owner;
+use serde_s3::types::Part;
 use serde_s3::types::Tag;
 use serde_s3::utils::DeleteMarkerOrVersion;
 use tokio::net::TcpListener;
-use tokio_util::io::StreamReader;
 use tower::Layer;
 use tower::ServiceBuilder;
 use tower_http::BoxError;
@@ -85,7 +78,6 @@ use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::prelude::*;
-use utils::ServiceBuilderExt as _;
 use uuid::Uuid;
 
 use crate::database_transaction::DbTxn;
@@ -97,6 +89,8 @@ use crate::macros::app_ensure_eq;
 use crate::macros::app_ensure_matches;
 use crate::macros::app_validate_owner;
 use crate::state::AppState;
+use crate::utils::BodyExt;
+use crate::utils::ServiceBuilderExt as _;
 
 #[cfg(debug_assertions)]
 #[global_allocator]
@@ -123,12 +117,6 @@ async fn main() {
         Uuid::new_v8(NODE_NAME.as_bytes().try_into().expect("invalid node name")).to_string();
     let server = format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
-    let add_content_type = SetRequestHeaderLayer::if_not_present(
-        header::CONTENT_TYPE,
-        "application/xml"
-            .parse::<HeaderValue>()
-            .expect("invalid content type header"),
-    );
     let middleware = ServiceBuilder::new()
         .trace_for_http()
         .decompression()
@@ -151,8 +139,20 @@ async fn main() {
         .middleware_fn(validate_content_md5)
         .middleware_fn_with_state(state.clone(), manage_db_txn);
 
-    let put_bucket_tagging_handler = put_bucket_tagging.layer(add_content_type.clone());
-    let put_object_tagging_handler = put_object_tagging.layer(add_content_type);
+    let content_type_value = "application/xml"
+        .parse::<HeaderValue>()
+        .expect("invalid content type header");
+    let if_not_present_content_type_layer =
+        SetRequestHeaderLayer::if_not_present(header::CONTENT_TYPE, content_type_value.clone());
+    let override_content_type_layer =
+        SetRequestHeaderLayer::overriding(header::CONTENT_TYPE, content_type_value);
+
+    let put_bucket_tagging_handler =
+        put_bucket_tagging.layer(if_not_present_content_type_layer.clone());
+    let put_object_tagging_handler = put_object_tagging.layer(if_not_present_content_type_layer);
+    let complete_multipart_upload_handler =
+        complete_multipart_upload.layer(override_content_type_layer);
+
     let router = Router::new();
     let router = app_define_handlers!(router {
         get("/") => list_buckets,
@@ -167,6 +167,7 @@ async fn main() {
             query("versioning", "") => get_bucket_versioning,
             query("versions", "") => list_object_versions,
             query("tagging", "") => get_bucket_tagging,
+            query("uploads", "") => list_multipart_uploads,
             _ => list_objects,
         },
         head("/{Bucket}") => head_bucket,
@@ -178,19 +179,23 @@ async fn main() {
 
         delete("/{Bucket}/{*Key}") => {
             query("tagging", "") => delete_object_tagging,
+            query("uploadId") => abort_multipart_upload,
             _ => delete_object
         },
         get("/{Bucket}/{*Key}") => {
             query("tagging", "") => get_object_tagging,
+            query("uploadId") => list_parts,
             _ => get_object
         },
         head("/{Bucket}/{*Key}") => head_object,
         post("/{Bucket}/{*Key}") => {
             query("uploads", "") => create_multipart_upload,
+            query("uploadId") => complete_multipart_upload_handler,
             _ => async || AppError::InternalError, // todo
         },
         put("/{Bucket}/{*Key}") => {
             query("tagging", "") => put_object_tagging_handler,
+            query("uploadId") => upload_part,
             _ => put_object
         },
 
@@ -346,10 +351,10 @@ async fn validate_content_md5(request: Request, next: Next) -> AppResult<Respons
 
             while let Some(chunk) = stream.try_next().await? {
                 md5.update(&chunk);
-                yield chunk;
+                yield chunk
             }
 
-            if content_md5.0 != md5.finalize().as_slice() {
+            if content_md5.as_bytes() != md5.finalize().as_slice() {
                 Err(AppError::BadDigest)?;
             }
         };
@@ -445,7 +450,7 @@ async fn delete_bucket_tagging(
     let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
-    TagSetMutation::delete(&*db, Some(bucket.id), None)
+    TagSetMutation::delete(&*db, Some(bucket.id), None, None)
         .await?
         .ok_or(AppError::NoSuchTagSet)?;
 
@@ -475,14 +480,14 @@ async fn list_objects_v2(
     let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.optional_object_attributes, None);
-    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.request_payer, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let limit = input.query.max_keys + 1;
-    let mut objects_versions = ObjectQuery::find_many_also_latest_version(
+    let mut objects_versions = ObjectQuery::find_many_both_latest_version(
         &*db,
         bucket.id,
         input.query.prefix.as_deref(),
@@ -522,7 +527,7 @@ async fn list_objects_v2(
     let key_count = objects_versions.len() + common_prefixes.len();
     let encode = if let Some(encoding_type) = &input.query.encoding_type {
         match encoding_type {
-            EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
+            EncodingType::Url => |string: String| urlencoding::encode(&string).into_owned(),
         }
     } else {
         convert::identity
@@ -643,14 +648,14 @@ async fn list_object_versions(
     let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.optional_object_attributes, None);
-    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.request_payer, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let limit = input.query.max_keys + 1;
-    let mut versions_objects = VersionQuery::find_many_also_object(
+    let mut versions_objects = VersionQuery::find_many_both_object(
         &*db,
         bucket.id,
         input.query.prefix.as_deref(),
@@ -688,7 +693,7 @@ async fn list_object_versions(
     }
     let encode = if let Some(encoding_type) = &input.query.encoding_type {
         match encoding_type {
-            EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
+            EncodingType::Url => |string: String| urlencoding::encode(&string).into_owned(),
         }
     } else {
         convert::identity
@@ -805,6 +810,122 @@ async fn get_bucket_tagging(
 }
 
 #[instrument(skip(db), ret)]
+async fn list_multipart_uploads(
+    Extension(db): Extension<DbTxn>,
+    input: ListMultipartUploadsInput,
+) -> AppResult<ListMultipartUploadsOutput> {
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
+
+    app_ensure_eq!(input.header.request_payer, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    let limit = input.query.max_uploads + 1;
+    let mut uploads = UploadQuery::find_many(
+        &*db,
+        bucket.id,
+        input.query.prefix.as_deref(),
+        input.query.key_marker.as_deref(),
+        input.query.upload_id_marker.as_deref(),
+        Some(limit.into()),
+    )
+    .await?
+    .try_collect::<Vec<_>>()
+    .await?;
+    let (next_key_marker, next_upload_id_marker) = (uploads.len() == limit as usize)
+        .then(|| {
+            let upload = uploads.pop().unwrap();
+            (upload.key, upload.id)
+        })
+        .unzip();
+    let mut common_prefixes = IndexSet::new();
+    if let Some(delimiter) = &input.query.delimiter {
+        let prefix_len = input
+            .query
+            .prefix
+            .as_deref()
+            .map(str::len)
+            .unwrap_or_default();
+        let offset = prefix_len + delimiter.len();
+        uploads.retain(|upload| {
+            if let Some(delimiter_index) = &upload.key[prefix_len..].find(delimiter) {
+                common_prefixes.insert(upload.key[..offset + delimiter_index].to_owned());
+
+                false
+            } else {
+                true
+            }
+        });
+    }
+    let encode = if let Some(encoding_type) = &input.query.encoding_type {
+        match encoding_type {
+            EncodingType::Url => |string: String| urlencoding::encode(&string).into_owned(),
+        }
+    } else {
+        convert::identity
+    };
+
+    Ok(ListMultipartUploadsOutput::builder()
+        .header(ListMultipartUploadsOutputHeader::builder().build())
+        .body(
+            ListMultipartUploadsOutputBody::builder()
+                .bucket(bucket.name)
+                .common_prefixes(
+                    common_prefixes
+                        .into_iter()
+                        .map(|common_prefix| {
+                            CommonPrefix::builder()
+                                .prefix(encode(common_prefix))
+                                .build()
+                        })
+                        .collect(),
+                )
+                .maybe_delimiter(input.query.delimiter.map(encode))
+                .maybe_encoding_type(input.query.encoding_type)
+                .is_truncated(next_upload_id_marker.is_some())
+                .key_marker(input.query.key_marker.map(encode).unwrap_or_default())
+                .max_uploads(input.query.max_uploads)
+                .next_key_marker(next_key_marker.map(encode).unwrap_or_default())
+                .next_upload_id_marker(
+                    next_upload_id_marker
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .unwrap_or_default(),
+                )
+                .maybe_prefix(input.query.prefix.map(encode))
+                .upload(
+                    uploads
+                        .into_iter()
+                        .map(|upload| {
+                            MultipartUpload::builder()
+                                .upload_id(upload.id)
+                                .key(upload.key)
+                                .initiated(upload.created_at)
+                                .owner(
+                                    Owner::builder()
+                                        .display_name(owner.name.clone())
+                                        .id(owner.id)
+                                        .build(),
+                                )
+                                .initiator(
+                                    Initiator::builder()
+                                        .id(owner.id)
+                                        .display_name(owner.name.clone())
+                                        .build(),
+                                )
+                                .build()
+                        })
+                        .collect(),
+                )
+                .upload_id_marker(input.query.upload_id_marker.unwrap_or_default())
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
 async fn list_objects(
     Extension(db): Extension<DbTxn>,
     input: ListObjectsInput,
@@ -812,14 +933,14 @@ async fn list_objects(
     let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_matches!(input.header.optional_object_attributes, None);
-    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.request_payer, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
     let limit = input.query.max_keys + 1;
-    let mut objects_versions = ObjectQuery::find_many_also_latest_version(
+    let mut objects_versions = ObjectQuery::find_many_both_latest_version(
         &*db,
         bucket.id,
         input.query.prefix.as_deref(),
@@ -855,7 +976,7 @@ async fn list_objects(
     let delimiter_is_some = input.query.delimiter.is_some();
     let encode = if let Some(encoding_type) = &input.query.encoding_type {
         match encoding_type {
-            EncodingType::Url => |string: String| urlencoding::encode(&string).to_string(),
+            EncodingType::Url => |string: String| urlencoding::encode(&string).into_owned(),
         }
     } else {
         convert::identity
@@ -935,16 +1056,20 @@ async fn put_bucket_tagging(
 ) -> AppResult<PutBucketTaggingOutput> {
     let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
-    app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
+    app_ensure_eq!(input.header.sdk_checksum_algorithm, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let tag_count = input.body.tag_set.tag.len();
-    if tag_count > 50 {
+    if input.body.tag_set.tag.len() > 50 {
         Err(AppError::InvalidTag)?;
     }
-    let mut keys = IndexSet::new();
-    keys.extend(input.body.tag_set.tag.iter().map(|tag| tag.key.clone()));
-    if tag_count != keys.len() {
+    let mut keys = HashSet::new();
+    if !input
+        .body
+        .tag_set
+        .tag
+        .iter()
+        .all(|tag| keys.insert(&tag.key))
+    {
         Err(AppError::InvalidTag)?;
     }
     let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
@@ -953,6 +1078,7 @@ async fn put_bucket_tagging(
     TagSetMutation::upsert_with_tag(
         &*db,
         Some(bucket.id),
+        None,
         None,
         input
             .body
@@ -974,7 +1100,7 @@ async fn put_bucket_versioning(
     let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
     app_ensure_eq!(input.header.mfa, None);
-    app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
+    app_ensure_eq!(input.header.sdk_checksum_algorithm, None);
     app_ensure_matches!(
         input.body.mfa_delete,
         None | Some(MfaDeleteStatus::Disabled)
@@ -1031,18 +1157,17 @@ async fn create_bucket(
         .await?
         .ok_or(AppError::BucketAlreadyOwnedByYou)?;
     if let Some(tags) = input.body.and_then(|body| body.tags) {
-        let tag_count = tags.tag.len();
-        if tag_count > 50 {
+        if tags.tag.len() > 50 {
             Err(AppError::InvalidTag)?;
         }
-        let mut keys = IndexSet::new();
-        keys.extend(tags.tag.iter().map(|tag| tag.key.clone()));
-        if tag_count != keys.len() {
+        let mut keys = HashSet::new();
+        if !tags.tag.iter().all(|tag| keys.insert(&tag.key)) {
             Err(AppError::InvalidTag)?;
         }
         TagSetMutation::upsert_with_tag(
             &*db,
             Some(bucket.id),
+            None,
             None,
             tags.tag.into_iter().map(|tag| (tag.key, tag.value)),
         )
@@ -1077,14 +1202,14 @@ async fn delete_object_tagging(
                 ObjectQuery::find_also_version(&*db, bucket.id, &input.path.key, version_id).await?
             }
         }
-        None => ObjectQuery::find_also_latest_version(&*db, bucket.id, &input.path.key)
+        None => ObjectQuery::find_both_latest_version(&*db, bucket.id, &input.path.key)
             .await?
             .map(|(object, version)| (object, Some(version))),
     }
     .ok_or(AppError::NoSuchKey)?
     .1
     .ok_or(AppError::NoSuchVersion)?;
-    TagSetMutation::delete(&*db, None, Some(version.id))
+    TagSetMutation::delete(&*db, None, None, Some(version.id))
         .await?
         .ok_or(AppError::NoSuchTagSet)?;
 
@@ -1094,6 +1219,29 @@ async fn delete_object_tagging(
                 .maybe_version_id(bucket.versioning.map(|_| version.id()))
                 .build(),
         )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn abort_multipart_upload(
+    Extension(db): Extension<DbTxn>,
+    input: AbortMultipartUploadInput,
+) -> AppResult<AbortMultipartUploadOutput> {
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
+
+    app_ensure_eq!(input.header.if_match_initiated_time, None);
+    app_ensure_eq!(input.header.request_payer, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
+        .await?
+        .ok_or(AppError::NoSuchBucket)?;
+    UploadMutation::delete(&*db, input.query.upload_id, bucket.id, &input.path.key)
+        .await?
+        .ok_or(AppError::NoSuchUpload)?;
+
+    Ok(AbortMultipartUploadOutput::builder()
+        .header(AbortMultipartUploadOutputHeader::builder().build())
         .build())
 }
 
@@ -1109,7 +1257,7 @@ async fn delete_object(
     app_ensure_eq!(input.header.if_match_last_modified_time, None);
     app_ensure_eq!(input.header.if_match_size, None);
     app_ensure_eq!(input.header.mfa, None);
-    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.request_payer, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
@@ -1154,12 +1302,7 @@ async fn delete_object(
                 .1
             };
 
-            let version_id = if version.versioning {
-                version.id
-            } else {
-                Uuid::nil()
-            };
-            (true, Some(version_id))
+            (true, Some(version.id()))
         }
         (version_id, None) => {
             let object = ObjectMutation::delete(&*db, bucket.id, &input.path.key)
@@ -1193,7 +1336,7 @@ async fn get_object_tagging(
 ) -> AppResult<GetObjectTaggingOutput> {
     let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
-    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.request_payer, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
@@ -1207,18 +1350,17 @@ async fn get_object_tagging(
                 ObjectQuery::find_also_version(&*db, bucket.id, &input.path.key, version_id).await?
             }
         }
-        None => ObjectQuery::find_also_latest_version(&*db, bucket.id, &input.path.key)
+        None => ObjectQuery::find_both_latest_version(&*db, bucket.id, &input.path.key)
             .await?
             .map(|(object, version)| (object, Some(version))),
     }
     .ok_or(AppError::NoSuchKey)?
     .1
     .ok_or(AppError::NoSuchVersion)?;
-    let tag_set = TagSetQuery::find(&*db, None, Some(version.id))
+    let tag_set = TagSetQuery::find_with_tag(&*db, None, None, Some(version.id))
         .await?
-        .ok_or(AppError::NoSuchTagSet)?;
-    let tag_set = TagQuery::find_many(&*db, tag_set.id)
-        .await?
+        .ok_or(AppError::NoSuchTagSet)?
+        .1
         .try_collect::<Vec<_>>()
         .await?;
 
@@ -1241,6 +1383,87 @@ async fn get_object_tagging(
         .build())
 }
 
+#[instrument(skip(db), ret)]
+async fn list_parts(
+    Extension(db): Extension<DbTxn>,
+    input: ListPartsInput,
+) -> AppResult<ListPartsOutput> {
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
+
+    ensure::fixme!();
+    dbg!(&input);
+    app_ensure_eq!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_algorithm, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_key, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_key_md5, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let (bucket, upload) = BucketQuery::find_also_upload(
+        &*db,
+        owner.id,
+        &input.path.bucket,
+        input.query.upload_id,
+        &input.path.key,
+    )
+    .await?
+    .ok_or(AppError::NoSuchBucket)?;
+    let upload = upload.ok_or(AppError::NoSuchUpload)?;
+    let limit = input.query.max_parts + 1;
+    let mut parts = UploadPartQuery::find_many(
+        &*db,
+        upload.id,
+        input.query.part_number_marker,
+        Some(limit.into()),
+    )
+    .await?
+    .try_collect::<Vec<_>>()
+    .await?;
+    let next_part_number_marker = (parts.len() == limit as usize).then(|| {
+        parts.pop();
+        parts.last().unwrap().number as u16
+    });
+
+    Ok(ListPartsOutput::builder()
+        .header(ListPartsOutputHeader::builder().build())
+        .body(
+            ListPartsOutputBody::builder()
+                .bucket(bucket.name)
+                .initiator(
+                    Initiator::builder()
+                        .id(owner.id)
+                        .display_name(owner.name.clone())
+                        .build(),
+                )
+                .is_truncated(next_part_number_marker.is_some())
+                .key(upload.key)
+                .max_parts(input.query.max_parts)
+                .maybe_next_part_number_marker(next_part_number_marker)
+                .owner(
+                    Owner::builder()
+                        .display_name(owner.name)
+                        .id(owner.id)
+                        .build(),
+                )
+                .part(
+                    parts
+                        .into_iter()
+                        .map(|part| {
+                            Part::builder()
+                                .part_number(part.number as u16)
+                                .last_modified(part.last_modified())
+                                .e_tag(part.e_tag())
+                                .size(part.size as u64)
+                                .build()
+                        })
+                        .collect(),
+                )
+                .maybe_part_number_marker(input.query.part_number_marker)
+                .upload_id(upload.id)
+                .build(),
+        )
+        .build())
+}
+
 #[instrument(skip(db_conn, db), ret)]
 async fn get_object(
     State(db_conn): State<DbConn>,
@@ -1258,7 +1481,7 @@ async fn get_object(
         None | Some(1) // todo multipart/byteranges
     );
     app_ensure_matches!(input.header.checksum_mode, None);
-    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.request_payer, None);
     app_ensure_matches!(input.header.server_side_encryption_customer_algorithm, None);
     app_ensure_matches!(input.header.server_side_encryption_customer_key, None);
     app_ensure_matches!(input.header.server_side_encryption_customer_key_md5, None);
@@ -1275,7 +1498,7 @@ async fn get_object(
                 ObjectQuery::find_also_version(&*db, bucket.id, &input.path.key, version_id).await?
             }
         }
-        None => ObjectQuery::find_also_latest_version(&*db, bucket.id, &input.path.key)
+        None => ObjectQuery::find_both_latest_version(&*db, bucket.id, &input.path.key)
             .await?
             .map(|(object, version)| (object, Some(version))),
     }
@@ -1309,13 +1532,13 @@ async fn get_object(
                 Err(AppError::InternalError)?;
             }
 
-            let part = PartQuery::find(&*db, None, Some(version.id), part_number)
+            let part = VersionPartQuery::find(&*db, version.id, part_number)
                 .await?
                 .ok_or(AppError::InvalidPart)?;
 
             (
                 Some(part.id),
-                part.size as u64,
+                part.size(),
                 part.e_tag(),
                 part.last_modified(),
             )
@@ -1338,12 +1561,18 @@ async fn get_object(
         })
         .transpose()?;
     let body = match part_id {
-        Some(part_id) => ChunkQuery::find_only_data(db_conn, part_id, range.clone())
-            .await
-            .left_stream(),
-        None => ChunkQuery::find_many_only_data(db_conn, None, Some(version.id), range.clone())
-            .await
-            .right_stream(),
+        Some(part_id) => ChunkQuery::find_many_ranged_part_data_by_version_part_id(
+            db_conn,
+            part_id,
+            range.clone(),
+        )
+        .left_stream(),
+        None => ChunkQuery::find_many_ranged_version_data_by_version_id(
+            db_conn,
+            version.id,
+            range.clone(),
+        )
+        .right_stream(),
     };
 
     Ok(GetObjectOutput::builder()
@@ -1392,7 +1621,7 @@ async fn head_object(
         None | Some(1) // todo multipart/byteranges
     );
     app_ensure_matches!(input.header.checksum_mode, None);
-    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.request_payer, None);
     app_ensure_matches!(input.header.server_side_encryption_customer_algorithm, None);
     app_ensure_matches!(input.header.server_side_encryption_customer_key, None);
     app_ensure_matches!(input.header.server_side_encryption_customer_key_md5, None);
@@ -1409,7 +1638,7 @@ async fn head_object(
                 ObjectQuery::find_also_version(&*db, bucket.id, &input.path.key, version_id).await?
             }
         }
-        None => ObjectQuery::find_also_latest_version(&*db, bucket.id, &input.path.key)
+        None => ObjectQuery::find_both_latest_version(&*db, bucket.id, &input.path.key)
             .await?
             .map(|(object, version)| (object, Some(version))),
     }
@@ -1442,11 +1671,11 @@ async fn head_object(
                 Err(AppError::InternalError)?;
             }
 
-            let part = PartQuery::find(&*db, None, Some(version.id), part_number)
+            let part = VersionPartQuery::find(&*db, version.id, part_number)
                 .await?
                 .ok_or(AppError::InvalidPart)?;
 
-            (part.size as u64, part.e_tag(), part.last_modified())
+            (part.size(), part.e_tag(), part.last_modified())
         }
         None => (version.size(), version.e_tag(), version.last_modified()),
     };
@@ -1497,13 +1726,10 @@ async fn create_multipart_upload(
 ) -> AppResult<CreateMultipartUploadOutput> {
     let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
-    ensure::fixme!();
-    dbg!(&input);
     app_ensure_eq!(input.header.cache_control, None);
     app_ensure_eq!(input.header.content_disposition, None);
-    app_ensure_eq!(input.header.content_encoding, None); // todo
+    app_ensure_eq!(input.header.content_encoding, None);
     app_ensure_eq!(input.header.content_language, None);
-    app_ensure_eq!(input.header.content_type, None);
     app_ensure_eq!(input.header.expires, None);
     app_ensure_matches!(input.header.acl, None);
     app_ensure_matches!(input.header.checksum_algorithm, None);
@@ -1515,7 +1741,7 @@ async fn create_multipart_upload(
     app_ensure_matches!(input.header.object_lock_legal_hold, None);
     app_ensure_matches!(input.header.object_lock_mode, None);
     app_ensure_eq!(input.header.object_lock_retain_until_date, None);
-    app_ensure_matches!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.request_payer, None);
     app_ensure_matches!(input.header.server_side_encryption, None);
     app_ensure_eq!(input.header.server_side_encryption_aws_kms_key_id, None);
     app_ensure_eq!(input.header.server_side_encryption_bucket_key_enabled, None);
@@ -1524,21 +1750,149 @@ async fn create_multipart_upload(
     app_ensure_eq!(input.header.server_side_encryption_customer_key, None);
     app_ensure_eq!(input.header.server_side_encryption_customer_key_md5, None);
     app_ensure_matches!(input.header.storage_class, None);
-    app_ensure_matches!(input.header.tagging, None); // todo
     app_ensure_eq!(input.header.website_redirect_location, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
     let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
         .await?
         .ok_or(AppError::NoSuchBucket)?;
+    let upload = UploadMutation::insert(
+        &*db,
+        bucket.id,
+        input.path.key.clone(),
+        input.header.content_type.as_ref(),
+    )
+    .await?;
+    if let Some(tagging) = input.header.tagging {
+        if tagging.len() > 10 {
+            Err(AppError::InvalidTag)?;
+        }
+        let mut keys = HashSet::new();
+        if !tagging.iter().all(|tag| keys.insert(&tag.key)) {
+            Err(AppError::InvalidTag)?;
+        }
+        TagSetMutation::upsert_with_tag(
+            &*db,
+            None,
+            Some(upload.id),
+            None,
+            tagging.into_iter().map(|tag| (tag.key, tag.value)),
+        )
+        .await?;
+    }
 
     Ok(CreateMultipartUploadOutput::builder()
         .header(CreateMultipartUploadOutputHeader::builder().build())
         .body(
             CreateMultipartUploadOutputBody::builder()
                 .bucket(bucket.name)
-                .key(input.path.key)
-                .upload_id(Uuid::nil())
+                .key(upload.key)
+                .upload_id(upload.id)
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn complete_multipart_upload(
+    Extension(db): Extension<DbTxn>,
+    input: CompleteMultipartUploadInput,
+) -> AppResult<CompleteMultipartUploadOutput> {
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
+
+    app_ensure_eq!(input.header.if_match, None);
+    app_ensure_eq!(input.header.if_none_match, None);
+    app_ensure_eq!(input.header.checksum_crc32, None);
+    app_ensure_eq!(input.header.checksum_crc32c, None);
+    app_ensure_eq!(input.header.checksum_crc64nvme, None);
+    app_ensure_eq!(input.header.checksum_sha1, None);
+    app_ensure_eq!(input.header.checksum_sha256, None);
+    app_ensure_eq!(input.header.checksum_type, None);
+    app_ensure_eq!(input.header.mp_object_size, None);
+    app_ensure_eq!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_algorithm, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_key, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_key_md5, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let mut numbers = HashSet::new();
+    let filters = input
+        .body
+        .part
+        .into_iter()
+        .map(|part| {
+            let number = part.part_number.ok_or(AppError::InternalError)?;
+            if !numbers.insert(number) {
+                Err(AppError::InternalError)?;
+            }
+
+            let md5 = part
+                .e_tag
+                .map(|e_tag| {
+                    hex::decode(
+                        e_tag
+                            .strip_prefix('"')
+                            .unwrap_or(&e_tag)
+                            .strip_suffix('"')
+                            .unwrap_or(&e_tag),
+                    )
+                    .map_err(|_| AppError::InternalError)
+                    .and_then(|md5| {
+                        if md5.len() == 16 {
+                            Ok(md5)
+                        } else {
+                            Err(AppError::InternalError)
+                        }
+                    })
+                })
+                .transpose()?;
+
+            Ok((number, None, None, None, None, None, md5))
+        })
+        .collect::<AppResult<Vec<_>>>()?;
+    let (bucket, upload) = BucketQuery::find_also_upload(
+        &*db,
+        owner.id,
+        &input.path.bucket,
+        input.query.upload_id,
+        &input.path.key,
+    )
+    .await?
+    .ok_or(AppError::NoSuchBucket)?;
+    let upload = upload.ok_or(AppError::NoSuchUpload)?;
+    let parts = UploadPartQuery::find_many_filtered(&*db, upload.id, filters.into_iter())
+        .try_collect::<Vec<_>>()
+        .await?
+        .into_iter()
+        .collect::<Option<Vec<_>>>()
+        .ok_or(AppError::InvalidPart)?;
+    let (object, version) = ObjectMutation::upsert_also_version_from_parts(
+        &*db,
+        bucket.id,
+        upload.key,
+        bucket.versioning.unwrap_or_default(),
+        upload
+            .mime
+            .map(|mime| mime.parse::<Mime>().unwrap())
+            .as_ref(),
+        parts.into_iter(),
+    )
+    .await?;
+    UploadMutation::delete(&*db, upload.id, bucket.id, &object.key)
+        .await?
+        .ok_or(AppError::NoSuchUpload)?;
+
+    Ok(CompleteMultipartUploadOutput::builder()
+        .header(
+            CompleteMultipartUploadOutputHeader::builder()
+                .maybe_version_id(bucket.versioning.map(|_| version.id()))
+                .build(),
+        )
+        .body(
+            CompleteMultipartUploadOutputBody::builder()
+                .bucket(bucket.name)
+                .e_tag(version.e_tag())
+                .key(object.key)
                 .build(),
         )
         .build())
@@ -1551,17 +1905,21 @@ async fn put_object_tagging(
 ) -> AppResult<PutObjectTaggingOutput> {
     let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
-    app_ensure_matches!(input.header.request_payer, None);
-    app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
+    app_ensure_eq!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.sdk_checksum_algorithm, None);
 
     app_validate_owner!(input.header.expected_bucket_owner, owner.name);
-    let tag_count = input.body.tag_set.tag.len();
-    if tag_count > 10 {
+    if input.body.tag_set.tag.len() > 10 {
         Err(AppError::InvalidTag)?;
     }
-    let mut keys = IndexSet::new();
-    keys.extend(input.body.tag_set.tag.iter().map(|tag| tag.key.clone()));
-    if tag_count != keys.len() {
+    let mut keys = HashSet::new();
+    if !input
+        .body
+        .tag_set
+        .tag
+        .iter()
+        .all(|tag| keys.insert(&tag.key))
+    {
         Err(AppError::InvalidTag)?;
     }
     let bucket = BucketQuery::find(&*db, owner.id, &input.path.bucket)
@@ -1575,7 +1933,7 @@ async fn put_object_tagging(
                 ObjectQuery::find_also_version(&*db, bucket.id, &input.path.key, version_id).await?
             }
         }
-        None => ObjectQuery::find_also_latest_version(&*db, bucket.id, &input.path.key)
+        None => ObjectQuery::find_both_latest_version(&*db, bucket.id, &input.path.key)
             .await?
             .map(|(object, version)| (object, Some(version))),
     }
@@ -1587,6 +1945,7 @@ async fn put_object_tagging(
     }
     TagSetMutation::upsert_with_tag(
         &*db,
+        None,
         None,
         Some(version.id),
         input
@@ -1602,6 +1961,53 @@ async fn put_object_tagging(
         .header(
             PutObjectTaggingOutputHeader::builder()
                 .maybe_version_id(bucket.versioning.map(|_| version.id()))
+                .build(),
+        )
+        .build())
+}
+
+#[instrument(skip(db), ret)]
+async fn upload_part(
+    Extension(db): Extension<DbTxn>,
+    input: UploadPartInput,
+) -> AppResult<UploadPartOutput> {
+    let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
+
+    app_ensure_eq!(input.header.checksum_crc32, None);
+    app_ensure_eq!(input.header.checksum_crc32c, None);
+    app_ensure_eq!(input.header.checksum_crc64nvme, None);
+    app_ensure_eq!(input.header.checksum_sha1, None);
+    app_ensure_eq!(input.header.checksum_sha256, None);
+    app_ensure_eq!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.sdk_checksum_algorithm, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_algorithm, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_key, None);
+    app_ensure_eq!(input.header.server_side_encryption_customer_key_md5, None);
+
+    app_validate_owner!(input.header.expected_bucket_owner, owner.name);
+    let upload = BucketQuery::find_also_upload(
+        &*db,
+        owner.id,
+        &input.path.bucket,
+        input.query.upload_id,
+        &input.path.key,
+    )
+    .await?
+    .ok_or(AppError::NoSuchBucket)?
+    .1
+    .ok_or(AppError::NoSuchUpload)?;
+    let part = UploadPartMutation::upsert_with_chunk(
+        &*db,
+        upload.id,
+        input.query.part_number,
+        input.body.into_data_read(),
+    )
+    .await?;
+
+    Ok(UploadPartOutput::builder()
+        .header(
+            UploadPartOutputHeader::builder()
+                .e_tag(part.e_tag())
                 .build(),
         )
         .build())
@@ -1634,8 +2040,8 @@ async fn put_object(
     app_ensure_matches!(input.header.object_lock_legal_hold, None);
     app_ensure_matches!(input.header.object_lock_mode, None);
     app_ensure_eq!(input.header.object_lock_retain_until_date, None);
-    app_ensure_matches!(input.header.request_payer, None);
-    app_ensure_matches!(input.header.sdk_checksum_algorithm, None);
+    app_ensure_eq!(input.header.request_payer, None);
+    app_ensure_eq!(input.header.sdk_checksum_algorithm, None);
     app_ensure_matches!(input.header.server_side_encryption, None);
     app_ensure_eq!(input.header.server_side_encryption_aws_kms_key_id, None);
     app_ensure_eq!(input.header.server_side_encryption_bucket_key_enabled, None);
@@ -1656,27 +2062,21 @@ async fn put_object(
         bucket.id,
         input.path.key,
         bucket.versioning.unwrap_or_default(),
-        input.header.content_type,
-        StreamReader::new(
-            input
-                .body
-                .into_data_stream()
-                .map(|res| res.map_err(|err| io::Error::other(err.into_inner()))),
-        ),
+        input.header.content_type.as_ref(),
+        input.body.into_data_read(),
     )
     .await?;
     if let Some(tagging) = input.header.tagging {
-        let tag_count = tagging.len();
-        if tag_count > 10 {
+        if tagging.len() > 10 {
             Err(AppError::InvalidTag)?;
         }
-        let mut keys = IndexSet::new();
-        keys.extend(tagging.iter().map(|tag| tag.key.clone()));
-        if tag_count != keys.len() {
+        let mut keys = HashSet::new();
+        if !tagging.iter().all(|tag| keys.insert(&tag.key)) {
             Err(AppError::InvalidTag)?;
         }
         TagSetMutation::upsert_with_tag(
             &*db,
+            None,
             None,
             Some(version.id),
             tagging.into_iter().map(|tag| (tag.key, tag.value)),

@@ -22,7 +22,6 @@ pub(crate) type AppResult<T> = Result<T, AppError>;
 #[strum_discriminants(derive(Display))]
 pub(crate) enum AppError {
     AccessDenied,
-    #[allow(dead_code)]
     BadDigest,
     #[allow(dead_code)]
     BucketAlreadyExists,
@@ -35,7 +34,6 @@ pub(crate) enum AppError {
     IncompleteBody,
     #[deprecated]
     InternalError,
-    #[allow(dead_code)]
     InvalidDigest,
     #[allow(dead_code)]
     InvalidObjectState,
@@ -43,7 +41,6 @@ pub(crate) enum AppError {
     #[allow(dead_code)]
     InvalidPartOrder,
     InvalidRange,
-    #[allow(dead_code)]
     InvalidTag,
     #[allow(dead_code)]
     InvalidWriteOffset,
@@ -53,7 +50,6 @@ pub(crate) enum AppError {
     NoSuchBucket,
     NoSuchKey,
     NoSuchTagSet,
-    #[allow(dead_code)]
     NoSuchUpload,
     NoSuchVersion,
     NotImplemented,
