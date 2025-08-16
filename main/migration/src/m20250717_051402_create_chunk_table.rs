@@ -12,7 +12,8 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Chunk::Table)
                     .col(pk_uuid(Chunk::Id))
-                    .col(uuid_null(Chunk::PartId))
+                    .col(uuid_null(Chunk::UploadPartId))
+                    .col(uuid_null(Chunk::VersionPartId))
                     .col(big_unsigned(Chunk::Index))
                     .col(big_unsigned(Chunk::Start))
                     .col(big_unsigned(Chunk::End))
@@ -21,12 +22,29 @@ impl MigrationTrait for Migration {
                         timestamp_with_time_zone(Chunk::CreatedAt)
                             .default(Expr::current_timestamp()),
                     )
+                    .col(timestamp_with_time_zone_null(Chunk::UpdatedAt))
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk_chunk_part")
-                            .from(Chunk::Table, Chunk::PartId)
-                            .to(Part::Table, Part::Id)
+                            .name("fk_chunk_upload_part")
+                            .from(Chunk::Table, Chunk::UploadPartId)
+                            .to(UploadPart::Table, UploadPart::Id)
                             .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_chunk_version_part")
+                            .from(Chunk::Table, Chunk::VersionPartId)
+                            .to(VersionPart::Table, VersionPart::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .check(
+                        Expr::case(Expr::col(Chunk::UploadPartId).is_not_null(), 1)
+                            .finally(0)
+                            .add(
+                                Expr::case(Expr::col(Chunk::VersionPartId).is_not_null(), 1)
+                                    .finally(0),
+                            )
+                            .eq(1),
                     )
                     .to_owned(),
             )
@@ -35,9 +53,19 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_chunk_part_id")
+                    .name("idx_chunk_upload_part_id")
                     .table(Chunk::Table)
-                    .col(Chunk::PartId)
+                    .col(Chunk::UploadPartId)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_chunk_version_part_id")
+                    .table(Chunk::Table)
+                    .col(Chunk::VersionPartId)
                     .to_owned(),
             )
             .await?;
@@ -55,9 +83,10 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_chunk_part_id_index")
+                    .name("idx_chunk_upload_part_id_version_part_id_index")
                     .table(Chunk::Table)
-                    .col(Chunk::PartId)
+                    .col(Chunk::UploadPartId)
+                    .col(Chunk::VersionPartId)
                     .col(Chunk::Index)
                     .unique()
                     .to_owned(),
@@ -76,7 +105,11 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_index(Index::drop().name("idx_chunk_part_id").to_owned())
+            .drop_index(Index::drop().name("idx_chunk_upload_part_id").to_owned())
+            .await?;
+
+        manager
+            .drop_index(Index::drop().name("idx_chunk_version_part_id").to_owned())
             .await?;
 
         manager
@@ -84,7 +117,11 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
-            .drop_index(Index::drop().name("idx_chunk_part_id_index").to_owned())
+            .drop_index(
+                Index::drop()
+                    .name("idx_chunk_upload_part_id_version_part_id_index")
+                    .to_owned(),
+            )
             .await?;
 
         manager
@@ -96,7 +133,13 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum Part {
+enum UploadPart {
+    Table,
+    Id,
+}
+
+#[derive(DeriveIden)]
+enum VersionPart {
     Table,
     Id,
 }
@@ -105,10 +148,12 @@ enum Part {
 enum Chunk {
     Table,
     Id,
-    PartId,
+    UploadPartId,
+    VersionPartId,
     Index,
     Start,
     End,
     Data,
     CreatedAt,
+    UpdatedAt,
 }

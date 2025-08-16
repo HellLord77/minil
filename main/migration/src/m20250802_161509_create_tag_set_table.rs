@@ -13,6 +13,7 @@ impl MigrationTrait for Migration {
                     .table(TagSet::Table)
                     .col(pk_uuid(TagSet::Id))
                     .col(uuid_null(TagSet::BucketId))
+                    .col(uuid_null(TagSet::UploadId))
                     .col(uuid_null(TagSet::VersionId))
                     .col(
                         timestamp_with_time_zone(TagSet::CreatedAt)
@@ -28,20 +29,29 @@ impl MigrationTrait for Migration {
                     )
                     .foreign_key(
                         ForeignKey::create()
+                            .name("fk_tag_set_upload")
+                            .from(TagSet::Table, TagSet::UploadId)
+                            .to(Upload::Table, Upload::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
                             .name("fk_tag_set_version")
                             .from(TagSet::Table, TagSet::VersionId)
                             .to(Version::Table, Version::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .check(
-                        Expr::expr(
-                            Expr::col(TagSet::BucketId)
-                                .is_not_null()
-                                .and(Expr::col(TagSet::VersionId).is_null()),
-                        )
-                        .or(Expr::col(TagSet::BucketId)
-                            .is_null()
-                            .and(Expr::col(TagSet::VersionId).is_not_null())),
+                        Expr::case(Expr::col(TagSet::BucketId).is_not_null(), 1)
+                            .finally(0)
+                            .add(
+                                Expr::case(Expr::col(TagSet::UploadId).is_not_null(), 1).finally(0),
+                            )
+                            .add(
+                                Expr::case(Expr::col(TagSet::VersionId).is_not_null(), 1)
+                                    .finally(0),
+                            )
+                            .eq(1),
                     )
                     .to_owned(),
             )
@@ -60,6 +70,16 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
+                    .name("idx_tag_set_upload_id")
+                    .table(TagSet::Table)
+                    .col(TagSet::UploadId)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
                     .name("idx_tag_set_version_id")
                     .table(TagSet::Table)
                     .col(TagSet::VersionId)
@@ -70,9 +90,10 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("idx_tag_set_bucket_id_version_id")
+                    .name("idx_tag_set_bucket_id_upload_id_version_id")
                     .table(TagSet::Table)
                     .col(TagSet::BucketId)
+                    .col(TagSet::UploadId)
                     .col(TagSet::VersionId)
                     .unique()
                     .to_owned(),
@@ -88,13 +109,17 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
+            .drop_index(Index::drop().name("idx_tag_set_upload_id").to_owned())
+            .await?;
+
+        manager
             .drop_index(Index::drop().name("idx_tag_set_version_id").to_owned())
             .await?;
 
         manager
             .drop_index(
                 Index::drop()
-                    .name("idx_tag_set_bucket_id_version_id")
+                    .name("idx_tag_set_bucket_id_upload_id_version_id")
                     .to_owned(),
             )
             .await?;
@@ -114,6 +139,12 @@ enum Bucket {
 }
 
 #[derive(DeriveIden)]
+enum Upload {
+    Table,
+    Id,
+}
+
+#[derive(DeriveIden)]
 enum Version {
     Table,
     Id,
@@ -124,6 +155,7 @@ enum TagSet {
     Table,
     Id,
     BucketId,
+    UploadId,
     VersionId,
     CreatedAt,
     UpdatedAt,

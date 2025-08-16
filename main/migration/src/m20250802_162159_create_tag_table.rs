@@ -51,11 +51,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        manager
-            .get_connection()
-            .execute_unprepared(include_str!("../sql/m20250802_162159_create_tag_table.sql"))
-            .await?;
-
         Ok(())
     }
 
