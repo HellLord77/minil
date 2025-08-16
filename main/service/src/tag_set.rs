@@ -1,7 +1,5 @@
-use futures::Stream;
 use futures::TryStreamExt;
 use minil_entity::prelude::*;
-use minil_entity::tag;
 use minil_entity::tag_set;
 use sea_orm::prelude::*;
 use sea_orm::*;
@@ -9,13 +7,12 @@ use sea_orm_ext::prelude::*;
 use sea_query::*;
 
 use crate::TagMutation;
-use crate::TagQuery;
 use crate::error::DbRes;
 
 pub struct TagSetQuery;
 
 impl TagSetQuery {
-    async fn find(
+    pub async fn find(
         db: &impl ConnectionTrait,
         bucket_id: Option<Uuid>,
         upload_id: Option<Uuid>,
@@ -27,25 +24,6 @@ impl TagSetQuery {
             .filter(tag_set::Column::VersionId.eq(version_id))
             .one(db)
             .await
-    }
-
-    pub async fn find_with_tag(
-        db: &(impl ConnectionTrait + StreamTrait),
-        bucket_id: Option<Uuid>,
-        upload_id: Option<Uuid>,
-        version_id: Option<Uuid>,
-    ) -> DbRes<Option<(tag_set::Model, impl Stream<Item = DbRes<tag::Model>>)>> {
-        // fixme
-        Ok(
-            match TagSetQuery::find(db, bucket_id, upload_id, version_id).await? {
-                Some(tag_set) => {
-                    let tags = TagQuery::find_many(db, tag_set.id).await?;
-
-                    Some((tag_set, tags))
-                }
-                None => None,
-            },
-        )
     }
 }
 

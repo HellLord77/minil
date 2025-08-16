@@ -29,20 +29,6 @@ use crate::utils::get_mime;
 pub struct ObjectQuery;
 
 impl ObjectQuery {
-    #[deprecated]
-    #[allow(dead_code)]
-    async fn find(
-        db: &impl ConnectionTrait,
-        bucket_id: Uuid,
-        key: &str,
-    ) -> DbRes<Option<object::Model>> {
-        Object::find()
-            .filter(object::Column::BucketId.eq(bucket_id))
-            .filter(object::Column::Key.eq(key))
-            .one(db)
-            .await
-    }
-
     pub async fn find_also_version(
         db: &impl ConnectionTrait,
         bucket_id: Uuid,

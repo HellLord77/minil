@@ -45,7 +45,7 @@ impl BucketQuery {
             .await
     }
 
-    async fn find_also_object(
+    pub async fn find_also_object(
         db: &impl ConnectionTrait,
         owner_id: Uuid,
         name: &str,

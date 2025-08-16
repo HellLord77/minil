@@ -1,8 +1,10 @@
 use mime::Mime;
 
 mod chunk_decoder;
+mod digest_ext;
 
 pub(super) use chunk_decoder::ChunkDecoder;
+pub(super) use digest_ext::DigestExt;
 
 pub(super) fn get_mime(path: &str, bytes: &[u8]) -> Option<Mime> {
     infer::get(bytes)

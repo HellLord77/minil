@@ -23,12 +23,12 @@ use crate::ChunkMutation;
 use crate::InsRes;
 use crate::error::DbRes;
 use crate::utils::ChunkDecoder;
+use crate::utils::DigestExt;
 
 pub struct UploadPartQuery;
 
 impl UploadPartQuery {
-    #[deprecated]
-    async fn find(
+    pub async fn find(
         db: &impl ConnectionTrait,
         upload_id: Uuid,
         number: u16,
@@ -108,7 +108,7 @@ impl UploadPartQuery {
             ),
         >,
     ) -> impl Stream<Item = DbRes<Option<upload_part::Model>>> {
-        // fixme
+        // fixme union
         try_stream! {
             for (number, crc32, crc32_c, crc64_nvme, sha1, sha256, md5) in iter {
                 yield UploadPartQuery::find_filtered(
@@ -136,7 +136,7 @@ impl UploadPartMutation {
             Uuid::new_v4()
         };
 
-        let decode = ChunkDecoder::with_capacity(ByteSize::mib(4).as_u64() as usize);
+        let decode = ChunkDecoder::with_capacity(ByteSize::mib(5).as_u64() as usize);
         let read = FramedRead::new(read, decode)
             .enumerate()
             .map(|(index, chunk)| chunk.map(|chunk| (index as u64, chunk)));
@@ -182,9 +182,9 @@ impl UploadPartMutation {
             upload_id: Set(upload_id),
             number: Set(number as i16),
             size: Set(size as i64),
-            crc32: Set(Box::new(crc32).finalize().to_vec()), // fixme
-            crc32_c: Set(Box::new(crc32_c).finalize().to_vec()), // fixme
-            crc64_nvme: Set(Box::new(crc64_nvme).finalize().to_vec()), // fixme
+            crc32: Set(crc32.finalize_vec()),
+            crc32_c: Set(crc32_c.finalize_vec()),
+            crc64_nvme: Set(crc64_nvme.finalize_vec()),
             sha1: Set(sha1.finalize_fixed().to_vec()),
             sha256: Set(sha256.finalize_fixed().to_vec()),
             md5: Set(md5.finalize_fixed().to_vec()),

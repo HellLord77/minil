@@ -14,45 +14,29 @@ use crate::error::DbRes;
 pub struct UploadQuery;
 
 impl UploadQuery {
-    #[deprecated]
-    #[allow(dead_code)]
-    async fn find(
-        db: &impl ConnectionTrait,
-        id: Uuid,
-        bucket_id: Uuid,
-        key: &str,
-    ) -> DbRes<Option<upload::Model>> {
-        Upload::find()
-            .filter(upload::Column::Id.eq(id))
-            .filter(upload::Column::BucketId.eq(bucket_id))
-            .filter(upload::Column::Key.eq(key))
-            .one(db)
-            .await
-    }
-
     pub async fn find_many(
         db: &(impl ConnectionTrait + StreamTrait),
         bucket_id: Uuid,
         prefix: Option<&str>,
-        key_maker: Option<&str>,
+        key_marker: Option<&str>,
         upload_id_marker: Option<&str>,
         limit: Option<u64>,
     ) -> DbRes<impl Stream<Item = DbRes<upload::Model>>> {
-        let mut query = Upload::find().filter(upload::Column::BucketId.eq(bucket_id));
-        if let Some(prefix) = prefix {
-            query = query.filter(upload::Column::Key.starts_with(prefix));
-        }
-        if let Some(key_marker) = key_maker {
-            if upload_id_marker.is_some() {
-                query = query.filter(upload::Column::Key.gte(key_marker));
-            } else {
-                query = query.filter(upload::Column::Key.gt(key_marker));
-            }
-        }
-        if let Some(upload_id_marker) = upload_id_marker {
-            query = query.filter(upload::Column::Id.gt(upload_id_marker));
-        }
-        query
+        Upload::find()
+            .filter(upload::Column::BucketId.eq(bucket_id))
+            .apply_if(prefix, |query, prefix| {
+                query.filter(upload::Column::Key.eq(prefix))
+            })
+            .apply_if(key_marker, |query, key_marker| {
+                if upload_id_marker.is_some() {
+                    query.filter(upload::Column::Key.gte(key_marker))
+                } else {
+                    query.filter(upload::Column::Key.gt(key_marker))
+                }
+            })
+            .apply_if(upload_id_marker, |query, upload_id_marker| {
+                query.filter(upload::Column::Id.gt(upload_id_marker))
+            })
             .order_by_asc(upload::Column::Key)
             .order_by_asc(upload::Column::Id)
             .limit(limit)

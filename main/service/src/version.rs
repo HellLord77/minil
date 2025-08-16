@@ -1,3 +1,5 @@
+use crc_fast::CrcAlgorithm;
+use crc_fast::checksum_combine;
 use digest::DynDigest;
 use digest::FixedOutput;
 use futures::Stream;
@@ -41,23 +43,22 @@ impl VersionQuery {
         version_id_marker: Option<&str>,
         limit: Option<u64>,
     ) -> DbRes<impl Stream<Item = DbRes<(version::Model, object::Model)>>> {
-        let mut query = Version::find()
+        Version::find()
             .find_both_related(Object)
-            .filter(object::Column::BucketId.eq(bucket_id));
-        if let Some(prefix) = prefix {
-            query = query.filter(object::Column::Key.starts_with(prefix));
-        }
-        if let Some(key_marker) = key_maker {
-            if version_id_marker.is_some() {
-                query = query.filter(object::Column::Key.gte(key_marker));
-            } else {
-                query = query.filter(object::Column::Key.gt(key_marker));
-            }
-        }
-        if let Some(version_id_marker) = version_id_marker {
-            query = query.filter(version::Column::Id.gt(version_id_marker));
-        }
-        query
+            .filter(object::Column::BucketId.eq(bucket_id))
+            .apply_if(prefix, |query, prefix| {
+                query.filter(object::Column::Key.starts_with(prefix))
+            })
+            .apply_if(key_maker, |query, key_marker| {
+                if version_id_marker.is_some() {
+                    query.filter(object::Column::Key.gte(key_marker))
+                } else {
+                    query.filter(object::Column::Key.gt(key_marker))
+                }
+            })
+            .apply_if(version_id_marker, |query, version_id_marker| {
+                query.filter(version::Column::Id.gt(version_id_marker))
+            })
             .order_by_asc(object::Column::Key)
             .order_by_desc(version::Column::CreatedAt)
             .limit(limit)
@@ -199,16 +200,54 @@ impl VersionMutation {
         };
 
         let mut parts_count = 0u16;
-        let mut size = 0u64;
+        let mut size = 0;
+        let mut crc32_digest = 0;
+        let mut crc32_c_digest = 0;
+        let mut crc64_nvme_digest = 0;
+        let mut sha1_digest = None;
+        let mut sha256_digest = None;
+        let mut md5_digest = None;
         let mut e_tag;
         {
             use digest::Digest;
             e_tag = Md5::new();
         }
 
+        let mut iter = iter.peekable();
+        if let Some(part) = iter.peek() {
+            sha1_digest = Some(part.sha1.clone());
+            sha256_digest = Some(part.sha256.clone());
+            md5_digest = Some(part.md5.clone());
+        }
+
         let iter = iter.inspect(|part| {
+            let part_size = part.size as u64;
             parts_count += 1;
-            size += part.size as u64;
+            size += part_size;
+
+            let mut crc32 = vec![0; 4];
+            let mut crc32_c = vec![0; 4];
+            crc32.extend_from_slice(&part.crc32);
+            crc32_c.extend_from_slice(&part.crc32_c);
+            crc32_digest = checksum_combine(
+                CrcAlgorithm::Crc32IsoHdlc,
+                crc32_digest,
+                u64::from_be_bytes(crc32.try_into().unwrap()),
+                part_size,
+            );
+            crc32_c_digest = checksum_combine(
+                CrcAlgorithm::Crc32Iscsi,
+                crc32_c_digest,
+                u64::from_be_bytes(crc32_c.try_into().unwrap()),
+                part_size,
+            );
+            crc64_nvme_digest = checksum_combine(
+                CrcAlgorithm::Crc64Nvme,
+                crc64_nvme_digest,
+                u64::from_be_bytes(part.crc64_nvme.clone().try_into().unwrap()),
+                part_size,
+            );
+
             e_tag.update(&part.md5);
         });
 
@@ -221,16 +260,14 @@ impl VersionMutation {
             parts_count: Set(Some(parts_count as i16)),
             mime: Set(mime.map(ToString::to_string)),
             size: Set(Some(size as i64)),
-            // crc32: Set(None), // fixme
-            // crc32_c: Set(None), // fixme
-            // crc64_nvme: Set(None), // fixme
-            // sha1: Set(None), // fixme
-            // sha256: Set(None), // fixme
-            // md5: Set(None), // fixme
-            e_tag: Set(Some(format!(
-                "\"{}-{parts_count}\"",
-                hex::encode(e_tag.finalize_fixed())
-            ))),
+            crc32: Set(Some(crc32_digest.to_be_bytes()[4..].to_vec())),
+            crc32_c: Set(Some(crc32_c_digest.to_be_bytes()[4..].to_vec())),
+            crc64_nvme: Set(Some(crc64_nvme_digest.to_be_bytes().to_vec())),
+            sha1: Set(sha1_digest.filter(|_| parts_count == 1)), // fixme
+            sha256: Set(sha256_digest.filter(|_| parts_count == 1)), // fixme
+            md5: Set(md5_digest.filter(|_| parts_count == 1)),   // fixme
+            e_tag: Set((parts_count != 1)
+                .then(|| format!("\"{}-{parts_count}\"", hex::encode(e_tag.finalize_fixed())))),
             ..Default::default()
         };
 
