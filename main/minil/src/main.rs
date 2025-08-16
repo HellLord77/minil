@@ -96,7 +96,7 @@ use crate::utils::ServiceBuilderExt as _;
 #[global_allocator]
 static ALLOCATOR: cap::Cap<std::alloc::System> = cap::Cap::new(
     std::alloc::System,
-    bytesize::ByteSize::mib(64).as_u64() as usize,
+    bytesize::ByteSize::mib(100).as_u64() as usize,
 );
 
 const NODE_NAME: &str = "     minil     \0";
@@ -973,7 +973,6 @@ async fn list_objects(
             }
         });
     }
-    let delimiter_is_some = input.query.delimiter.is_some();
     let encode = if let Some(encoding_type) = &input.query.encoding_type {
         match encoding_type {
             EncodingType::Url => |string: String| urlencoding::encode(&string).into_owned(),
@@ -1015,13 +1014,13 @@ async fn list_objects(
                         })
                         .collect(),
                 )
-                .maybe_delimiter(input.query.delimiter.map(encode))
+                .maybe_delimiter(input.query.delimiter.clone().map(encode))
                 .maybe_encoding_type(input.query.encoding_type)
                 .is_truncated(next_marker.is_some())
                 .marker(input.query.marker.map(encode).unwrap_or_default())
                 .max_keys(input.query.max_keys)
                 .name(bucket.name)
-                .maybe_next_marker(next_marker.filter(|_| delimiter_is_some).map(encode))
+                .maybe_next_marker(input.query.delimiter.and_then(|_| next_marker.map(encode)))
                 .prefix(input.query.prefix.map(encode).unwrap_or_default())
                 .build(),
         )
@@ -1357,10 +1356,11 @@ async fn get_object_tagging(
     .ok_or(AppError::NoSuchKey)?
     .1
     .ok_or(AppError::NoSuchVersion)?;
-    let tag_set = TagSetQuery::find_with_tag(&*db, None, None, Some(version.id))
+    let tag_set = TagSetQuery::find(&*db, None, None, Some(version.id))
         .await?
-        .ok_or(AppError::NoSuchTagSet)?
-        .1
+        .ok_or(AppError::NoSuchTagSet)?;
+    let tags = TagQuery::find_many(&*db, tag_set.id)
+        .await?
         .try_collect::<Vec<_>>()
         .await?;
 
@@ -1373,8 +1373,7 @@ async fn get_object_tagging(
         .body(
             GetObjectTaggingOutputBody::builder()
                 .tag_set(
-                    tag_set
-                        .into_iter()
+                    tags.into_iter()
                         .map(|tag| Tag::builder().key(tag.key).value(tag.value).build())
                         .collect::<Vec<_>>(),
                 )
@@ -1390,8 +1389,6 @@ async fn list_parts(
 ) -> AppResult<ListPartsOutput> {
     let owner = OwnerQuery::find(&*db, "minil").await?.unwrap();
 
-    ensure::fixme!();
-    dbg!(&input);
     app_ensure_eq!(input.header.request_payer, None);
     app_ensure_eq!(input.header.server_side_encryption_customer_algorithm, None);
     app_ensure_eq!(input.header.server_side_encryption_customer_key, None);
