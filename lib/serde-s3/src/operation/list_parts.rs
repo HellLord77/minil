@@ -12,7 +12,6 @@ use validator_extra::validate_extra;
 
 use crate::types::ChecksumAlgorithm;
 use crate::types::ChecksumType;
-use crate::types::CommonPrefix;
 use crate::types::Initiator;
 use crate::types::Owner;
 use crate::types::Part;
@@ -20,10 +19,14 @@ use crate::types::RequestCharged;
 use crate::types::RequestPayer;
 use crate::types::StorageClass;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Validate, Deserialize)]
 #[serde(rename_all = "PascalCase")]
+#[serde(validate = "Validate::validate")]
 pub struct ListPartsInputPath {
     pub bucket: String,
+
+    #[validate(length(min = 1))]
+    pub key: String,
 }
 
 #[validate_extra]
@@ -75,13 +78,11 @@ pub struct ListPartsOutputBody {
     #[serde(rename = "@xmlns")]
     pub xmlns: &'static str,
 
-    pub bucket: Option<String>,
+    pub bucket: String,
 
     pub checksum_algorithm: Option<ChecksumAlgorithm>,
 
     pub checksum_type: Option<ChecksumType>,
-
-    pub common_prefixes: Vec<CommonPrefix>,
 
     pub initiator: Option<Initiator>,
 
@@ -91,7 +92,7 @@ pub struct ListPartsOutputBody {
 
     pub max_parts: u16,
 
-    pub next_part_number_marker: Option<String>,
+    pub next_part_number_marker: Option<u16>,
 
     pub owner: Option<Owner>,
 

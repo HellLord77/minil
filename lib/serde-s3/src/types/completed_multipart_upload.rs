@@ -15,5 +15,5 @@ pub struct CompletedMultipartUpload {
     #[serde(rename = "@xmlns")]
     pub xmlns: Option<String>,
 
-    pub parts: Vec<CompletedPart>,
+    pub part: Vec<CompletedPart>,
 }

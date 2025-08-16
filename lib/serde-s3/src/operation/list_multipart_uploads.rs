@@ -39,7 +39,7 @@ pub struct ListMultipartUploadsInputQuery {
     #[validate(length(min = 0, max = 1_024))]
     pub prefix: Option<String>,
 
-    pub upload_id_marker: Option<String>,
+    pub upload_id_marker: Option<String>, // fixme
 }
 
 #[serde_rename_chain(add_prefix = "x_amz_", convert_case = "kebab")]
@@ -80,11 +80,11 @@ pub struct ListMultipartUploadsOutputBody {
 
     pub next_key_marker: String,
 
-    pub next_upload_id_marker: String,
+    pub next_upload_id_marker: String, // fixme
 
     pub prefix: Option<String>,
 
     pub upload: Vec<MultipartUpload>,
 
-    pub upload_id_marker: String,
+    pub upload_id_marker: String, // fixme
 }

@@ -116,9 +116,9 @@ pub struct CompleteMultipartUploadOutputBody {
 
     pub checksum_type: Option<ChecksumType>,
 
-    pub e_tag: String,
+    pub e_tag: Option<String>,
 
     pub key: String,
 
-    pub location: String,
+    pub location: Option<String>,
 }
