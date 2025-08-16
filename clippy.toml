@@ -9,6 +9,8 @@ disallowed-methods = [
     # { path = "sea_query::query::on_conflict::OnConflict::value", replacement = "sea_query::query::on_conflict::OnConflict::values" },
 ]
 
+disallowed-names = ["crc32c", "crc64nvme", "etag"]
+
 disallowed-types = [
     { path = "std::sync::Mutex", replacement = "parking_lot::Mutex" },
 

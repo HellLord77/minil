@@ -9,8 +9,8 @@ use crate::rejection::BothRejection;
 use crate::rejection::BothRejectionError;
 use crate::utils::cloned_request;
 
-#[derive(Debug)]
 #[must_use]
+#[derive(Debug)]
 pub struct Both<L, R>(pub L, pub R);
 
 impl<L, R, S> FromRequest<S> for Both<L, R>

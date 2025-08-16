@@ -9,8 +9,8 @@ use crate::rejection::EitherRejection;
 use crate::rejection::EitherRejectionError;
 use crate::utils::cloned_request;
 
-#[derive(Debug)]
 #[must_use]
+#[derive(Debug)]
 pub enum Either<L, R> {
     Left(L),
     Right(R),
