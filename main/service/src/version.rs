@@ -200,10 +200,10 @@ impl VersionMutation {
         };
 
         let mut parts_count = 0u16;
-        let mut size = 0;
-        let mut crc32_digest = 0;
-        let mut crc32_c_digest = 0;
-        let mut crc64_nvme_digest = 0;
+        let mut size = 0u64;
+        let mut crc32_digest = 0u64;
+        let mut crc32_c_digest = 0u64;
+        let mut crc64_nvme_digest = 0u64;
         let mut sha1_digest = None;
         let mut sha256_digest = None;
         let mut md5_digest = None;
